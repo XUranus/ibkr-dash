@@ -1,39 +1,74 @@
+/* ═══════════════════════════════════════════════════════════════
+   IBKR Dash — Terminal Luxury Theme
+   Bloomberg Terminal × luxury watch interface
+   Deep obsidian base, amber/gold accents, monospace figures
+   ═══════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
+
 :root {
-  font-family: 'IBM Plex Sans', 'SF Pro Display', sans-serif;
-  line-height: 1.5;
+  font-family: 'DM Sans', -apple-system, sans-serif;
+  line-height: 1.55;
   font-weight: 400;
-  color: var(--color-text-primary);
-  background: linear-gradient(180deg, #244a70 0%, #204669 40%, #1c3f61 100%);
   color-scheme: dark;
 
-  --color-bg: #112a42;
-  --color-bg-elevated: rgba(18, 39, 64, 0.9);
-  --color-bg-panel: rgba(20, 43, 70, 0.84);
-  --color-bg-panel-strong: rgba(27, 54, 84, 0.9);
-  --color-bg-muted: rgba(24, 47, 76, 0.76);
-  --color-border: rgba(150, 197, 227, 0.16);
-  --color-border-strong: rgba(94, 180, 230, 0.28);
-  --color-text-primary: #e6eefc;
-  --color-text-secondary: #adc0df;
-  --color-text-muted: #7f96b8;
-  --color-accent: #3ea9ff;
-  --color-accent-soft: rgba(62, 169, 255, 0.18);
-  --color-accent-strong: #56d5ff;
-  --color-positive: #34d2a3;
-  --color-positive-soft: rgba(52, 210, 163, 0.14);
-  --color-negative: #ff6b7d;
-  --color-negative-soft: rgba(255, 107, 125, 0.14);
-  --color-warning: #ffb454;
-  --color-surface-glow: 0 0 0 1px rgba(86, 213, 255, 0.04), 0 18px 40px rgba(7, 22, 42, 0.28);
-  --radius-sm: 10px;
-  --radius-md: 16px;
-  --radius-lg: 22px;
-  --radius-xl: 28px;
-  --space-1: 0.35rem;
-  --space-2: 0.6rem;
-  --space-3: 0.9rem;
-  --space-4: 1.2rem;
-  --space-5: 1.6rem;
+  /* ── Surface palette ── */
+  --color-bg:              #080b12;
+  --color-bg-elevated:     rgba(12, 16, 28, 0.96);
+  --color-bg-panel:        rgba(14, 18, 32, 0.92);
+  --color-bg-panel-strong: rgba(18, 24, 42, 0.96);
+  --color-bg-muted:        rgba(20, 26, 44, 0.72);
+  --color-bg-glass:        rgba(18, 24, 42, 0.56);
+
+  /* ── Borders ── */
+  --color-border:        rgba(255, 191, 80, 0.08);
+  --color-border-strong: rgba(255, 191, 80, 0.18);
+  --color-border-subtle: rgba(255, 255, 255, 0.04);
+
+  /* ── Text ── */
+  --color-text-primary:   #e8e4dc;
+  --color-text-secondary: #8a8d9e;
+  --color-text-muted:     #5a5d6e;
+  --color-text-bright:    #fff8ef;
+
+  /* ── Accent — amber/gold ── */
+  --color-accent:       #d4a843;
+  --color-accent-soft:  rgba(212, 168, 67, 0.12);
+  --color-accent-strong:#f0c55e;
+  --color-accent-glow:  rgba(212, 168, 67, 0.06);
+
+  /* ── Semantic ── */
+  --color-positive:      #3dd68c;
+  --color-positive-soft: rgba(61, 214, 140, 0.10);
+  --color-negative:      #f25c5c;
+  --color-negative-soft: rgba(242, 92, 92, 0.10);
+  --color-warning:       #f0a030;
+
+  /* ── Shadows ── */
+  --shadow-panel:    0 1px 0 rgba(255,191,80,0.04), 0 8px 32px rgba(0,0,0,0.35);
+  --shadow-card:     0 1px 0 rgba(255,191,80,0.03), 0 4px 20px rgba(0,0,0,0.25);
+  --shadow-elevated: 0 12px 48px rgba(0,0,0,0.5), 0 1px 0 rgba(255,191,80,0.06);
+  --shadow-glow:     0 0 30px rgba(212,168,67,0.06);
+
+  /* ── Radii ── */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  /* ── Spacing scale ── */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
   --space-6: 2rem;
-  --space-7: 2.8rem;
+  --space-7: 3rem;
+
+  /* ── Typography ── */
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', monospace;
+  --font-body: 'DM Sans', -apple-system, sans-serif;
+
+  /* ── Grain overlay (subtle noise texture) ── */
+  --grain: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
 }

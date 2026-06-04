@@ -428,7 +428,7 @@ export default function AdminLlmView() {
                 <label className="field-stack"><span className="field-stack__label">Output Token Limit</span><input className="input" type="number" min={1} step={100} value={form.output_token_limit} onChange={(e) => updateForm('output_token_limit', Number(e.target.value))} /></label>
                 <label className="field-stack"><span className="field-stack__label">Timeout (seconds)</span><input className="input" type="number" min={1} max={300} value={form.timeout_seconds} onChange={(e) => updateForm('timeout_seconds', Number(e.target.value))} /></label>
                 <p style={{ gridColumn: '1 / -1', margin: 0, color: 'var(--color-text-secondary)', fontSize: '0.88rem', lineHeight: 1.6 }}>
-                  Output token limit is sent as max_tokens to the model. Input token limit controls the system's tool result and evidence pack size. Context window must be >= input + output.
+                  Output token limit is sent as max_tokens to the model. Input token limit controls the system&apos;s tool result and evidence pack size. Context window must be &gt;= input + output.
                 </p>
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: 10, alignSelf: 'end', color: 'var(--color-text-secondary)' }}>
                   <input type="checkbox" checked={form.enabled} onChange={(e) => updateForm('enabled', e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--color-accent)' }} /><span>Enabled</span>

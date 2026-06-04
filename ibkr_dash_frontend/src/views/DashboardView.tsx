@@ -80,9 +80,10 @@ export default function DashboardView() {
         <ErrorBlock message={pageError} />
       ) : (
         <>
-          <section className="surface-panel" style={{ marginBottom: 'var(--space-5)' }}>
+          {/* Stat cards with staggered reveal */}
+          <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease' }}>
             <div className="surface-panel__content">
-              <section className="stats-grid">
+              <section className="stats-grid stagger-reveal">
                 {statCards.map((card) => (
                   <StatCard
                     key={card.title}
@@ -99,15 +100,22 @@ export default function DashboardView() {
             </div>
           </section>
 
-          <EquityCurveSimple
-            items={curveItems}
-            loading={curveLoading}
-            errorMessage={curveError}
-            rangeOptions={EQUITY_CURVE_RANGE_OPTIONS}
-            selectedRange={selectedRange}
-            onSelectRange={setCurveRange}
-          />
-          <PerformanceCalendar latestReportDate={overview?.report_date ?? null} />
+          {/* Equity curve */}
+          <div style={{ animation: 'slideUp 0.5s ease 0.15s both' }}>
+            <EquityCurveSimple
+              items={curveItems}
+              loading={curveLoading}
+              errorMessage={curveError}
+              rangeOptions={EQUITY_CURVE_RANGE_OPTIONS}
+              selectedRange={selectedRange}
+              onSelectRange={setCurveRange}
+            />
+          </div>
+
+          {/* Performance calendar */}
+          <div style={{ animation: 'slideUp 0.5s ease 0.3s both' }}>
+            <PerformanceCalendar latestReportDate={overview?.report_date ?? null} />
+          </div>
         </>
       )}
     </section>

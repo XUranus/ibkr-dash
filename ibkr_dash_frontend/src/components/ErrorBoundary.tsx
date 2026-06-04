@@ -36,28 +36,40 @@ export default class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div
-          style={{
-            display: 'grid',
-            placeItems: 'center',
-            minHeight: '40vh',
-            padding: '2rem',
-            textAlign: 'center',
-            color: '#e2e8f0',
-          }}
-        >
-          <div style={{ maxWidth: 480 }}>
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '0.75rem' }}>
+        <div style={{
+          display: 'grid',
+          placeItems: 'center',
+          minHeight: '40vh',
+          padding: '2rem',
+          textAlign: 'center',
+          animation: 'slideUp 0.4s ease',
+        }}>
+          <div style={{ maxWidth: 440 }}>
+            {/* Amber accent line */}
+            <div style={{
+              width: 40,
+              height: 2,
+              background: 'var(--color-accent)',
+              margin: '0 auto 1.5rem',
+              borderRadius: 1,
+            }} />
+            <h2 style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '1.2rem',
+              fontWeight: 600,
+              marginBottom: '0.75rem',
+              color: 'var(--color-text-bright)',
+              letterSpacing: '-0.02em',
+            }}>
               Something went wrong
             </h2>
-            <p
-              style={{
-                color: '#94a3b8',
-                fontSize: '0.95rem',
-                lineHeight: 1.6,
-                marginBottom: '1.5rem',
-              }}
-            >
+            <p style={{
+              color: 'var(--color-text-muted)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.82rem',
+              lineHeight: 1.6,
+              marginBottom: '1.5rem',
+            }}>
               {this.state.error?.message || 'An unexpected error occurred while rendering this page.'}
             </p>
             <button
