@@ -1,0 +1,64 @@
+BOF
+BOA,QueryName,Daily Snapshot,FromDate,2026-04-17,ToDate,2026-04-18
+BOS,ACCT
+HEADER,AccountId,FromDate,ToDate,BaseCurrency
+DATA,U1234567,2026-04-17,2026-04-18,USD
+EOS
+BOS,EQUT
+HEADER,TotalEquity,Cash,StockValue,OptionsValue,FundsValue,CryptoValue,InterestAccruals,DividendAccruals,MarginFinancingChargeAccruals,Currency
+DATA,100000,20000,75000,3000,1000,500,10,5,2,USD
+EOS
+BOS,CNAV
+HEADER,StartingValue,EndingValue,MTM,Realized,ChangeInUnrealized,Dividends,Interest,Commissions,BrokerFees,NetFXTrading,TWR
+DATA,95000,100000,1200,300,450,80,20,15,7,5,0.052
+EOS
+BOS,CRTT
+HEADER,DividendsMTD,DividendsYTD,BrokerInterestMTD,BrokerInterestYTD,CommissionsMTD,CommissionsYTD,StartingCash,EndingCash
+DATA,80,360,10,55,12,98,15000,20000
+EOS
+BOS,FIFO
+HEADER,Conid,Symbol,AssetClass,RealizedPNL,UnrealizedPNL,TotalPNL
+DATA,265598,AAPL,STK,120.5,80.25,200.75
+DATA,272093,MSFT,STK,90,45,135
+EOS
+BOS,MYTD
+HEADER,Conid,Symbol,AssetClass,RealizedPNLMTD,RealizedPNLYTD,MarkToMarketMTD,MarkToMarketYTD
+DATA,265598,AAPL,STK,150,800,250,1200
+DATA,272093,MSFT,STK,110,600,150,950
+EOS
+BOS,POST
+HEADER,AccountId,Currency,AssetClass,SubCategory,Symbol,Description,Conid,Quantity,MarkPrice,PositionValue,OpenPrice,CostBasisPrice,CostBasisMoney,PercentOfNAV
+DATA,U1234567,USD,STK,TECH,AAPL,Apple Inc.,265598,100,190,19000,180,175,17500,19
+DATA,U1234567,USD,STK,TECH,MSFT,Microsoft Corp.,272093,50,420,21000,400,395,19750,21
+EOS
+BOS,PPPO
+HEADER,ClientAccountID,AssetClass,Symbol,Conid,Date,Price,PriorMtmPnl
+DATA,U1234567,STK,AAPL,265598,2026-04-17,185,0
+DATA,U1234567,STK,AAPL,265598,2026-04-18,190,500
+DATA,U1234567,STK,MSFT,272093,2026-04-17,415,0
+DATA,U1234567,STK,MSFT,272093,2026-04-18,420,250
+EOS
+BOS,NETP
+HEADER,Conid,Symbol,AssetClass,SharesAtIB,SharesBorrowed,SharesLent,NetShares
+DATA,265598,AAPL,STK,100,0,0,100
+DATA,272093,MSFT,STK,50,0,0,50
+EOS
+BOS,SECU
+HEADER,Conid,Symbol,AssetClass,SecurityID,SecurityIDType,ISIN,FIGI,ListingExchange,Issuer,IssuerCountryCode,Description
+DATA,265598,AAPL,STK,037833100,CUSIP,US0378331005,BBG000B9XRY4,NASDAQ,Apple,US,Apple Inc.
+DATA,272093,MSFT,STK,594918104,CUSIP,US5949181045,BBG000BPH459,NASDAQ,Microsoft,US,Microsoft Corp.
+EOS
+BOS,TRNT
+HEADER,AccountId,Currency,AssetClass,SubCategory,Symbol,Description,Conid,TradeID,RelatedTradeID,TradeDate,Date/Time,SettleDateTarget,TransactionType,Exchange,Quantity,TradePrice,TradeMoney,Proceeds,Taxes,IBCommission,IBCommissionCurrency,NetCash,ClosePrice,OpenCloseIndicator,NotesCodes,CostBasis,FIFOPNLRealized,MTMPNL,OrigTradePrice,OrigTradeDate,OrigTradeID,OrigOrderID,OrigTransactionID,Buy/Sell,IBOrderID,TransactionID,IBExecID,RelatedTransactionID,BrokerageOrderID,OrderReference,ExchOrderID,ExtExecID,OrderTime,OpenDateTime,HoldingPeriodDateTime,WhenRealized,WhenReopened,OrderType,TraderID,IsAPIOrder,AccruedInterest,InitialInvestment
+DATA,U1234567,USD,STK,TECH,AAPL,Apple Inc.,265598,T1,,2026-04-18,2026-04-18 09:35:00,2026-04-20,TRADE,NASDAQ,10,190,1900,1900,0,1.2,USD,-1901.2,191,C,,1750,150,50,189,2026-01-10,OT1,OO1,OTX1,BUY,IBO1,TX1,EXEC1,,BROKER1,REF1,EXCH1,EXT1,2026-04-18 09:34:55,2026-04-18 09:35:00,2026-04-18 09:35:00,2026-04-18 09:35:00,,LMT,trader_a,true,0,1900
+EOS
+BOS,CTRN
+HEADER,ClientAccountID,CurrencyPrimary,FXRateToBase,Description,Date/Time,SettleDate,AvailableForTradingDate,Amount,Type,TransactionID,ReportDate,ClientReference,ActionID,LevelOfDetail
+DATA,U1234567,USD,1,CASH RECEIPTS / ELECTRONIC FUND TRANSFERS,2026-04-18 12:00:00,2026-04-18,2026-04-18,5000,Deposits/Withdrawals,CF1,2026-04-18,,,DETAIL
+DATA,U1234567,USD,1,AAPL CASH DIVIDEND,2026-04-18 16:00:00,2026-04-18,2026-04-18,12.5,Ordinary Dividend,CF2,2026-04-18,,,DETAIL
+EOS
+BOS,UNBC
+HEADER,TradeID,TotalCommission,BrokerExecutionCharge,BrokerClearingCharge,ThirdPartyExecutionCharge,ThirdPartyClearingCharge,ThirdPartyRegulatoryCharge,RegFINRATradingActivityFee,RegSection31TransactionFee,RegOther,Other
+DATA,T1,1.2,0.3,0.2,0.1,0.1,0.2,0.05,0.04,0.01,0.2
+EOS
+EOA

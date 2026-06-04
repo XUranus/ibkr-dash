@@ -1,0 +1,39 @@
+:root {
+  font-family: 'IBM Plex Sans', 'SF Pro Display', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--color-text-primary);
+  background: linear-gradient(180deg, #244a70 0%, #204669 40%, #1c3f61 100%);
+  color-scheme: dark;
+
+  --color-bg: #112a42;
+  --color-bg-elevated: rgba(18, 39, 64, 0.9);
+  --color-bg-panel: rgba(20, 43, 70, 0.84);
+  --color-bg-panel-strong: rgba(27, 54, 84, 0.9);
+  --color-bg-muted: rgba(24, 47, 76, 0.76);
+  --color-border: rgba(150, 197, 227, 0.16);
+  --color-border-strong: rgba(94, 180, 230, 0.28);
+  --color-text-primary: #e6eefc;
+  --color-text-secondary: #adc0df;
+  --color-text-muted: #7f96b8;
+  --color-accent: #3ea9ff;
+  --color-accent-soft: rgba(62, 169, 255, 0.18);
+  --color-accent-strong: #56d5ff;
+  --color-positive: #34d2a3;
+  --color-positive-soft: rgba(52, 210, 163, 0.14);
+  --color-negative: #ff6b7d;
+  --color-negative-soft: rgba(255, 107, 125, 0.14);
+  --color-warning: #ffb454;
+  --color-surface-glow: 0 0 0 1px rgba(86, 213, 255, 0.04), 0 18px 40px rgba(7, 22, 42, 0.28);
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
+  --space-1: 0.35rem;
+  --space-2: 0.6rem;
+  --space-3: 0.9rem;
+  --space-4: 1.2rem;
+  --space-5: 1.6rem;
+  --space-6: 2rem;
+  --space-7: 2.8rem;
+}

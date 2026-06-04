@@ -1,0 +1,134 @@
+"""Lightweight LLM client wrapper using an OpenAI-compatible API.
+
+Uses httpx to call any OpenAI-compatible chat completions endpoint.
+No Redis, no external storage -- just a thin HTTP client.
+"""
+
+from __future__ import annotations
+
+import logging
+import time
+from typing import Any
+
+import httpx
+
+from app.core.config import Settings
+
+logger = logging.getLogger(__name__)
+
+
+class LLMClientError(RuntimeError):
+    """Raised when an LLM provider call fails."""
+
+    def __init__(self, error_code: str, message: str) -> None:
+        super().__init__(message)
+        self.error_code = error_code
+        self.message = message
+
+
+class LLMService:
+    """Simple wrapper around an OpenAI-compatible chat completions endpoint."""
+
+    def __init__(self, settings: Settings) -> None:
+        self.base_url = settings.llm_base_url.rstrip("/")
+        self.api_key = settings.llm_api_key
+        self.default_model = settings.llm_default_model
+        self.temperature = settings.llm_temperature
+        self.max_tokens = settings.llm_max_tokens
+        self.timeout = 60.0
+
+    def chat(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        response_format: dict | None = None,
+    ) -> str:
+        """Send a chat completion request and return the assistant content."""
+        result = self.chat_with_metadata(
+            messages,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            response_format=response_format,
+        )
+        return str(result.get("content") or "")
+
+    def chat_with_metadata(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        response_format: dict | None = None,
+    ) -> dict[str, Any]:
+        """Send a chat completion request and return the full response dict.
+
+        Returns a dict with keys: content, usage, latency_ms.
+        """
+        payload: dict[str, Any] = {
+            "model": model or self.default_model,
+            "messages": messages,
+            "temperature": temperature if temperature is not None else self.temperature,
+            "max_tokens": max_tokens if max_tokens is not None else self.max_tokens,
+        }
+        if response_format is not None:
+            payload["response_format"] = response_format
+
+        url = f"{self.base_url}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+
+        started = time.perf_counter()
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.post(url, headers=headers, json=payload)
+        except httpx.TimeoutException as exc:
+            raise LLMClientError("TIMEOUT", "LLM provider request timed out") from exc
+        except httpx.HTTPError as exc:
+            raise LLMClientError("PROVIDER_ERROR", "Failed to call LLM provider") from exc
+
+        latency_ms = int((time.perf_counter() - started) * 1000)
+
+        if response.status_code in {401, 403}:
+            raise LLMClientError("AUTH_FAILED", "LLM provider authentication failed")
+        if response.status_code == 429:
+            raise LLMClientError("RATE_LIMITED", "LLM provider rate limit exceeded")
+        if response.status_code >= 400:
+            detail = ""
+            try:
+                err = response.json()
+                detail = err.get("error", {}).get("message", "") if isinstance(err, dict) else ""
+            except ValueError:
+                detail = response.text[:200]
+            raise LLMClientError(
+                "PROVIDER_ERROR",
+                f"LLM provider error ({response.status_code}): {detail}",
+            )
+
+        try:
+            data = response.json()
+        except ValueError as exc:
+            raise LLMClientError("PROVIDER_ERROR", "LLM provider returned invalid JSON") from exc
+
+        try:
+            content = data["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise LLMClientError("PROVIDER_ERROR", "Unexpected response structure") from exc
+
+        usage = data.get("usage") or {}
+
+        return {
+            "content": content,
+            "usage": {
+                "prompt_tokens": usage.get("prompt_tokens", 0),
+                "completion_tokens": usage.get("completion_tokens", 0),
+                "total_tokens": usage.get("total_tokens", 0),
+            },
+            "latency_ms": latency_ms,
+        }
