@@ -21,9 +21,11 @@ env/
 *.swo
 *~
 
-# Environment
+# Environment (sensitive credentials)
 .env
 .env.local
+ibkr_dash_backend/.env
+ibkr_dash_worker/.env
 
 # Data
 data/

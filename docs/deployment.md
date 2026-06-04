@@ -2,216 +2,213 @@
 
 This guide covers deploying IBKR Dash using Docker or running it directly on a server.
 
-## Quick Start with Docker
+## Quick Start (Local Development)
 
-The recommended way to deploy IBKR Dash is using Docker Compose.
+### Prerequisites
+
+- Python 3.11+
+- Node.js 18+
+- An IBKR Flex Query Token (for data import)
+- (Optional) An OpenAI-compatible API key (for AI features)
+
+### Step 1: Clone and configure
+
+```bash
+cd /path/to/ibkr-dash
+
+# Backend config
+cp ibkr_dash_backend/.env.example ibkr_dash_backend/.env
+# Edit ibkr_dash_backend/.env with your LLM API key and auth password
+
+# Worker config
+cp ibkr_dash_worker/.env.example ibkr_dash_worker/.env
+# Edit ibkr_dash_worker/.env with your IBKR Flex token
+```
+
+### Step 2: Start Backend
+
+```bash
+cd ibkr_dash_backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+### Step 3: Start Frontend
+
+```bash
+cd ibkr_dash_frontend
+npm install
+npm run dev
+```
+
+### Step 4: Import Data
+
+```bash
+cd ibkr_dash_worker
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# Import a Flex CSV file
+python -m worker.main import ../data/flex_exports/your_file.csv
+
+# Or import sample data for testing
+python -m worker.main import worker/fixtures/daily_sample.csv
+```
+
+### Step 5: Access
+
+- Frontend: http://localhost:5173
+- API Docs: http://localhost:8000/docs
+- Login: `admin` / your-password
+
+## Docker Deployment
 
 ### Prerequisites
 
 - Docker Engine 20.10+
 - Docker Compose v2+
-- An IBKR Flex Query Token (for data import)
-- (Optional) An OpenAI-compatible API key (for AI features)
 
 ### Steps
 
-1. **Clone the repository**:
+1. **Create environment files**:
 
    ```bash
-   git clone https://github.com/your-org/ibkr-dash.git
-   cd ibkr-dash
+   # Backend
+   cp ibkr_dash_backend/.env.example ibkr_dash_backend/.env
+   # Edit with your settings
+
+   # Worker
+   cp ibkr_dash_worker/.env.example ibkr_dash_worker/.env
+   # Edit with your settings
    ```
 
-2. **Create your environment file**:
-
-   ```bash
-   cp ibkr_dash_worker/.env.example .env
-   ```
-
-   Edit `.env` and fill in your values:
-
-   ```env
-   # Required for data import
-   FLEX_TOKEN=your-ibkr-flex-token
-   FLEX_QUERY_ID_DAILY=your-query-id
-
-   # Required for AI features (optional)
-   LLM_API_KEY=your-openai-api-key
-
-   # Authentication
-   AUTH_PASSWORD=your-secure-password
-
-   # Internal token for worker-backend communication
-   DAILY_REVIEW_INTERNAL_TOKEN=a-random-secret-string
-   ```
-
-3. **Build and start**:
+2. **Build and start**:
 
    ```bash
    docker compose up -d --build
    ```
 
-4. **Verify**:
+3. **Access**: http://localhost:8080
+
+4. **Import data** (inside the worker container):
 
    ```bash
-   curl http://localhost:8080/health
+   docker compose exec worker python -m worker.main import worker/fixtures/daily_sample.csv
    ```
 
-5. **Access the dashboard**: Open `http://localhost:8080` in your browser.
+## Configuration Reference
 
-### Docker Architecture
+### Backend (`ibkr_dash_backend/.env`)
 
-```
-                    +------------------+
-                    |   nginx (frontend)|
-                    |   Port 8080      |
-                    +--------+---------+
-                             |
-                    +--------+---------+
-                    |   backend        |
-                    |   Port 8000      |
-                    |   (FastAPI)      |
-                    +--------+---------+
-                             |
-                    +--------+---------+
-                    |   SQLite         |
-                    |   (data volume)  |
-                    +------------------+
-```
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `APP_ENV` | `development` | Environment name |
+| `DEBUG` | `true` | Debug mode |
+| `SQLITE_PATH` | `data/ibkr_dash.db` | SQLite database path |
+| `CACHE_TTL_SECONDS` | `86400` | Cache TTL (24h) |
+| `LLM_API_KEY` | (empty) | OpenAI-compatible API key |
+| `LLM_BASE_URL` | `https://api.openai.com/v1` | LLM endpoint |
+| `LLM_DEFAULT_MODEL` | `gpt-4o` | Model name |
+| `LLM_TEMPERATURE` | `0.1` | Temperature |
+| `LLM_MAX_TOKENS` | `4096` | Max tokens |
+| `AUTH_USERNAME` | `admin` | Login username |
+| `AUTH_PASSWORD` | (empty) | Login password (empty = no auth) |
+| `CORS_ORIGINS` | `http://localhost:5173` | CORS origins |
 
-- **frontend**: React SPA served by nginx, proxies `/api/` to the backend.
-- **backend**: FastAPI application with SQLite storage.
-- **worker-init**: One-shot container that runs the initial data import.
+### Worker (`ibkr_dash_worker/.env`)
 
-### Data Volumes
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SQLITE_PATH` | `data/ibkr_dash.db` | SQLite path (shared with backend) |
+| `DATA_DIR` | `data/flex_exports` | CSV import directory |
+| `SCHEDULER_ENABLED` | `true` | Enable scheduler |
+| `SCHEDULER_HOUR` | `12` | Daily import hour |
+| `SCHEDULER_MINUTE` | `30` | Daily import minute |
+| `SCHEDULER_TIMEZONE` | `Asia/Shanghai` | Timezone |
+| `FLEX_TOKEN` | (empty) | IBKR Flex Web Service token |
+| `FLEX_QUERY_ID_DAILY` | (empty) | Daily query ID |
+| `BACKEND_BASE_URL` | `http://localhost:8000` | Backend URL |
 
-The SQLite database is stored in a Docker volume. To persist data across container rebuilds:
+### Supported LLM Providers
 
-```yaml
-volumes:
-  ibkr-data:
-    driver: local
-```
+| Provider | Base URL | Model Examples |
+|----------|----------|----------------|
+| OpenAI | `https://api.openai.com/v1` | `gpt-4o`, `gpt-4o-mini` |
+| Xiaomi MiMo | `https://token-plan-cn.xiaomimimo.com/v1` | `mimo-v2.5`, `mimo-v2.5-pro` |
+| DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat`, `deepseek-reasoner` |
+| Anthropic (via proxy) | Your proxy URL | `claude-sonnet-4-20250514` |
 
-### Reverse Proxy Configuration
+## Data Import
 
-If deploying behind a reverse proxy (nginx, Caddy, etc.), ensure:
+### IBKR Flex Query Setup
 
-- WebSocket support for real-time features (if applicable)
-- Sufficient `client_max_body_size` (100MB recommended for large imports)
-- Proper `X-Forwarded-For` and `X-Forwarded-Proto` headers
-- Health check endpoint at `/health`
+1. Log in to IBKR Account Management
+2. Go to Settings > Flex Web Service
+3. Generate a Flex Web Service token
+4. Create a Flex Query with the data you want (positions, trades, cash flows)
+5. Note the Query ID
+6. Configure `FLEX_TOKEN` and `FLEX_QUERY_ID_DAILY` in the worker `.env`
 
-## Manual Deployment
+### Manual CSV Import
 
-### Prerequisites
-
-- Python 3.11+
-- Node.js 18+ (for frontend build)
-- SQLite 3.35+
-
-### Backend
-
-```bash
-cd ibkr_dash_backend
-pip install -r requirements.txt
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
-### Worker
+Export a CSV from IBKR Flex Query and import it:
 
 ```bash
 cd ibkr_dash_worker
-pip install -r requirements.txt
-# Run a one-time import
-python -m worker.cli import-latest
-# Run the scheduler
-python -m worker.cli scheduler
+python -m worker.main import /path/to/your/flex_export.csv
 ```
 
-### Frontend
+### Automatic Import
+
+Configure the scheduler in the worker `.env`:
+
+```env
+SCHEDULER_ENABLED=true
+SCHEDULER_HOUR=12
+SCHEDULER_MINUTE=30
+SCHEDULER_TIMEZONE=Asia/Shanghai
+FLEX_TOKEN=your-token
+FLEX_QUERY_ID_DAILY=your-query-id
+```
+
+Then run the scheduler:
 
 ```bash
-cd ibkr_dash_frontend
-npm install
-npm run build
-# Serve the dist/ directory with any static file server
+python -m worker.main run-scheduler
 ```
-
-## Environment Variables
-
-### Backend
-
-| Variable | Default | Description |
-|---|---|---|
-| `APP_ENV` | `development` | Environment name |
-| `SQLITE_PATH` | `data/ibkr_dash.db` | Path to SQLite database |
-| `AUTH_USERNAME` | `admin` | Login username |
-| `AUTH_PASSWORD` | (empty) | Login password |
-| `AUTH_SESSION_SECRET` | (random) | Session signing key |
-| `LLM_API_KEY` | (empty) | OpenAI-compatible API key |
-| `LLM_BASE_URL` | `https://api.openai.com/v1` | LLM endpoint |
-| `LLM_DEFAULT_MODEL` | `gpt-4o` | Default model |
-| `CORS_ORIGINS` | `http://localhost:5173` | Allowed CORS origins |
-
-### Worker
-
-| Variable | Default | Description |
-|---|---|---|
-| `FLEX_TOKEN` | (empty) | IBKR Flex Web Service token |
-| `FLEX_QUERY_ID_DAILY` | (empty) | Daily snapshot query ID |
-| `FLEX_BASE_URL` | IBKR Flex URL | Flex API base URL |
-| `SCHEDULER_ENABLED` | `true` | Enable automatic scheduling |
-| `SCHEDULER_HOUR` | `12` | Hour to run daily import |
-| `SCHEDULER_MINUTE` | `30` | Minute to run daily import |
-| `SCHEDULER_TIMEZONE` | `Asia/Shanghai` | Scheduler timezone |
-| `BACKEND_BASE_URL` | `http://localhost:8000` | Backend API URL |
 
 ## Backups
 
-The SQLite database can be backed up by copying the database file:
+The SQLite database can be backed up by copying the file:
 
 ```bash
-# Stop the backend first to ensure consistency
-cp data/ibkr_dash.db data/ibkr_dash_backup_$(date +%Y%m%d).db
+cp data/ibkr_dash.db data/backup_$(date +%Y%m%d).db
 ```
 
-For live backups, use SQLite's backup API:
+For live backups:
 
 ```bash
 sqlite3 data/ibkr_dash.db ".backup 'data/backup.db'"
 ```
 
-## Monitoring
-
-Health check endpoint: `GET /api/health`
-
-Returns JSON with service status:
-
-```json
-{
-  "status": "healthy",
-  "version": "1.0.0",
-  "database": "connected"
-}
-```
-
 ## Troubleshooting
 
-### Worker cannot connect to IBKR
+### No data showing in dashboard
 
-- Verify `FLEX_TOKEN` is set correctly
-- Check that `FLEX_QUERY_ID_DAILY` matches your IBKR Flex Query configuration
-- Ensure the server can reach `interactivebrokers.com`
+- Import data first (see Data Import section above)
+- Check that the backend is running: `curl http://localhost:8000/api/health`
+- Check that the SQLite database has data: `sqlite3 data/ibkr_dash.db "SELECT COUNT(*) FROM account_snapshots"`
 
-### Frontend shows no data
+### LLM not configured
 
-- Check that the worker has run at least one import
-- Verify the backend is running and accessible
-- Check browser console for API errors
+- Set `LLM_API_KEY` in `ibkr_dash_backend/.env`
+- Restart the backend
+- Test: `curl -X POST http://localhost:8000/api/admin/llm/test -H "Content-Type: application/json" -d '{"message":"Hello"}'`
 
-### AI features not working
+### Login not working
 
-- Verify `LLM_API_KEY` is set
-- Check `LLM_BASE_URL` is reachable
-- Review backend logs for LLM provider errors
+- Check `AUTH_PASSWORD` is set in `ibkr_dash_backend/.env`
+- If `AUTH_PASSWORD` is empty, login is disabled (open access)
