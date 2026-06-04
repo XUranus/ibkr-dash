@@ -6,7 +6,6 @@ fetching reviews by ID, and health checks.
 
 from __future__ import annotations
 
-import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -23,6 +22,7 @@ from app.schemas.trade_review import (
 )
 from app.services.agent_services import AgentTaskService
 from app.services.llm_service import LLMService
+from app.utils.json_fields import parse_json_fields
 
 router = APIRouter(prefix="/trade-review", tags=["trade-review-agent"])
 AGENT_NAME = "trade_review"
@@ -31,74 +31,30 @@ logger = logging.getLogger(__name__)
 
 def _row_to_response(row: dict) -> TradeReviewResponse:
     """Convert a database row to a TradeReviewResponse."""
-    review_output = row.get("review_output")
-    if isinstance(review_output, str):
-        try:
-            review_output = json.loads(review_output)
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-    metadata = row.get("metadata")
-    if isinstance(metadata, str):
-        try:
-            metadata = json.loads(metadata)
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-    evidence_summary = row.get("evidence_summary")
-    if isinstance(evidence_summary, str):
-        try:
-            evidence_summary = json.loads(evidence_summary)
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-    run_trace = row.get("run_trace")
-    if isinstance(run_trace, str):
-        try:
-            run_trace = json.loads(run_trace)
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-    return TradeReviewResponse(
-        id=row["id"],
-        review_type=row["review_type"],
-        symbol=row.get("symbol"),
-        trade_id=row.get("trade_id"),
-        review_output=review_output,
-        metadata=metadata,
-        evidence_summary=evidence_summary,
-        run_trace=run_trace,
-        created_at=row.get("created_at"),
-    )
+    row = parse_json_fields(row, ["review_output", "metadata", "evidence_summary", "run_trace"])
+    return TradeReviewResponse(**{k: row.get(k) for k in row if k in TradeReviewResponse.model_fields})
 
 
 @router.post("/review", response_model=TradeReviewResponse)
-def trigger_trade_review(
+async def trigger_trade_review(
     request: TradeReviewRequest,
     llm_service: LLMService = Depends(get_llm_service),
     task_service: AgentTaskService = Depends(get_agent_task_service),
     _user: str | None = Depends(get_current_user),
     _rate: None = Depends(check_llm_rate_limit),
 ) -> TradeReviewResponse:
-    """Trigger a trade review synchronously and return the result."""
+    """Trigger a trade review and return the result."""
     db = task_service.db
 
     try:
         from app.agents.trade_review.agent import review_trade
-        import asyncio
 
-        loop = asyncio.new_event_loop()
-        try:
-            result = loop.run_until_complete(
-                review_trade(
-                    db, llm_service, request.symbol,
-                    trade_id=request.trade_id,
-                    start_date=request.start_date,
-                    end_date=request.end_date,
-                )
-            )
-        finally:
-            loop.close()
+        result = await review_trade(
+            db, llm_service, request.symbol,
+            trade_id=request.trade_id,
+            start_date=request.start_date,
+            end_date=request.end_date,
+        )
     except Exception as exc:
         logger.exception("Trade review failed: %s", exc)
         raise HTTPException(

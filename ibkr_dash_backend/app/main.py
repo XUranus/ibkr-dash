@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from app.core.config import get_settings
 from app.core.database import init_database
@@ -40,6 +41,9 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # GZip compression for large JSON responses
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
 
     # --- Register route blueprints ---
     from app.api.routes.health import router as health_router

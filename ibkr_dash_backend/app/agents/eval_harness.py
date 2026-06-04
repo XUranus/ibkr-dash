@@ -8,13 +8,10 @@ to construct eval cases from replay snapshots.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-
-def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+from app.utils.dates import utc_now_iso
 
 
 def new_eval_case_id(agent_name: str) -> str:

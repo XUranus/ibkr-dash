@@ -9,23 +9,16 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
 from app.agents.agent_run_trace import AgentRunTrace
+from app.agents.sensitive import SENSITIVE_KEY_RE
+from app.utils.dates import utc_now_iso
 
 
 REPLAY_SCHEMA_VERSION = "v1"
 DEFAULT_SECTION_MAX_CHARS = 30000
-SENSITIVE_KEY_RE = re.compile(
-    r"(^authorization$|^cookie$|password|secret|private[_-]?key|api[_-]?key|access[_-]?token|refresh[_-]?token|session|token)",
-    re.IGNORECASE,
-)
-
-
-def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 def new_replay_id(agent_name: str) -> str:

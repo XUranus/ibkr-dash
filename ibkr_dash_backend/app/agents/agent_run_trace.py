@@ -8,19 +8,12 @@ from __future__ import annotations
 
 import re
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
-
-SENSITIVE_KEY_RE = re.compile(
-    r"(^authorization$|^cookie$|password|secret|api[_-]?key|access[_-]?token|refresh[_-]?token|session[_-]?token|id[_-]?token)",
-    re.IGNORECASE,
-)
-
-
-def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+from app.agents.sensitive import SENSITIVE_KEY_RE
+from app.utils.dates import utc_now_iso
 
 
 def new_agent_run_id(agent_name: str) -> str:

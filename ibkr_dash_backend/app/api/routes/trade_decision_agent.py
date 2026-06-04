@@ -6,7 +6,6 @@ decisions, fetching decisions by ID, and health checks.
 
 from __future__ import annotations
 
-import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -23,6 +22,7 @@ from app.schemas.trade_decision import (
 )
 from app.services.agent_services import AgentTaskService
 from app.services.llm_service import LLMService
+from app.utils.json_fields import parse_json_fields
 
 router = APIRouter(prefix="/trade-decision", tags=["trade-decision-agent"])
 AGENT_NAME = "trade_decision"
@@ -31,72 +31,29 @@ logger = logging.getLogger(__name__)
 
 def _row_to_response(row: dict) -> TradeDecisionResponse:
     """Convert a database row to a TradeDecisionResponse."""
-    decision_output = row.get("decision_output")
-    if isinstance(decision_output, str):
-        try:
-            decision_output = json.loads(decision_output)
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-    metadata = row.get("metadata")
-    if isinstance(metadata, str):
-        try:
-            metadata = json.loads(metadata)
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-    evidence_summary = row.get("evidence_summary")
-    if isinstance(evidence_summary, str):
-        try:
-            evidence_summary = json.loads(evidence_summary)
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-    run_trace = row.get("run_trace")
-    if isinstance(run_trace, str):
-        try:
-            run_trace = json.loads(run_trace)
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-    return TradeDecisionResponse(
-        id=row["id"],
-        decision_type=row["decision_type"],
-        symbol=row["symbol"],
-        decision_output=decision_output,
-        metadata=metadata,
-        evidence_summary=evidence_summary,
-        run_trace=run_trace,
-        created_at=row.get("created_at"),
-    )
+    row = parse_json_fields(row, ["decision_output", "metadata", "evidence_summary", "run_trace"])
+    return TradeDecisionResponse(**{k: row.get(k) for k in row if k in TradeDecisionResponse.model_fields})
 
 
 @router.post("/analyze", response_model=TradeDecisionResponse)
-def analyze_trade_decision(
+async def analyze_trade_decision(
     request: TradeDecisionRequest,
     llm_service: LLMService = Depends(get_llm_service),
     task_service: AgentTaskService = Depends(get_agent_task_service),
     _user: str | None = Depends(get_current_user),
     _rate: None = Depends(check_llm_rate_limit),
 ) -> TradeDecisionResponse:
-    """Trigger a trade decision analysis synchronously and return the result."""
+    """Trigger a trade decision analysis and return the result."""
     db = task_service.db
 
     try:
         from app.agents.trade_decision.agent import analyze_trade
-        import asyncio
 
-        loop = asyncio.new_event_loop()
-        try:
-            result = loop.run_until_complete(
-                analyze_trade(
-                    db, llm_service, request.symbol,
-                    decision_type=request.decision_type,
-                    question=request.question,
-                )
-            )
-        finally:
-            loop.close()
+        result = await analyze_trade(
+            db, llm_service, request.symbol,
+            decision_type=request.decision_type,
+            question=request.question,
+        )
     except Exception as exc:
         logger.exception("Trade decision analysis failed: %s", exc)
         raise HTTPException(
