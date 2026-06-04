@@ -63,7 +63,19 @@ async def trigger_risk_assessment(
             detail="No data available for the risk assessment",
         )
 
-    return _row_to_response(result) if isinstance(result, dict) else RiskAssessmentResponse(
+    if isinstance(result, dict):
+        # The assess_risk function returns the report data at the top level.
+        # Wrap it in a risk_report key for the response schema.
+        wrapped = {
+            "id": result.get("id", ""),
+            "assessment_type": result.get("assessment_type", "portfolio_risk"),
+            "risk_report": {k: v for k, v in result.items() if k not in ("id", "assessment_type", "evidence_pack", "raw_llm_response", "fallback_used", "prompt_metadata")},
+            "metadata": result.get("prompt_metadata"),
+            "run_trace": [],
+            "created_at": None,
+        }
+        return _row_to_response(wrapped)
+    return RiskAssessmentResponse(
         id="",
         assessment_type="portfolio_risk",
         risk_report=str(result),

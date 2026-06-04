@@ -108,26 +108,52 @@ async def assess_risk(
 
 
 def _load_portfolio_snapshot(db: Any, question: str | None) -> dict:
-    """Load portfolio snapshot from DB. Placeholder for real implementation."""
-    if hasattr(db, "build_risk_snapshot"):
-        snapshot = db.build_risk_snapshot(question=question)
-        if hasattr(snapshot, "to_dict"):
-            return snapshot.to_dict()
-        return snapshot if isinstance(snapshot, dict) else {}
+    """Load portfolio snapshot from SQLite database."""
+    # Get latest account snapshot
+    account = db.execute_one(
+        "SELECT * FROM account_snapshots ORDER BY report_date DESC LIMIT 1"
+    )
+    if not account:
+        return {
+            "net_liquidation": 0, "cash": 0, "deployable_liquidity": 0,
+            "positions": [], "total_position_value": 0, "top_positions": [],
+            "position_count": 0, "largest_position_pct": 0, "top_3_position_pct": 0,
+            "top_5_position_pct": 0, "cash_pct": 0, "margin_info": {}, "data_quality": {},
+        }
+
+    report_date = account.get("report_date")
+    positions = db.execute(
+        "SELECT symbol, description, asset_class, quantity, mark_price, position_value, "
+        "percent_of_nav, total_unrealized_pnl, total_realized_pnl "
+        "FROM position_snapshots WHERE report_date = ? ORDER BY position_value DESC",
+        (report_date,),
+    )
+
+    total_equity = float(account.get("total_equity") or 0)
+    cash = float(account.get("cash") or 0)
+    total_position_value = sum(float(p.get("position_value") or 0) for p in positions)
+
+    # Calculate concentration metrics
+    nav_pcts = [float(p.get("percent_of_nav") or 0) for p in positions]
+    largest_pct = max(nav_pcts) if nav_pcts else 0
+    top_3_pct = sum(sorted(nav_pcts, reverse=True)[:3])
+    top_5_pct = sum(sorted(nav_pcts, reverse=True)[:5])
+    cash_pct = (cash / total_equity * 100) if total_equity > 0 else 0
+
     return {
-        "net_liquidation": 0,
-        "cash": 0,
-        "deployable_liquidity": 0,
-        "positions": [],
-        "total_position_value": 0,
-        "top_positions": [],
-        "position_count": 0,
-        "largest_position_pct": 0,
-        "top_3_position_pct": 0,
-        "top_5_position_pct": 0,
-        "cash_pct": 0,
+        "net_liquidation": total_equity,
+        "cash": cash,
+        "deployable_liquidity": cash,
+        "positions": positions,
+        "total_position_value": total_position_value,
+        "top_positions": positions[:5],
+        "position_count": len(positions),
+        "largest_position_pct": largest_pct / 100 if largest_pct > 1 else largest_pct,
+        "top_3_position_pct": top_3_pct / 100 if top_3_pct > 1 else top_3_pct,
+        "top_5_position_pct": top_5_pct / 100 if top_5_pct > 1 else top_5_pct,
+        "cash_pct": cash_pct / 100 if cash_pct > 1 else cash_pct,
         "margin_info": {},
-        "data_quality": {},
+        "data_quality": {"positions_count": len(positions), "has_account_data": True},
     }
 
 
@@ -353,6 +379,16 @@ def _risk_level_from_score(score: float, max_score: float) -> str:
 
 
 def _save_assessment(db: Any, document: dict) -> dict:
-    if hasattr(db, "save_assessment"):
-        return db.save_assessment(document)
+    """Save risk assessment to database."""
+    import json
+    from uuid import uuid4
+    assessment_id = str(uuid4())
+    db.upsert("risk_assessments", {
+        "id": assessment_id,
+        "assessment_type": document.get("assessment_type", "portfolio_risk"),
+        "risk_report": json.dumps(document, ensure_ascii=False, default=str),
+        "metadata": json.dumps(document.get("metadata", {}), ensure_ascii=False, default=str),
+        "run_trace": json.dumps(document.get("run_trace", []), ensure_ascii=False, default=str),
+    }, conflict_cols=["id"])
+    document["id"] = assessment_id
     return document

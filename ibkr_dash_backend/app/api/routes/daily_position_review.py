@@ -63,7 +63,19 @@ async def generate_daily_review(
             detail="No data available for the requested date",
         )
 
-    return _row_to_response(result) if isinstance(result, dict) else DailyReviewResponse(
+    if isinstance(result, dict):
+        # Wrap the result for the response schema
+        wrapped = {
+            "id": result.get("id", ""),
+            "report_date": result.get("report_date", request.report_date),
+            "review_output": {k: v for k, v in result.items() if k not in ("id", "report_date", "evidence_pack", "deterministic_context", "raw_llm_response", "fallback_used", "prompt_metadata", "metadata", "run_trace")},
+            "metadata": result.get("prompt_metadata") or result.get("metadata"),
+            "evidence_summary": result.get("evidence_pack"),
+            "run_trace": result.get("run_trace", []),
+            "created_at": None,
+        }
+        return _row_to_response(wrapped)
+    return DailyReviewResponse(
         id="",
         report_date=request.report_date,
         review_output=str(result),

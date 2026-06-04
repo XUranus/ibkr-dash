@@ -16,7 +16,7 @@ class RiskAssessmentResponse(BaseModel):
     assessment_type: str
     risk_report: dict | str | None = None
     metadata: dict | None = None
-    run_trace: dict | None = None
+    run_trace: dict | list | None = None
     created_at: str | None = None
 
 

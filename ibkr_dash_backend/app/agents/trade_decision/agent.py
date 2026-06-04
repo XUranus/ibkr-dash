@@ -127,21 +127,71 @@ async def analyze_trade(
 
 
 def _build_account_facts(db: Any, symbol: str, decision_type: str, question: str | None) -> dict:
-    """Build account facts from DB. Placeholder for real implementation."""
-    if hasattr(db, "build_account_facts"):
-        snapshot = db.build_account_facts(decision_type, symbol, question)
-        if hasattr(snapshot, "to_dict"):
-            return snapshot.to_dict()
-        return snapshot if isinstance(snapshot, dict) else {}
+    """Build account facts from SQLite database."""
+    # Get latest account snapshot
+    account = db.execute_one(
+        "SELECT * FROM account_snapshots ORDER BY report_date DESC LIMIT 1"
+    )
+    report_date = account.get("report_date") if account else None
+
+    # Get current position for the symbol
+    position = db.execute_one(
+        "SELECT * FROM position_snapshots WHERE symbol = ? ORDER BY report_date DESC LIMIT 1",
+        (symbol,),
+    )
+
+    # Get trade history for the symbol
+    trades = db.execute(
+        "SELECT trade_date, buy_sell, quantity, trade_price, net_cash, fifo_pnl_realized "
+        "FROM trade_records WHERE symbol = ? ORDER BY trade_date DESC LIMIT 20",
+        (symbol,),
+    )
+
+    # Get all positions for context
+    all_positions = db.execute(
+        "SELECT symbol, position_value, percent_of_nav "
+        "FROM position_snapshots WHERE report_date = ? ORDER BY position_value DESC LIMIT 50",
+        (report_date,) if report_date else ("",),
+    )
+
+    total_equity = float(account.get("total_equity") or 0) if account else 0
+    position_value = float(position.get("position_value") or 0) if position else 0
+
     return {
         "decision_type": decision_type,
         "symbol": symbol,
         "user_question": question,
-        "account_context": {},
-        "position_context": {},
-        "trade_history_context": {},
-        "review_context": {},
-        "data_quality": {},
+        "account_context": {
+            "total_equity": total_equity,
+            "cash": float(account.get("cash") or 0) if account else 0,
+            "stock_value": float(account.get("stock_value") or 0) if account else 0,
+            "report_date": report_date,
+        },
+        "position_context": {
+            "has_position": position is not None,
+            "quantity": float(position.get("quantity") or 0) if position else 0,
+            "mark_price": float(position.get("mark_price") or 0) if position else 0,
+            "position_value": position_value,
+            "percent_of_nav": float(position.get("percent_of_nav") or 0) if position else 0,
+            "average_cost_price": float(position.get("average_cost_price") or 0) if position else 0,
+            "total_unrealized_pnl": float(position.get("total_unrealized_pnl") or 0) if position else 0,
+            "weight_pct": (position_value / total_equity * 100) if total_equity > 0 else 0,
+        },
+        "trade_history_context": {
+            "trades": trades,
+            "trade_count": len(trades),
+            "total_realized_pnl": sum(float(t.get("fifo_pnl_realized") or 0) for t in trades),
+        },
+        "portfolio_context": {
+            "positions": all_positions,
+            "position_count": len(all_positions),
+            "top_3_concentration": sum(float(p.get("percent_of_nav") or 0) for p in all_positions[:3]),
+        },
+        "data_quality": {
+            "has_account_data": account is not None,
+            "has_position_data": position is not None,
+            "has_trade_data": len(trades) > 0,
+        },
     }
 
 
@@ -201,6 +251,17 @@ def _build_fallback_decision(symbol: str, decision_type: str, question: str | No
 
 
 def _save_decision(db: Any, document: dict) -> dict:
-    if hasattr(db, "save_decision"):
-        return db.save_decision(document)
+    """Save trade decision to database."""
+    from uuid import uuid4
+    decision_id = str(uuid4())
+    db.upsert("trade_decisions", {
+        "id": decision_id,
+        "decision_type": document.get("decision_type", "entry_decision"),
+        "symbol": document.get("symbol", ""),
+        "decision_output": json.dumps(document, ensure_ascii=False, default=str),
+        "metadata": json.dumps(document.get("metadata", {}), ensure_ascii=False, default=str),
+        "evidence_summary": json.dumps(document.get("evidence_pack", {}), ensure_ascii=False, default=str),
+        "run_trace": json.dumps(document.get("run_trace", []), ensure_ascii=False, default=str),
+    }, conflict_cols=["id"])
+    document["id"] = decision_id
     return document

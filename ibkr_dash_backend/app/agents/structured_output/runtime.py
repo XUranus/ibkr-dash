@@ -167,7 +167,7 @@ class StructuredOutputRuntime:
             clean_kwargs = {key: value for key, value in kwargs.items() if value is not None}
             if hasattr(self.llm_service, "chat_with_metadata"):
                 result = self.llm_service.chat_with_metadata(messages, **clean_kwargs)
-                raw_response = str(getattr(result, "content", "") or "")
+                raw_response = str(result.get("content", "") if isinstance(result, dict) else getattr(result, "content", "") or "")
             else:
                 raw_response = str(self.llm_service.chat(messages, **clean_kwargs))
             self._event(events, "structured_output_llm_finish", contract=contract.name, ok=True)

@@ -107,8 +107,10 @@ def copilot_chat(
         from app.agents.account_copilot.runtime import AccountCopilotRuntime
         from app.agents.account_copilot.tool_registry import build_default_tool_registry
         from app.agents.account_copilot.skill_registry import build_default_skill_registry
+        from app.services.ibkr_tool_service import IbkrToolService
 
-        tool_registry = build_default_tool_registry(db)
+        tool_service = IbkrToolService(db)
+        tool_registry = build_default_tool_registry(tool_service)
         skill_registry = build_default_skill_registry(db)
 
         # Load conversation history
@@ -117,6 +119,9 @@ def copilot_chat(
             (session_id,),
         )
 
+        # Build messages list from history
+        messages = [{"role": h["role"], "content": h["content"]} for h in history]
+
         runtime = AccountCopilotRuntime(
             llm_service=llm_service,
             tool_registry=tool_registry,
@@ -124,18 +129,35 @@ def copilot_chat(
             max_rounds=8,
         )
 
-        result = runtime.run(
-            user_input=request.message,
+        # Build state
+        from app.agents.account_copilot.state import AccountCopilotState
+        state = AccountCopilotState(
             session_id=session_id,
-            history=history,
+            run_id=str(uuid.uuid4()),
+            user_input=request.message,
+            messages=messages,
+            rolling_summary="",
+            pinned_facts=[],
+            retrieved_memories=[],
+            non_compressible_constraints=[],
+            actions=[],
+            observations=[],
+            tool_calls=[],
+            skill_requests=[],
+            pending_approval=None,
+            memory_snapshot=None,
+            final_answer=None,
+            errors=[],
         )
 
-        answer = result.get("final_answer", "")
-        run_id = result.get("run_id", str(uuid.uuid4()))
-        actions = result.get("actions", [])
-        tool_calls = result.get("tool_calls", [])
-        pending_approval = result.get("pending_approval")
-        errors = result.get("errors", [])
+        result_state = runtime.run(state)
+
+        answer = result_state.get("final_answer") or ""
+        run_id = result_state.get("run_id", str(uuid.uuid4()))
+        actions = result_state.get("actions", [])
+        tool_calls = result_state.get("tool_calls", [])
+        pending_approval = result_state.get("pending_approval")
+        errors = [str(e) for e in result_state.get("errors", [])]
 
     except Exception as exc:
         answer = f"I encountered an error processing your request: {str(exc)[:200]}"

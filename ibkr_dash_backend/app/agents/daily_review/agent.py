@@ -235,7 +235,17 @@ def _build_fallback_payload(
 
 
 def _save_review(db: Any, document: dict) -> dict:
-    """Save the review document to DB."""
-    if hasattr(db, "save_review"):
-        return db.save_review(document)
+    """Save the review document to SQLite database."""
+    import json
+    from uuid import uuid4
+    review_id = document.get("id") or str(uuid4())
+    db.upsert("daily_position_reviews", {
+        "id": review_id,
+        "report_date": document.get("report_date", ""),
+        "review_output": json.dumps(document, ensure_ascii=False, default=str),
+        "metadata": json.dumps(document.get("metadata", {}), ensure_ascii=False, default=str),
+        "evidence_summary": json.dumps(document.get("evidence_summary", {}), ensure_ascii=False, default=str),
+        "run_trace": json.dumps(document.get("run_trace", []), ensure_ascii=False, default=str),
+    }, conflict_cols=["id"])
+    document["id"] = review_id
     return document

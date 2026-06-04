@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, date
@@ -370,7 +371,11 @@ def get_database(settings: Settings | None = None) -> Database:
     global _db_instance
     if _db_instance is None:
         s = settings or get_settings()
-        _db_instance = Database(s.sqlite_path)
+        # Resolve relative paths against the backend directory
+        db_path = s.sqlite_path
+        if not os.path.isabs(db_path):
+            db_path = str(Path(__file__).resolve().parents[2] / db_path)
+        _db_instance = Database(db_path)
     return _db_instance
 
 

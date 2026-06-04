@@ -67,7 +67,20 @@ async def analyze_trade_decision(
             detail="No data available for the requested analysis",
         )
 
-    return _row_to_response(result) if isinstance(result, dict) else TradeDecisionResponse(
+    if isinstance(result, dict):
+        # Wrap the result for the response schema
+        wrapped = {
+            "id": result.get("id", ""),
+            "decision_type": result.get("decision_type", request.decision_type),
+            "symbol": result.get("symbol", request.symbol),
+            "decision_output": {k: v for k, v in result.items() if k not in ("id", "decision_type", "symbol", "evidence_pack", "raw_llm_response", "fallback_used", "prompt_metadata")},
+            "metadata": result.get("prompt_metadata"),
+            "evidence_summary": result.get("evidence_pack"),
+            "run_trace": [],
+            "created_at": None,
+        }
+        return _row_to_response(wrapped)
+    return TradeDecisionResponse(
         id="",
         decision_type=request.decision_type,
         symbol=request.symbol,

@@ -110,22 +110,64 @@ def _load_trade_facts(
     db: Any, symbol: str, trade_id: str | None,
     start_date: str | None, end_date: str | None,
 ) -> dict:
-    """Load trade facts from DB. Placeholder for real implementation."""
-    if hasattr(db, "build_trade_review_evidence"):
-        return db.build_trade_review_evidence(symbol, trade_id, start_date, end_date)
+    """Load trade facts from SQLite database."""
+    # Get trades for the symbol
+    conditions = ["symbol = ?"]
+    params: list = [symbol]
+    if trade_id:
+        conditions.append("trade_id = ?")
+        params.append(trade_id)
+    if start_date:
+        conditions.append("trade_date >= ?")
+        params.append(start_date)
+    if end_date:
+        conditions.append("trade_date <= ?")
+        params.append(end_date)
+
+    where = " AND ".join(conditions)
+    trades = db.execute(
+        f"SELECT * FROM trade_records WHERE {where} ORDER BY trade_date DESC LIMIT 100",
+        tuple(params),
+    )
+
+    # Get current position
+    position = db.execute_one(
+        "SELECT * FROM position_snapshots WHERE symbol = ? ORDER BY report_date DESC LIMIT 1",
+        (symbol,),
+    )
+
+    # Calculate lifecycle facts
+    buy_trades = [t for t in trades if t.get("buy_sell") == "BUY"]
+    sell_trades = [t for t in trades if t.get("buy_sell") == "SELL"]
+    total_bought = sum(float(t.get("quantity") or 0) for t in buy_trades)
+    total_sold = sum(abs(float(t.get("quantity") or 0)) for t in sell_trades)
+    total_commission = sum(float(t.get("ib_commission") or 0) for t in trades)
+    realized_pnl = sum(float(t.get("fifo_pnl_realized") or 0) for t in trades)
+
     return {
-        "trades": [],
+        "trades": trades,
         "related_symbol_trades": [],
-        "current_position": {},
-        "first_buy_date": None,
-        "last_trade_date": None,
-        "is_currently_holding": False,
-        "lifecycle_stage": "unknown",
+        "current_position": position or {},
+        "first_buy_date": buy_trades[-1].get("trade_date") if buy_trades else None,
+        "last_trade_date": trades[0].get("trade_date") if trades else None,
+        "is_currently_holding": position is not None and float(position.get("quantity") or 0) > 0,
+        "lifecycle_stage": "open" if position and float(position.get("quantity") or 0) > 0 else "closed",
         "reviewed_trade_id": trade_id,
-        "performance_metrics": {},
+        "performance_metrics": {
+            "total_bought": total_bought,
+            "total_sold": total_sold,
+            "total_commission": total_commission,
+            "realized_pnl": realized_pnl,
+            "trade_count": len(trades),
+            "buy_count": len(buy_trades),
+            "sell_count": len(sell_trades),
+        },
         "price_context": {},
         "external_events": {},
-        "data_quality": {},
+        "data_quality": {
+            "has_trades": len(trades) > 0,
+            "has_position": position is not None,
+        },
     }
 
 
@@ -181,6 +223,18 @@ def _build_fallback_review(symbol: str, review_type: str, trade_id: str | None) 
 
 
 def _save_review(db: Any, document: dict) -> dict:
-    if hasattr(db, "save_review"):
-        return db.save_review(document)
+    """Save trade review to database."""
+    from uuid import uuid4
+    review_id = str(uuid4())
+    db.upsert("trade_reviews", {
+        "id": review_id,
+        "review_type": document.get("review_type", "symbol_level_review"),
+        "symbol": document.get("symbol", ""),
+        "trade_id": document.get("trade_id"),
+        "review_output": json.dumps(document, ensure_ascii=False, default=str),
+        "metadata": json.dumps(document.get("metadata", {}), ensure_ascii=False, default=str),
+        "evidence_summary": json.dumps(document.get("evidence_pack", {}), ensure_ascii=False, default=str),
+        "run_trace": json.dumps(document.get("run_trace", []), ensure_ascii=False, default=str),
+    }, conflict_cols=["id"])
+    document["id"] = review_id
     return document

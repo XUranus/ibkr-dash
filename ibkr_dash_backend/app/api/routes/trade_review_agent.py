@@ -68,7 +68,21 @@ async def trigger_trade_review(
             detail="No data available for the requested review",
         )
 
-    return _row_to_response(result) if isinstance(result, dict) else TradeReviewResponse(
+    if isinstance(result, dict):
+        # Wrap the result for the response schema
+        wrapped = {
+            "id": result.get("id", ""),
+            "review_type": result.get("review_type", "symbol_level_review"),
+            "symbol": result.get("symbol", request.symbol),
+            "trade_id": result.get("trade_id"),
+            "review_output": {k: v for k, v in result.items() if k not in ("id", "review_type", "symbol", "trade_id", "evidence_pack", "trade_facts", "raw_llm_response", "fallback_used", "prompt_metadata")},
+            "metadata": result.get("prompt_metadata"),
+            "evidence_summary": result.get("evidence_pack"),
+            "run_trace": [],
+            "created_at": None,
+        }
+        return _row_to_response(wrapped)
+    return TradeReviewResponse(
         id="",
         review_type="trade_review",
         symbol=request.symbol,

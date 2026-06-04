@@ -239,12 +239,21 @@ class AccountCopilotRuntime:
         self, action_record: dict, round_index: int,
         tool_name: str, arguments: dict, result: dict,
     ) -> dict:
-        data = result.get("data") if isinstance(result, dict) else result
+        data = result.get("data") if isinstance(result, dict) and "data" in result else result
         limitations = list(result.get("data_limitations") or []) if isinstance(result, dict) else []
         data, truncated = self._truncate_data(data)
         if truncated:
             limitations.append("Observation was truncated by Account Copilot runtime.")
-        ok = bool(result.get("ok", False)) if isinstance(result, dict) else True
+        # Determine ok status: explicit "ok" key, or infer from absence of "error"
+        if isinstance(result, dict):
+            if "ok" in result:
+                ok = bool(result["ok"])
+            elif "error" in result:
+                ok = False
+            else:
+                ok = bool(data)  # Has data = success
+        else:
+            ok = True
         return {
             "id": f"obs_{uuid4().hex[:12]}",
             "round": round_index,
