@@ -1,11 +1,5 @@
 import { request } from './http'
-import type {
-  TradeDecisionHealth,
-  TradeDecisionHoldingsResponse,
-  TradeDecisionListResponse,
-  TradeDecisionResult,
-} from '@/types/tradeDecision'
-import type { AgentTask, AgentTaskListResponse } from '@/types/agentTasks'
+import type { TradeDecisionHealth, TradeDecisionListResponse, TradeDecisionResult } from '@/types/tradeDecision'
 
 function toQueryString(params: Record<string, string | number | undefined | null>): string {
   const searchParams = new URLSearchParams()
@@ -19,78 +13,42 @@ function toQueryString(params: Record<string, string | number | undefined | null
 }
 
 export function fetchTradeDecisionHealth(): Promise<TradeDecisionHealth> {
-  return request<TradeDecisionHealth>('/api/agent/trade-decision/health')
-}
-
-export function fetchTradeDecisionHoldings(): Promise<TradeDecisionHoldingsResponse> {
-  return request<TradeDecisionHoldingsResponse>('/api/agent/trade-decision/holdings')
-}
-
-export function startHoldingDecisionTask(payload: {
-  symbol: string
-  question?: string
-  force_refresh?: boolean
-}): Promise<AgentTask> {
-  return request<AgentTask>(`/api/agent/trade-decision/holding/${encodeURIComponent(payload.symbol)}/tasks`, {
-    method: 'POST',
-    body: JSON.stringify({
-      question: payload.question || undefined,
-      force_refresh: Boolean(payload.force_refresh),
-    }),
-  })
+  return request<TradeDecisionHealth>('/api/trade-decision/health')
 }
 
 export function analyzeEntryDecision(payload: {
   symbol: string
   question?: string
-  force_refresh?: boolean
 }): Promise<TradeDecisionResult> {
-  return request<TradeDecisionResult>('/api/agent/trade-decision/entry/analyze', {
+  return request<TradeDecisionResult>('/api/trade-decision/analyze', {
     method: 'POST',
     body: JSON.stringify({
       symbol: payload.symbol,
+      decision_type: 'entry_decision',
       question: payload.question || undefined,
-      force_refresh: Boolean(payload.force_refresh),
     }),
   })
 }
 
-export function startEntryDecisionTask(payload: {
+export function analyzeHoldingDecision(payload: {
   symbol: string
   question?: string
-  force_refresh?: boolean
-}): Promise<AgentTask> {
-  return request<AgentTask>('/api/agent/trade-decision/entry/tasks', {
+}): Promise<TradeDecisionResult> {
+  return request<TradeDecisionResult>('/api/trade-decision/analyze', {
     method: 'POST',
     body: JSON.stringify({
       symbol: payload.symbol,
+      decision_type: 'holding_decision',
       question: payload.question || undefined,
-      force_refresh: Boolean(payload.force_refresh),
     }),
   })
 }
 
-export async function fetchTradeDecisionTasks(limit = 20): Promise<AgentTask[]> {
-  const response = await request<AgentTaskListResponse>(`/api/agent/trade-decision/tasks${toQueryString({ limit })}`)
-  return response.items
-}
-
-export function fetchTradeDecisionTask(taskId: string): Promise<AgentTask> {
-  return request<AgentTask>(`/api/agent/trade-decision/tasks/${encodeURIComponent(taskId)}`)
-}
-
-export async function fetchRecentTradeDecisions(params: { limit?: number; decision_type?: string } = {}): Promise<TradeDecisionResult[]> {
-  const response = await request<TradeDecisionListResponse>(`/api/agent/trade-decision/recent${toQueryString(params)}`)
-  return response.items
-}
-
-export async function fetchSymbolTradeDecisions(symbol: string, limit = 10): Promise<TradeDecisionResult[]> {
-  const response = await request<TradeDecisionListResponse>(
-    `/api/agent/trade-decision/symbol/${encodeURIComponent(symbol)}${toQueryString({ limit })}`,
-  )
-  return response.items
+export async function fetchRecentTradeDecisions(params: { limit?: number; symbol?: string; decision_type?: string } = {}): Promise<TradeDecisionResult[]> {
+  const response = await request<TradeDecisionListResponse>(`/api/trade-decision/decisions${toQueryString(params)}`)
+  return response.items ?? []
 }
 
 export function fetchTradeDecisionDetail(decisionId: string): Promise<TradeDecisionResult> {
-  return request<TradeDecisionResult>(`/api/agent/trade-decision/${encodeURIComponent(decisionId)}`)
+  return request<TradeDecisionResult>(`/api/trade-decision/decisions/${encodeURIComponent(decisionId)}`)
 }

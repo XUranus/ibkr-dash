@@ -198,7 +198,7 @@ def list_sessions(
 ) -> list[CopilotSessionResponse]:
     """List copilot sessions."""
     rows = db.execute(
-        "SELECT s.id, s.created_at, COUNT(m.id) as message_count "
+        "SELECT s.id as session_id, s.created_at, COUNT(m.id) as message_count "
         "FROM copilot_sessions s LEFT JOIN copilot_messages m ON s.id = m.session_id "
         "GROUP BY s.id ORDER BY s.created_at DESC LIMIT ?",
         (limit,),

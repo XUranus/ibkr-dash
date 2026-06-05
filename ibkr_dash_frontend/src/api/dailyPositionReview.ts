@@ -1,7 +1,5 @@
 import { request } from './http'
-import type { AgentTask, AgentTaskListResponse } from '@/types/agentTasks'
 import type {
-  DailyPositionReviewContext,
   DailyPositionReviewDateListResponse,
   DailyPositionReviewHealth,
   DailyPositionReviewListResponse,
@@ -20,41 +18,30 @@ function toQueryString(params: Record<string, string | number | undefined | null
 }
 
 export function fetchDailyPositionReviewHealth(): Promise<DailyPositionReviewHealth> {
-  return request<DailyPositionReviewHealth>('/api/agent/daily-position-review/health')
+  return request<DailyPositionReviewHealth>('/api/daily-position-review/health')
 }
 
 export async function fetchDailyPositionReviewDates(limit = 60): Promise<string[]> {
   const response = await request<DailyPositionReviewDateListResponse>(
-    `/api/agent/daily-position-review/dates${toQueryString({ limit })}`,
+    `/api/daily-position-review/dates${toQueryString({ limit })}`,
   )
-  return response.items
-}
-
-export function fetchDailyPositionReviewContext(reportDate: string): Promise<DailyPositionReviewContext> {
-  return request<DailyPositionReviewContext>(`/api/agent/daily-position-review/${encodeURIComponent(reportDate)}/context`)
+  return response.items ?? []
 }
 
 export function fetchDailyPositionReview(reportDate: string): Promise<DailyPositionReviewResult> {
-  return request<DailyPositionReviewResult>(`/api/agent/daily-position-review/${encodeURIComponent(reportDate)}`)
+  return request<DailyPositionReviewResult>(`/api/daily-position-review/reviews/${encodeURIComponent(reportDate)}`)
 }
 
 export async function fetchRecentDailyPositionReviews(limit = 20): Promise<DailyPositionReviewResult[]> {
   const response = await request<DailyPositionReviewListResponse>(
-    `/api/agent/daily-position-review/recent${toQueryString({ limit })}`,
+    `/api/daily-position-review/reviews${toQueryString({ limit })}`,
   )
-  return response.items
+  return response.items ?? []
 }
 
-export function startDailyPositionReviewTask(reportDate: string, forceRefresh = false): Promise<AgentTask> {
-  return request<AgentTask>(`/api/agent/daily-position-review/${encodeURIComponent(reportDate)}/tasks`, {
+export function startDailyPositionReviewTask(reportDate: string): Promise<DailyPositionReviewResult> {
+  return request<DailyPositionReviewResult>('/api/daily-position-review/generate', {
     method: 'POST',
-    body: JSON.stringify({ force_refresh: forceRefresh }),
+    body: JSON.stringify({ report_date: reportDate }),
   })
-}
-
-export async function fetchDailyPositionReviewTasks(limit = 20): Promise<AgentTask[]> {
-  const response = await request<AgentTaskListResponse>(
-    `/api/agent/daily-position-review/tasks${toQueryString({ limit })}`,
-  )
-  return response.items
 }

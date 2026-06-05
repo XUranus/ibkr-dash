@@ -1,235 +1,254 @@
-import { useState, useEffect, useRef } from 'react'
-import { listSessions, createSession, getSession, listMessages, sendMessage, sendMessageStream, listRunEvents, getRun, listSessionMemories } from '@/api/accountCopilot'
-import type { CopilotSession, CopilotMessage, CopilotRun, CopilotMemory, CopilotEvent } from '@/types/accountCopilot'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { listSessions, chat, listMessages, deleteSession } from '@/api/accountCopilot'
+import type { CopilotSession, CopilotMessage } from '@/api/accountCopilot'
 
-const welcomeGroups = [
-  { title: 'Account Facts', questions: ['What is my current risk level?', 'Which stocks caused my recent losses?', 'Is my cash allocation reasonable?'] },
-  { title: 'Trade Review', questions: ['How has my AMD trading history performed?', 'Do I tend to sell too early?'] },
-  { title: 'Market Research', questions: ['Why has AMD been moving recently?', 'Any recent news on Xiaomi?'] },
-  { title: 'Decision Support', questions: ['Is MU a good time to build a position?', 'Should I continue holding AMD?'] },
+const welcomeQuestions = [
+  'What is my total equity?',
+  'What are my top 5 positions?',
+  'What is my risk level?',
+  'How has AAPL performed recently?',
+  'Should I hold or sell my GOOG position?',
 ]
 
 export default function AccountCopilotView() {
   const [sessions, setSessions] = useState<CopilotSession[]>([])
-  const [activeSession, setActiveSession] = useState<CopilotSession | null>(null)
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const [messages, setMessages] = useState<CopilotMessage[]>([])
-  const [runsById, setRunsById] = useState<Record<string, CopilotRun>>({})
   const [inputText, setInputText] = useState('')
-  const [loadingSessions, setLoadingSessions] = useState(false)
-  const [loadingMessages, setLoadingMessages] = useState(false)
   const [sending, setSending] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  async function loadSessions() {
-    setLoadingSessions(true)
+  const loadSessions = useCallback(async () => {
     try {
-      const items = await listSessions(100)
+      const items = await listSessions(50)
       setSessions(items)
-      if (!activeSession && items.length > 0) await selectSession(items[0].id)
-    } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to load sessions')
-    } finally {
-      setLoadingSessions(false)
+    } catch {
+      // Silent fail
     }
-  }
+  }, [])
 
-  async function createNewSession() {
+  const loadMessages = useCallback(async (sessionId: string) => {
     try {
-      const session = await createSession({ title: 'New Chat' })
-      setSessions((prev) => [session, ...prev])
-      await selectSession(session.id)
-    } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to create session')
+      const items = await listMessages(sessionId)
+      setMessages(items)
+    } catch {
+      setMessages([])
     }
-  }
+  }, [])
 
-  async function selectSession(sessionId: string) {
-    setErrorMessage('')
-    setLoadingMessages(true)
-    try {
-      const session = await getSession(sessionId)
-      setActiveSession(session)
-      const msgs = await listMessages(sessionId, 200)
-      setMessages(msgs)
-      const runIds = Array.from(new Set(msgs.map((m) => m.run_id).filter(Boolean))) as string[]
-      const runs: Record<string, CopilotRun> = {}
-      await Promise.all(runIds.map(async (rid) => {
-        try { runs[rid] = await getRun(rid) } catch { /* ignore */ }
-      }))
-      setRunsById(runs)
-    } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to load messages')
-    } finally {
-      setLoadingMessages(false)
-    }
-  }
+  useEffect(() => { void loadSessions() }, [loadSessions])
 
-  async function sendCurrentMessage() {
-    const content = inputText.trim()
-    if (!content || sending) return
-    setSending(true)
-    setErrorMessage('')
-    try {
-      let session = activeSession
-      if (!session) {
-        session = await createSession({ title: content.slice(0, 24) })
-        setActiveSession(session)
-        setSessions((prev) => [session!, ...prev])
-      }
-      try {
-        const response = await sendMessageStream(session.id, content)
-        const userMsg = response.user_message
-        const assistantMsg: CopilotMessage = {
-          id: `live_${response.run.id}`,
-          session_id: session.id,
-          role: 'assistant',
-          content: 'Analyzing...',
-          created_at: new Date().toISOString(),
-          run_id: response.run.id,
-          metadata: { live: true },
-        }
-        setMessages((prev) => [...prev, userMsg, assistantMsg])
-        setRunsById((prev) => ({ ...prev, [response.run.id]: { ...response.run, _streaming: true } }))
-        setInputText('')
-      } catch {
-        const response = await sendMessage(session.id, content)
-        setMessages((prev) => [...prev, response.user_message, response.assistant_message])
-        setRunsById((prev) => ({ ...prev, [response.run.id]: response.run }))
-        setInputText('')
-      }
-      void loadSessions()
-    } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to send message')
-    } finally {
-      setSending(false)
-    }
-  }
-
-  useEffect(() => { void loadSessions() }, [])
+  useEffect(() => {
+    if (activeSessionId) void loadMessages(activeSessionId)
+    else setMessages([])
+  }, [activeSessionId, loadMessages])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const hasMessages = messages.length > 0
+  async function handleSend(text?: string) {
+    const content = (text ?? inputText).trim()
+    if (!content || sending) return
+
+    setInputText('')
+    setSending(true)
+    setErrorMessage('')
+
+    // Optimistic: add user message
+    const userMsg: CopilotMessage = {
+      id: Date.now(),
+      session_id: activeSessionId ?? '',
+      role: 'user',
+      content,
+      metadata: null,
+      created_at: new Date().toISOString(),
+    }
+    setMessages((prev) => [...prev, userMsg])
+
+    try {
+      const response = await chat(activeSessionId, content)
+
+      // Update session if new
+      if (!activeSessionId || response.session_id !== activeSessionId) {
+        setActiveSessionId(response.session_id)
+      }
+
+      // Add assistant message
+      const assistantMsg: CopilotMessage = {
+        id: Date.now() + 1,
+        session_id: response.session_id,
+        role: 'assistant',
+        content: response.answer,
+        metadata: { run_id: response.run_id, tool_calls: response.tool_calls },
+        created_at: new Date().toISOString(),
+      }
+      setMessages((prev) => [...prev.slice(0, -1), userMsg, assistantMsg])
+
+      // Reload sessions to pick up new one
+      void loadSessions()
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to send message')
+      setMessages((prev) => prev.slice(0, -1)) // Remove optimistic user message
+    } finally {
+      setSending(false)
+    }
+  }
+
+  async function handleNewChat() {
+    setActiveSessionId(null)
+    setMessages([])
+    setInputText('')
+    setErrorMessage('')
+  }
+
+  async function handleDeleteSession(sessionId: string) {
+    try {
+      await deleteSession(sessionId)
+      setSessions((prev) => prev.filter((s) => s.session_id !== sessionId))
+      if (activeSessionId === sessionId) {
+        setActiveSessionId(null)
+        setMessages([])
+      }
+    } catch {
+      // Silent fail
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      void handleSend()
+    }
+  }
 
   return (
-    <main style={{
-      display: 'flex', alignItems: 'stretch',
-      height: 'calc(100vh - 180px)', minHeight: 640,
-      marginTop: 24, maxWidth: 1720, width: '100%', margin: '24px auto 0',
-      color: '#e2e8f0',
-      border: '1px solid rgba(125, 211, 252, 0.15)',
-      borderRadius: 18,
-      background: 'linear-gradient(135deg, rgba(2, 6, 23, 0.94), rgba(15, 23, 42, 0.9))',
-      boxShadow: '0 24px 80px rgba(0, 0, 0, 0.32)',
-      overflow: 'hidden',
-    }}>
-      {/* Session Sidebar */}
-      <aside style={{
-        width: 300, minWidth: 300, flexShrink: 0,
-        borderRight: '1px solid rgba(125, 211, 252, 0.14)',
-        background: 'rgba(2, 8, 23, 0.72)',
-        display: 'grid', gridTemplateRows: 'auto 1fr',
-        overflow: 'hidden',
-      }}>
-        <div style={{ padding: '18px 16px', borderBottom: '1px solid rgba(125, 211, 252, 0.13)' }}>
-          <button className="btn btn--accent" onClick={createNewSession} style={{ width: '100%' }}>+ New Chat</button>
-        </div>
-        <div style={{ overflow: 'auto', padding: 8 }}>
-          {sessions.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => selectSession(s.id)}
-              style={{
-                width: '100%', padding: '12px 14px', marginBottom: 6,
-                borderRadius: 12, border: `1px solid ${activeSession?.id === s.id ? 'rgba(34, 211, 238, 0.5)' : 'rgba(125, 211, 252, 0.1)'}`,
-                background: activeSession?.id === s.id ? 'rgba(34, 211, 238, 0.08)' : 'transparent',
-                color: '#e2e8f0', cursor: 'pointer', textAlign: 'left',
-              }}
-            >
-              <div style={{ fontSize: '0.92rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</div>
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 4 }}>{s.message_count} messages</div>
-            </button>
-          ))}
-        </div>
-      </aside>
-
-      {/* Chat Area */}
-      <section style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, overflow: 'hidden' }}>
-        <header style={{ padding: '22px 24px', borderBottom: '1px solid rgba(125, 211, 252, 0.13)', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <p style={{ margin: '0 0 5px', color: '#22d3ee', fontSize: '0.72rem', textTransform: 'uppercase' }}>Account Copilot</p>
-            <h1 style={{ margin: 0, fontSize: '1.45rem' }}>{activeSession?.title || 'Account Copilot'}</h1>
-          </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <span className="tag tag--positive">IBKR Data</span>
-            <span className="tag tag--accent">Public Market</span>
-          </div>
-        </header>
-
-        {errorMessage && <div style={{ flexShrink: 0, margin: '14px 24px 0', padding: '10px 12px', color: '#fecaca', border: '1px solid rgba(248, 113, 113, 0.35)', borderRadius: 12, background: 'rgba(127, 29, 29, 0.32)' }}>{errorMessage}</div>}
-
-        {!hasMessages && !loadingMessages ? (
-          <div style={{ flex: 1, overflow: 'auto', margin: 24, padding: 22, border: '1px solid rgba(125, 211, 252, 0.15)', borderRadius: 18, background: 'rgba(15, 23, 42, 0.58)' }}>
-            <p style={{ margin: '0 0 5px', color: '#22d3ee', fontSize: '0.72rem', textTransform: 'uppercase' }}>Welcome</p>
-            <h2 style={{ maxWidth: 760, margin: '0 0 18px', fontSize: '1.35rem', lineHeight: 1.5 }}>
-              Ask questions about your account, positions, trades, and risk in natural language.
-            </h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
-              {welcomeGroups.map((group) => (
-                <section key={group.title}>
-                  <h3 style={{ margin: '0 0 8px', color: '#93c5fd', fontSize: '0.82rem' }}>{group.title}</h3>
-                  {group.questions.map((q) => (
-                    <button key={q} onClick={() => setInputText(q)} style={{
-                      display: 'block', width: '100%', padding: 12, marginBottom: 6,
-                      color: '#dff7ff', textAlign: 'left',
-                      border: '1px solid rgba(125, 211, 252, 0.16)', borderRadius: 14,
-                      background: 'rgba(2, 8, 23, 0.52)', cursor: 'pointer',
-                    }}>{q}</button>
-                  ))}
-                </section>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div style={{ flex: 1, overflow: 'auto', padding: '18px 24px' }}>
-            {loadingMessages ? (
-              <div style={{ color: '#94a3b8', textAlign: 'center', padding: 40 }}>Loading messages...</div>
-            ) : messages.map((msg) => (
-              <div key={msg.id} style={{
-                marginBottom: 16, padding: '14px 18px', borderRadius: 16,
-                background: msg.role === 'user' ? 'rgba(30, 58, 138, 0.3)' : 'rgba(15, 23, 42, 0.6)',
-                border: `1px solid ${msg.role === 'user' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(125, 211, 252, 0.1)'}`,
-                maxWidth: '85%',
-                marginLeft: msg.role === 'user' ? 'auto' : 0,
-              }}>
-                <div style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: 6, textTransform: 'uppercase' }}>
-                  {msg.role === 'user' ? 'You' : 'Assistant'}
-                </div>
-                <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{msg.content}</div>
+    <section className="page-section" style={{ animation: 'slideUp 0.4s ease' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: sidebarOpen ? '260px 1fr' : '1fr', gap: 'var(--space-4)', minHeight: '70vh' }}>
+        {/* Sidebar */}
+        {sidebarOpen && (
+          <section className="surface-panel">
+            <div className="surface-panel__content" style={{ padding: '16px', display: 'grid', gap: 10, alignContent: 'start' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p className="eyebrow" style={{ margin: 0 }}>SESSIONS</p>
+                <button className="btn btn--ghost btn--sm" onClick={handleNewChat} style={{ fontSize: '0.78rem' }}>+ New</button>
               </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
+              <div style={{ display: 'grid', gap: 4, maxHeight: '60vh', overflow: 'auto' }}>
+                {sessions.length === 0 ? (
+                  <p style={{ color: 'var(--color-text-muted)', fontSize: '0.82rem' }}>No sessions yet.</p>
+                ) : (
+                  sessions.map((s) => (
+                    <div key={s.session_id} style={{ display: 'flex', gap: 4 }}>
+                      <button
+                        className="btn btn--ghost btn--sm"
+                        onClick={() => setActiveSessionId(s.session_id)}
+                        style={{
+                          flex: 1, justifyContent: 'flex-start', textAlign: 'left',
+                          borderRadius: 'var(--radius-sm)',
+                          background: activeSessionId === s.session_id ? 'rgba(212,168,67,0.08)' : 'transparent',
+                          borderColor: activeSessionId === s.session_id ? 'rgba(212,168,67,0.2)' : 'transparent',
+                          color: activeSessionId === s.session_id ? 'var(--color-accent-strong)' : 'var(--color-text-secondary)',
+                          fontFamily: 'var(--font-mono)', fontSize: '0.78rem',
+                        }}>
+                        {s.session_id.slice(0, 8)}... ({s.message_count})
+                      </button>
+                      <button className="btn btn--ghost btn--sm" onClick={() => handleDeleteSession(s.session_id)}
+                        style={{ minWidth: 28, padding: 0, fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
+                        ✕
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </section>
         )}
 
-        <div style={{ flexShrink: 0, padding: '18px 24px 22px', borderTop: '1px solid rgba(125, 211, 252, 0.13)' }}>
-          <form style={{ display: 'flex', gap: 12 }} onSubmit={(e) => { e.preventDefault(); sendCurrentMessage() }}>
-            <input
-              className="input"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder="Ask about your portfolio, trades, or market..."
-              style={{ flex: 1 }}
-            />
-            <button type="submit" className="btn btn--accent" disabled={sending || !inputText.trim()}>
-              {sending ? 'Sending...' : 'Send'}
-            </button>
-          </form>
-        </div>
-      </section>
-    </main>
+        {/* Chat area */}
+        <section className="surface-panel">
+          <div className="surface-panel__content" style={{ display: 'grid', gridTemplateRows: '1fr auto', minHeight: '65vh', padding: '16px' }}>
+            {/* Toggle sidebar */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+              <button className="btn btn--ghost btn--sm" onClick={() => setSidebarOpen(!sidebarOpen)} style={{ fontSize: '0.75rem' }}>
+                {sidebarOpen ? '◀ Hide' : '▶ Sessions'}
+              </button>
+            </div>
+
+            {/* Messages */}
+            <div style={{ overflow: 'auto', display: 'grid', gap: 12, alignContent: 'start', paddingRight: 4 }}>
+              {messages.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                  <p className="eyebrow" style={{ marginBottom: 12 }}>ACCOUNT COPILOT</p>
+                  <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginBottom: 16 }}>Ask questions about your portfolio, positions, and trades.</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+                    {welcomeQuestions.map((q) => (
+                      <button key={q} className="btn btn--ghost btn--sm" onClick={() => void handleSend(q)}
+                        style={{ fontSize: '0.8rem', borderRadius: 'var(--radius-sm)' }}>
+                        {q}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {messages.map((msg) => (
+                <div key={msg.id} style={{
+                  display: 'flex',
+                  justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                }}>
+                  <div style={{
+                    maxWidth: '80%',
+                    padding: '10px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: msg.role === 'user' ? 'rgba(212,168,67,0.12)' : 'rgba(10,14,26,0.5)',
+                    border: `1px solid ${msg.role === 'user' ? 'rgba(212,168,67,0.2)' : 'var(--color-border-subtle)'}`,
+                  }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--color-text-muted)', marginBottom: 4, textTransform: 'uppercase' }}>
+                      {msg.role}
+                    </div>
+                    <div style={{ fontSize: '0.88rem', color: 'var(--color-text-primary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                      {msg.content}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {sending && (
+                <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                  <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'rgba(10,14,26,0.5)', border: '1px solid var(--color-border-subtle)' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>Thinking...</span>
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input */}
+            <div style={{ marginTop: 12, borderTop: '1px solid var(--color-border-subtle)', paddingTop: 12 }}>
+              {errorMessage && (
+                <p style={{ color: 'var(--color-negative)', fontFamily: 'var(--font-mono)', fontSize: '0.82rem', marginBottom: 8 }}>{errorMessage}</p>
+              )}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <textarea
+                  className="input"
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask about your portfolio..."
+                  rows={2}
+                  style={{ resize: 'none', flex: 1 }}
+                />
+                <button className="btn btn--accent" onClick={() => void handleSend()} disabled={sending || !inputText.trim()}>
+                  Send
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
   )
 }
