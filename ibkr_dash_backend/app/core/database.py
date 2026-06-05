@@ -196,6 +196,7 @@ CREATE TABLE IF NOT EXISTS agent_tasks (
 
 CREATE TABLE IF NOT EXISTS copilot_sessions (
     id              TEXT PRIMARY KEY,
+    title           TEXT DEFAULT '',
     created_at      TEXT DEFAULT (datetime('now')),
     updated_at      TEXT DEFAULT (datetime('now'))
 );
@@ -237,6 +238,11 @@ CREATE INDEX IF NOT EXISTS idx_cash_flows_date ON cash_flows(date_time);
 CREATE INDEX IF NOT EXISTS idx_price_history_symbol_date ON price_history(symbol, report_date);
 CREATE INDEX IF NOT EXISTS idx_copilot_messages_session ON copilot_messages(session_id, created_at);
 """
+
+# Migrations that run after the main schema (safe to re-run)
+_MIGRATIONS = [
+    "ALTER TABLE copilot_sessions ADD COLUMN title TEXT DEFAULT ''",
+]
 
 
 class Database:
@@ -285,6 +291,13 @@ class Database:
         try:
             conn.executescript(SCHEMA_SQL)
             conn.commit()
+            # Run migrations (safe to re-run — errors are ignored)
+            for sql in _MIGRATIONS:
+                try:
+                    conn.execute(sql)
+                    conn.commit()
+                except sqlite3.OperationalError:
+                    pass  # Column already exists
             logger.info("Database schema initialized at %s", self._db_path)
         finally:
             if not self._is_memory:

@@ -2,6 +2,7 @@ import { request } from './http'
 
 export interface CopilotSession {
   session_id: string
+  title: string
   created_at: string
   message_count: number
 }

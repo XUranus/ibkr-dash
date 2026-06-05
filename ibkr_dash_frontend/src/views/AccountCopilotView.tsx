@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { listSessions, chat, listMessages, deleteSession } from '@/api/accountCopilot'
 import type { CopilotSession, CopilotMessage } from '@/api/accountCopilot'
 
@@ -91,7 +93,7 @@ export default function AccountCopilotView() {
       void loadSessions()
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to send message')
-      setMessages((prev) => prev.slice(0, -1)) // Remove optimistic user message
+      setMessages((prev) => prev.slice(0, -1))
     } finally {
       setSending(false)
     }
@@ -124,9 +126,14 @@ export default function AccountCopilotView() {
     }
   }
 
+  function sessionDisplayName(s: CopilotSession): string {
+    if (s.title && s.title.trim()) return s.title
+    return `Session ${s.session_id.slice(0, 8)}`
+  }
+
   return (
     <section className="page-section" style={{ animation: 'slideUp 0.4s ease' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: sidebarOpen ? '260px 1fr' : '1fr', gap: 'var(--space-4)', minHeight: '70vh' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: sidebarOpen ? '280px 1fr' : '1fr', gap: 'var(--space-4)', minHeight: '70vh' }}>
         {/* Sidebar */}
         {sidebarOpen && (
           <section className="surface-panel">
@@ -150,9 +157,10 @@ export default function AccountCopilotView() {
                           background: activeSessionId === s.session_id ? 'rgba(212,168,67,0.08)' : 'transparent',
                           borderColor: activeSessionId === s.session_id ? 'rgba(212,168,67,0.2)' : 'transparent',
                           color: activeSessionId === s.session_id ? 'var(--color-accent-strong)' : 'var(--color-text-secondary)',
-                          fontFamily: 'var(--font-mono)', fontSize: '0.78rem',
+                          fontSize: '0.82rem',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                         }}>
-                        {s.session_id.slice(0, 8)}... ({s.message_count})
+                        {sessionDisplayName(s)}
                       </button>
                       <button className="btn btn--ghost btn--sm" onClick={() => handleDeleteSession(s.session_id)}
                         style={{ minWidth: 28, padding: 0, fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
@@ -168,12 +176,17 @@ export default function AccountCopilotView() {
 
         {/* Chat area */}
         <section className="surface-panel">
-          <div className="surface-panel__content" style={{ display: 'grid', gridTemplateRows: '1fr auto', minHeight: '65vh', padding: '16px' }}>
-            {/* Toggle sidebar */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+          <div className="surface-panel__content" style={{ display: 'grid', gridTemplateRows: 'auto 1fr auto', minHeight: '65vh', padding: '16px' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <button className="btn btn--ghost btn--sm" onClick={() => setSidebarOpen(!sidebarOpen)} style={{ fontSize: '0.75rem' }}>
                 {sidebarOpen ? '◀ Hide' : '▶ Sessions'}
               </button>
+              {activeSessionId && (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
+                  {activeSessionId.slice(0, 12)}...
+                </span>
+              )}
             </div>
 
             {/* Messages */}
@@ -199,7 +212,7 @@ export default function AccountCopilotView() {
                   justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
                 }}>
                   <div style={{
-                    maxWidth: '80%',
+                    maxWidth: '85%',
                     padding: '10px 14px',
                     borderRadius: 'var(--radius-md)',
                     background: msg.role === 'user' ? 'rgba(212,168,67,0.12)' : 'rgba(10,14,26,0.5)',
@@ -208,9 +221,15 @@ export default function AccountCopilotView() {
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--color-text-muted)', marginBottom: 4, textTransform: 'uppercase' }}>
                       {msg.role}
                     </div>
-                    <div style={{ fontSize: '0.88rem', color: 'var(--color-text-primary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-                      {msg.content}
-                    </div>
+                    {msg.role === 'user' ? (
+                      <div style={{ fontSize: '0.88rem', color: 'var(--color-text-primary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                        {msg.content}
+                      </div>
+                    ) : (
+                      <div className="copilot-markdown" style={{ fontSize: '0.88rem', color: 'var(--color-text-primary)', lineHeight: 1.6 }}>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

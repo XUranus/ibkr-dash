@@ -651,3 +651,102 @@ button, input, textarea, select { font: inherit; }
   .filters-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .surface-panel__content { padding: 18px 16px; }
 }
+
+/* ── Copilot Markdown rendering ── */
+.copilot-markdown h1,
+.copilot-markdown h2,
+.copilot-markdown h3,
+.copilot-markdown h4 {
+  color: var(--color-text-bright);
+  margin: 0.6em 0 0.3em;
+  font-weight: 600;
+}
+.copilot-markdown h1 { font-size: 1.2rem; }
+.copilot-markdown h2 { font-size: 1.1rem; }
+.copilot-markdown h3 { font-size: 1rem; }
+
+.copilot-markdown p {
+  margin: 0.4em 0;
+}
+
+.copilot-markdown ul,
+.copilot-markdown ol {
+  margin: 0.4em 0;
+  padding-left: 1.4em;
+}
+
+.copilot-markdown li {
+  margin: 0.2em 0;
+}
+
+.copilot-markdown code {
+  font-family: var(--font-mono);
+  font-size: 0.82em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(212, 168, 67, 0.08);
+  color: var(--color-accent-strong);
+}
+
+.copilot-markdown pre {
+  margin: 0.5em 0;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: rgba(4, 10, 20, 0.72);
+  border: 1px solid var(--color-border-subtle);
+  overflow-x: auto;
+}
+
+.copilot-markdown pre code {
+  background: none;
+  padding: 0;
+  color: var(--color-text-secondary);
+}
+
+.copilot-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5em 0;
+  font-size: 0.85rem;
+}
+
+.copilot-markdown thead th {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: left;
+  background: rgba(10, 14, 24, 0.5);
+}
+
+.copilot-markdown tbody td {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  color: var(--color-text-primary);
+}
+
+.copilot-markdown tbody tr:hover {
+  background: rgba(212, 168, 67, 0.03);
+}
+
+.copilot-markdown blockquote {
+  margin: 0.5em 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--color-accent);
+  background: rgba(212, 168, 67, 0.04);
+  color: var(--color-text-secondary);
+}
+
+.copilot-markdown strong {
+  color: var(--color-text-bright);
+  font-weight: 600;
+}
+
+.copilot-markdown a {
+  color: var(--color-accent);
+  text-decoration: underline;
+}

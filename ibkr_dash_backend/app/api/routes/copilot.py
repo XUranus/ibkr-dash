@@ -45,6 +45,7 @@ class CopilotChatResponse(BaseModel):
 class CopilotSessionResponse(BaseModel):
     """Copilot session metadata."""
     session_id: str
+    title: str = ""
     created_at: str
     message_count: int = 0
 
@@ -80,8 +81,13 @@ def copilot_chat(
     session_id = request.session_id
     if not session_id:
         session_id = str(uuid.uuid4())
+        # Generate a title from the first message (max 50 chars)
+        title = request.message[:50].strip()
+        if len(request.message) > 50:
+            title += "..."
         db.insert("copilot_sessions", {
             "id": session_id,
+            "title": title,
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
     else:
@@ -198,7 +204,7 @@ def list_sessions(
 ) -> list[CopilotSessionResponse]:
     """List copilot sessions."""
     rows = db.execute(
-        "SELECT s.id as session_id, s.created_at, COUNT(m.id) as message_count "
+        "SELECT s.id as session_id, s.title, s.created_at, COUNT(m.id) as message_count "
         "FROM copilot_sessions s LEFT JOIN copilot_messages m ON s.id = m.session_id "
         "GROUP BY s.id ORDER BY s.created_at DESC LIMIT ?",
         (limit,),
