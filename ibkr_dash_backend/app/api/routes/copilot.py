@@ -132,7 +132,8 @@ def copilot_chat(
             llm_service=llm_service,
             tool_registry=tool_registry,
             skill_registry=skill_registry,
-            max_rounds=8,
+            max_rounds=12,
+            max_tokens=8192,
         )
 
         # Build state
