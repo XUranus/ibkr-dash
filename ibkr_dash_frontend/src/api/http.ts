@@ -42,6 +42,11 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
     headers,
   })
 
+  // Handle 204 No Content (e.g., DELETE endpoints)
+  if (response.status === 204) {
+    return undefined as T
+  }
+
   const contentType = response.headers.get('content-type') ?? ''
   const isJson = contentType.includes('application/json')
   const payload = isJson ? await response.json() : await response.text()
