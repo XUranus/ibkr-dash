@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { fetchPositions, fetchPositionDetail } from '@/api/positions'
 import { useAccountOverview } from '@/hooks/useAccountOverview'
 import ErrorBlock from '@/components/ErrorBlock'
@@ -9,6 +10,7 @@ import type { PositionDetailResponse, PositionItem, PositionListResponse, Positi
 import { formatNumber } from '@/utils/format'
 
 export default function PositionsView() {
+  const { t } = useTranslation()
   const { overview, ensureLoaded } = useAccountOverview()
   const [response, setResponse] = useState<PositionListResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -30,7 +32,7 @@ export default function PositionsView() {
       ])
       setResponse(listResponse)
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to load positions')
+      setErrorMessage(err instanceof Error ? err.message : t('positions.failedToLoadPositions'))
     } finally {
       setLoading(false)
     }
@@ -100,7 +102,7 @@ export default function PositionsView() {
     const symbol = `${item.symbol ?? ''}`.trim()
     if (!symbol) return
     const key = `${item.asset_class ?? 'UNKNOWN'}:${symbol}`
-    setActiveDetail({ key, symbol, description: item.description ?? 'No name', detail: null })
+    setActiveDetail({ key, symbol, description: item.description ?? t('positions.noName'), detail: null })
     setDetailLoading(true)
     setDetailError('')
     setDetailVisible(true)
@@ -108,7 +110,7 @@ export default function PositionsView() {
       const detail = await fetchPositionDetail({ symbol, asset_class: item.asset_class })
       setActiveDetail((prev) => prev?.key === key ? { ...prev, detail } : prev)
     } catch (err) {
-      setDetailError(err instanceof Error ? err.message : 'Failed to load detail')
+      setDetailError(err instanceof Error ? err.message : t('positions.failedToLoadDetail'))
     } finally {
       setDetailLoading(false)
     }
@@ -121,16 +123,16 @@ export default function PositionsView() {
           <section className="summary-layout summary-layout--triple">
             <section className="surface-panel">
               <div className="surface-panel__content">
-                <h3 className="summary-title">Position Concentration</h3>
+                <h3 className="summary-title">{t('positions.positionConcentration')}</h3>
                 {!summary || summary.top_positions.length === 0 ? (
-                  <div className="empty-state" style={{ minHeight: 'auto', padding: '2rem 1rem' }}>No concentration data</div>
+                  <div className="empty-state" style={{ minHeight: 'auto', padding: '2rem 1rem' }}>{t('positions.noConcentrationData')}</div>
                 ) : (
                   <div className="summary-list">
                     {summary.top_positions.map((item) => (
                       <div key={`${item.asset_class}-${item.symbol}`} className="summary-list__row">
                         <div className="summary-list__meta">
                           <strong>{item.symbol ?? '--'}</strong>
-                          <p>{item.description ?? 'No name'}</p>
+                          <p>{item.description ?? t('positions.noName')}</p>
                         </div>
                         <div className="summary-list__value">
                           <strong>{formatNumber(item.position_value, 2)}</strong>
@@ -143,16 +145,16 @@ export default function PositionsView() {
               </div>
             </section>
 
-            <PieDistributionCard title="Asset Classes" subtitle="Stocks, fixed income, and cash allocation" items={assetPieItems} />
-            <PieDistributionCard title="Industry Distribution" subtitle="Lightweight industry classification by symbol and description" items={industryPieItems} />
+            <PieDistributionCard title={t('positions.assetClasses')} subtitle={t('positions.assetClassesDesc')} items={assetPieItems} />
+            <PieDistributionCard title={t('positions.industryDistribution')} subtitle={t('positions.industryDistributionDesc')} items={industryPieItems} />
           </section>
 
           <section className="surface-panel">
             <div className="surface-panel__content">
               <div className="section-header">
                 <div>
-                  <h2 className="panel-title">Position Details</h2>
-                  <p className="panel-subtitle">Click column headers to sort. Click any row to view stock detail chart.</p>
+                  <h2 className="panel-title">{t('positions.positionDetails')}</h2>
+                  <p className="panel-subtitle">{t('positions.positionDetailsDesc')}</p>
                 </div>
               </div>
               {response && <PositionTable items={response.items} onSelect={openPositionDetail} />}
@@ -165,8 +167,8 @@ export default function PositionsView() {
         <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setDetailVisible(false) }}>
           <section className="modal-dialog" style={{ width: 'min(1400px, 94vw)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h3 style={{ margin: 0 }}>{activeDetail?.symbol ? `${activeDetail.symbol} Detail` : 'Position Detail'}</h3>
-              <button className="btn btn--ghost" onClick={() => setDetailVisible(false)}>Close</button>
+              <h3 style={{ margin: 0 }}>{activeDetail?.symbol ? `${activeDetail.symbol} Detail` : t('positions.positionDetail')}</h3>
+              <button className="btn btn--ghost" onClick={() => setDetailVisible(false)}>{t('positions.close')}</button>
             </div>
             {detailLoading ? <LoadingBlock /> : detailError ? <ErrorBlock message={detailError} /> : (
               <div style={{ color: 'var(--color-text-secondary)', minHeight: 200 }}>
@@ -177,7 +179,7 @@ export default function PositionsView() {
                     <p style={{ fontSize: '0.85rem', marginTop: 8 }}>Position detail chart with candlestick and trade markers will render here.</p>
                   </div>
                 ) : (
-                  <div className="empty-state">No detail available</div>
+                  <div className="empty-state">{t('positions.noDetailAvailable')}</div>
                 )}
               </div>
             )}

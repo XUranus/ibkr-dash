@@ -48,7 +48,21 @@
     "value": "市值",
     "pnl": "盈亏",
     "weight": "权重",
-    "noData": "暂无持仓数据。"
+    "noData": "暂无持仓数据。",
+    "positionConcentration": "持仓集中度",
+    "noConcentrationData": "暂无集中度数据",
+    "noName": "无名称",
+    "assetClasses": "资产类别",
+    "assetClassesDesc": "股票、固收和现金配置",
+    "industryDistribution": "行业分布",
+    "industryDistributionDesc": "基于标的和描述的轻量级行业分类",
+    "positionDetails": "持仓详情",
+    "positionDetailsDesc": "点击列头排序，点击任意行查看股票详情图表。",
+    "positionDetail": "持仓详情",
+    "noDetailAvailable": "暂无详情",
+    "close": "关闭",
+    "failedToLoadPositions": "加载持仓失败",
+    "failedToLoadDetail": "加载详情失败"
   },
   "trades": {
     "title": "交易",
@@ -59,17 +73,81 @@
     "quantity": "数量",
     "price": "价格",
     "pnl": "盈亏",
-    "noData": "暂无交易记录。"
+    "noData": "暂无交易记录。",
+    "tradeFilters": "交易筛选",
+    "tradeFiltersDesc": "按日期、标的和方向筛选，点击列头排序。",
+    "startDate": "开始日期",
+    "endDate": "结束日期",
+    "direction": "方向",
+    "buy": "买入",
+    "sell": "卖出",
+    "search": "搜索",
+    "totalTrades": "总交易数",
+    "buyCount": "买入次数",
+    "sellCount": "卖出次数",
+    "symbols": "标的数",
+    "totalCommission": "总手续费",
+    "realizedPnl": "已实现盈亏",
+    "netProceeds": "净收入",
+    "tradeDetails": "交易详情",
+    "tradeDetailsDesc": "点击列头排序。",
+    "pageInfo": "第 {{page}} 页，共 {{totalPages}} 页（共 {{total}} 条）",
+    "prev": "上一页",
+    "next": "下一页",
+    "noTradeData": "暂无交易数据",
+    "failedToLoadTrades": "加载交易失败"
   },
   "cashFlows": {
     "title": "现金流",
     "subtitle": "现金流记录，包括出入金和分红。",
-    "noData": "暂无现金流记录。"
+    "noData": "暂无现金流记录。",
+    "filters": "筛选",
+    "filtersDesc": "按时间、币种和方向查看历史出入金记录。",
+    "startDate": "开始日期",
+    "endDate": "结束日期",
+    "currency": "币种",
+    "direction": "方向",
+    "deposit": "入金",
+    "withdrawal": "出金",
+    "search": "搜索",
+    "records": "记录数",
+    "deposits": "入金次数",
+    "withdrawals": "出金次数",
+    "summary": "汇总",
+    "summaryDesc": "{{count}} 条记录 - {{deposits}} 笔入金 - {{withdrawals}} 笔出金",
+    "totalDeposits": "入金总额",
+    "totalWithdrawals": "出金总额",
+    "netFlow": "净流入",
+    "cashFlowDetails": "现金流详情",
+    "cashFlowDetailsDesc": "点击列头按日期或金额排序。",
+    "pageInfo": "第 {{page}} 页，共 {{totalPages}} 页（共 {{total}} 条）",
+    "prev": "上一页",
+    "next": "下一页",
+    "noCashFlowRecords": "暂无现金流记录",
+    "failedToLoadCashFlows": "加载现金流失败"
   },
   "dividends": {
     "title": "分红",
     "subtitle": "分红收入记录。",
-    "noData": "暂无分红记录。"
+    "noData": "暂无分红记录。",
+    "filters": "筛选",
+    "filtersDesc": "查看历史分红、预扣税和代替支付记录。",
+    "startDate": "开始日期",
+    "endDate": "结束日期",
+    "currency": "币种",
+    "symbol": "标的",
+    "search": "搜索",
+    "records": "记录数",
+    "grossDividends": "分红总额",
+    "withholdingTax": "预扣税",
+    "netReceived": "净收入",
+    "dividendDetails": "分红详情",
+    "dividendDetailsDesc": "点击列头排序。",
+    "pageInfo": "第 {{page}} 页，共 {{totalPages}} 页",
+    "prev": "上一页",
+    "next": "下一页",
+    "noDividendRecords": "暂无分红记录",
+    "failedToLoadDividends": "加载分红失败"
   },
   "copilot": {
     "title": "智能助手",
@@ -82,7 +160,15 @@
     "welcome": "智能助手",
     "welcomeDesc": "询问关于你的投资组合、持仓和交易的问题。",
     "hide": "隐藏",
-    "showSessions": "会话"
+    "showSessions": "会话",
+    "failedToSend": "发送消息失败",
+    "welcomeQuestions": [
+      "我的总权益是多少？",
+      "我的前5大持仓是什么？",
+      "我的风险水平如何？",
+      "AAPL最近表现如何？",
+      "我应该持有还是卖出GOOG？"
+    ]
   },
   "tradeDecision": {
     "title": "交易决策",
@@ -99,7 +185,20 @@
     "noDecisions": "暂无决策记录。",
     "selectOrRun": "选择一个决策或运行新分析。",
     "keyReasons": "核心理由",
-    "risks": "风险"
+    "risks": "风险",
+    "aiAgent": "AI 代理",
+    "analysisInput": "分析输入",
+    "decisionDataParseError": "决策数据无法解析。",
+    "failedToLoad": "加载失败",
+    "analysisFailed": "分析失败",
+    "failedToLoadDecision": "加载决策失败",
+    "actionAdd": "加仓",
+    "actionHold": "持有",
+    "actionReduce": "减仓",
+    "actionSell": "卖出",
+    "actionWait": "等待",
+    "actionAvoid": "回避",
+    "actionWatchlist": "观察"
   },
   "tradeReview": {
     "title": "交易复盘",
@@ -117,7 +216,12 @@
     "selectOrGenerate": "选择一个复盘或生成新的。",
     "strengths": "优点",
     "weaknesses": "不足",
-    "improvements": "改进建议"
+    "improvements": "改进建议",
+    "aiAgent": "AI 代理",
+    "reviewDataParseError": "复盘数据无法解析。",
+    "failedToLoad": "加载失败",
+    "reviewFailed": "复盘失败",
+    "failedToLoadReview": "加载复盘失败"
   },
   "dailyReview": {
     "title": "每日持仓复盘",
@@ -132,7 +236,12 @@
     "accountConclusion": "账户结论",
     "attribution": "归因分析",
     "focusSymbols": "重点标的",
-    "watchlist": "关注列表"
+    "watchlist": "关注列表",
+    "aiAgent": "AI 代理",
+    "dailyReviewLabel": "每日复盘",
+    "reviewDataParseError": "复盘数据无法解析。",
+    "failedToLoad": "加载失败",
+    "generationFailed": "生成失败"
   },
   "riskAssessment": {
     "title": "风险评估",
@@ -163,7 +272,10 @@
     "platform": "平台",
     "timestamp": "时间戳",
     "longbridgeNote": "Longbridge 未配置。AI 代理将仅使用 IBKR 数据。",
-    "longbridgeConfigured": "Longbridge API 已配置，可用于公开市场数据。"
+    "longbridgeConfigured": "Longbridge API 已配置，可用于公开市场数据。",
+    "adminLabel": "管理",
+    "runtime": "运行时",
+    "failedToLoad": "加载系统状态失败"
   },
   "adminLlm": {
     "title": "LLM 配置",
@@ -179,7 +291,21 @@
     "allProviders": "所有供应商",
     "noProviders": "暂无供应商配置。",
     "active": "活跃",
-    "inactive": "未激活"
+    "inactive": "未激活",
+    "name": "名称",
+    "model": "模型",
+    "baseUrl": "Base URL",
+    "temperature": "温度",
+    "maxTokens": "最大 Token",
+    "apiKey": "API Key",
+    "activeLabel": "活跃",
+    "healthyLabel": "正常",
+    "noActiveProvider": "未配置活跃的 LLM 供应商。",
+    "success": "成功",
+    "failed": "失败",
+    "noResponse": "无响应",
+    "failedToLoad": "加载 LLM 配置失败",
+    "testFailed": "测试失败"
   },
   "adminIbkr": {
     "title": "IBKR 数据",
@@ -196,7 +322,15 @@
     "testBtn": "测试 IBKR 连接",
     "testing": "测试中...",
     "saveSettings": "保存配置",
-    "saving": "保存中..."
+    "saving": "保存中...",
+    "adminLabel": "管理",
+    "flexQueryId": "Flex Query ID",
+    "settingsSaved": "配置保存成功。",
+    "failedToLoad": "加载 IBKR 配置失败",
+    "failedToSave": "保存配置失败",
+    "testFailed": "测试失败",
+    "success": "成功",
+    "failed": "失败"
   },
   "adminEmail": {
     "title": "邮件配置",
@@ -212,7 +346,15 @@
     "sendTest": "发送测试邮件",
     "sending": "发送中...",
     "save": "保存",
-    "saving": "保存中..."
+    "saving": "保存中...",
+    "adminLabel": "管理",
+    "set": "（已设置）",
+    "emailSettingsSaved": "邮件配置已保存。",
+    "failedToLoad": "加载邮件配置失败",
+    "failedToSave": "保存失败",
+    "sent": "已发送",
+    "failed": "失败",
+    "testFailed": "测试失败"
   },
   "adminPrompts": {
     "title": "Prompt 管理",
@@ -229,7 +371,11 @@
     "version": "版本",
     "status": "状态",
     "created": "创建时间",
-    "selectPrompt": "从列表中选择一个 Prompt。"
+    "selectPrompt": "从列表中选择一个 Prompt。",
+    "adminLabel": "管理",
+    "createPrompt": "创建 PROMPT",
+    "failedToLoad": "加载 Prompt 失败",
+    "failedToCreate": "创建 Prompt 失败"
   },
   "adminHarness": {
     "title": "测试控制台",
@@ -241,7 +387,62 @@
     "agent": "Agent",
     "status": "状态",
     "created": "创建时间",
-    "finished": "完成时间"
+    "finished": "完成时间",
+    "adminLabel": "管理",
+    "failedToLoad": "加载任务失败"
+  },
+  "adminLongbridge": {
+    "title": "Longbridge MCP",
+    "subtitle": "配置 Longbridge 市场数据集成。",
+    "adminLabel": "管理",
+    "status": "状态",
+    "notConfigured": "未配置",
+    "notConfiguredDesc": "Longbridge 集成未配置。要为 AI 代理启用公开市场数据，请在后端设置以下环境变量："
+  },
+  "adminMonitoring": {
+    "title": "Agent 监控",
+    "subtitle": "监控 LLM 调用、IBKR 工具、Longbridge MCP 工具和运行时错误。",
+    "adminLabel": "管理",
+    "autoRefresh": "自动刷新",
+    "loadingMonitoring": "加载监控数据中...",
+    "llmMetrics": "LLM 指标",
+    "toolMetrics": "工具指标",
+    "recentEvents": "最近事件",
+    "noLlmMetrics": "暂无 LLM 指标",
+    "noToolMetrics": "暂无工具指标",
+    "noRecentEvents": "暂无监控事件",
+    "model": "模型",
+    "calls": "调用数",
+    "tokens": "Token 数",
+    "avgLatency": "平均延迟",
+    "errors": "错误数",
+    "tool": "工具",
+    "success": "成功",
+    "failed": "失败"
+  },
+  "bootstrap": {
+    "welcome": "欢迎",
+    "welcomeTitle": "欢迎使用 IBKR 仪表盘",
+    "welcomeDesc": "创建管理员账户以开始使用",
+    "username": "用户名",
+    "password": "密码",
+    "confirmPassword": "确认密码",
+    "usernameEmpty": "用户名不能为空",
+    "passwordLength": "密码至少需要8个字符",
+    "passwordMismatch": "两次密码不一致",
+    "creating": "创建中...",
+    "createAndEnter": "创建并进入系统",
+    "initFailed": "初始化失败"
+  },
+  "stockResearch": {
+    "research": "研究",
+    "title": "股票研究",
+    "subtitle": "查看任意标的的财务、估值、行情和同行分析。",
+    "symbol": "标的",
+    "query": "查询",
+    "search": "搜索",
+    "enterQueryAndSearch": "输入查询条件并点击搜索以分析 {{symbol}}",
+    "enterSymbolToBegin": "输入股票标的以开始研究"
   },
   "common": {
     "loading": "加载中...",

@@ -48,7 +48,21 @@
     "value": "Value",
     "pnl": "P&L",
     "weight": "Weight",
-    "noData": "No positions found."
+    "noData": "No positions found.",
+    "positionConcentration": "Position Concentration",
+    "noConcentrationData": "No concentration data",
+    "noName": "No name",
+    "assetClasses": "Asset Classes",
+    "assetClassesDesc": "Stocks, fixed income, and cash allocation",
+    "industryDistribution": "Industry Distribution",
+    "industryDistributionDesc": "Lightweight industry classification by symbol and description",
+    "positionDetails": "Position Details",
+    "positionDetailsDesc": "Click column headers to sort. Click any row to view stock detail chart.",
+    "positionDetail": "Position Detail",
+    "noDetailAvailable": "No detail available",
+    "close": "Close",
+    "failedToLoadPositions": "Failed to load positions",
+    "failedToLoadDetail": "Failed to load detail"
   },
   "trades": {
     "title": "Trades",
@@ -59,17 +73,81 @@
     "quantity": "Qty",
     "price": "Price",
     "pnl": "P&L",
-    "noData": "No trades found."
+    "noData": "No trades found.",
+    "tradeFilters": "Trade Filters",
+    "tradeFiltersDesc": "Filter by date, symbol, and direction. Sort via column headers.",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "direction": "Direction",
+    "buy": "Buy",
+    "sell": "Sell",
+    "search": "Search",
+    "totalTrades": "Total Trades",
+    "buyCount": "Buy Count",
+    "sellCount": "Sell Count",
+    "symbols": "Symbols",
+    "totalCommission": "Total Commission",
+    "realizedPnl": "Realized P&L",
+    "netProceeds": "Net Proceeds",
+    "tradeDetails": "Trade Details",
+    "tradeDetailsDesc": "Click column headers to sort.",
+    "pageInfo": "Page {{page}} of {{totalPages}} ({{total}} total)",
+    "prev": "Prev",
+    "next": "Next",
+    "noTradeData": "No trade data",
+    "failedToLoadTrades": "Failed to load trades"
   },
   "cashFlows": {
     "title": "Cash Flows",
     "subtitle": "Cash flow records including deposits, withdrawals, and dividends.",
-    "noData": "No cash flows found."
+    "noData": "No cash flows found.",
+    "filters": "Filters",
+    "filtersDesc": "View historical deposits and withdrawals by time, currency, and direction.",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "currency": "Currency",
+    "direction": "Direction",
+    "deposit": "Deposit",
+    "withdrawal": "Withdrawal",
+    "search": "Search",
+    "records": "Records",
+    "deposits": "Deposits",
+    "withdrawals": "Withdrawals",
+    "summary": "Summary",
+    "summaryDesc": "{{count}} records - {{deposits}} deposits - {{withdrawals}} withdrawals",
+    "totalDeposits": "Total Deposits",
+    "totalWithdrawals": "Total Withdrawals",
+    "netFlow": "Net Flow",
+    "cashFlowDetails": "Cash Flow Details",
+    "cashFlowDetailsDesc": "Click column headers to sort by date or amount.",
+    "pageInfo": "Page {{page}} of {{totalPages}} ({{total}} total)",
+    "prev": "Prev",
+    "next": "Next",
+    "noCashFlowRecords": "No cash flow records",
+    "failedToLoadCashFlows": "Failed to load cash flows"
   },
   "dividends": {
     "title": "Dividends",
     "subtitle": "Dividend income records.",
-    "noData": "No dividends found."
+    "noData": "No dividends found.",
+    "filters": "Filters",
+    "filtersDesc": "View historical dividends, withholding taxes, and Payment In Lieu records.",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "currency": "Currency",
+    "symbol": "Symbol",
+    "search": "Search",
+    "records": "Records",
+    "grossDividends": "Gross Dividends",
+    "withholdingTax": "Withholding Tax",
+    "netReceived": "Net Received",
+    "dividendDetails": "Dividend Details",
+    "dividendDetailsDesc": "Click column headers to sort.",
+    "pageInfo": "Page {{page}} of {{totalPages}}",
+    "prev": "Prev",
+    "next": "Next",
+    "noDividendRecords": "No dividend records",
+    "failedToLoadDividends": "Failed to load dividends"
   },
   "copilot": {
     "title": "Account Copilot",
@@ -82,7 +160,15 @@
     "welcome": "ACCOUNT COPILOT",
     "welcomeDesc": "Ask questions about your portfolio, positions, and trades.",
     "hide": "Hide",
-    "showSessions": "Sessions"
+    "showSessions": "Sessions",
+    "failedToSend": "Failed to send message",
+    "welcomeQuestions": [
+      "What is my total equity?",
+      "What are my top 5 positions?",
+      "What is my risk level?",
+      "How has AAPL performed recently?",
+      "Should I hold or sell my GOOG position?"
+    ]
   },
   "tradeDecision": {
     "title": "Trade Decision",
@@ -99,7 +185,20 @@
     "noDecisions": "No decisions yet.",
     "selectOrRun": "Select a decision or run a new analysis.",
     "keyReasons": "KEY REASONS",
-    "risks": "RISKS"
+    "risks": "RISKS",
+    "aiAgent": "AI AGENT",
+    "analysisInput": "ANALYSIS INPUT",
+    "decisionDataParseError": "Decision data could not be parsed.",
+    "failedToLoad": "Failed to load",
+    "analysisFailed": "Analysis failed",
+    "failedToLoadDecision": "Failed to load decision",
+    "actionAdd": "Add",
+    "actionHold": "Hold",
+    "actionReduce": "Reduce",
+    "actionSell": "Sell",
+    "actionWait": "Wait",
+    "actionAvoid": "Avoid",
+    "actionWatchlist": "Watchlist"
   },
   "tradeReview": {
     "title": "Trade Review",
@@ -117,7 +216,12 @@
     "selectOrGenerate": "Select a review or generate a new one.",
     "strengths": "STRENGTHS",
     "weaknesses": "WEAKNESSES",
-    "improvements": "IMPROVEMENTS"
+    "improvements": "IMPROVEMENTS",
+    "aiAgent": "AI AGENT",
+    "reviewDataParseError": "Review data could not be parsed.",
+    "failedToLoad": "Failed to load",
+    "reviewFailed": "Review failed",
+    "failedToLoadReview": "Failed to load review"
   },
   "dailyReview": {
     "title": "Daily Position Review",
@@ -132,7 +236,12 @@
     "accountConclusion": "ACCOUNT CONCLUSION",
     "attribution": "ATTRIBUTION",
     "focusSymbols": "FOCUS SYMBOLS",
-    "watchlist": "WATCHLIST"
+    "watchlist": "WATCHLIST",
+    "aiAgent": "AI AGENT",
+    "dailyReviewLabel": "DAILY REVIEW",
+    "reviewDataParseError": "Review data could not be parsed.",
+    "failedToLoad": "Failed to load",
+    "generationFailed": "Generation failed"
   },
   "riskAssessment": {
     "title": "Risk Assessment",
@@ -163,7 +272,10 @@
     "platform": "Platform",
     "timestamp": "Timestamp",
     "longbridgeNote": "Longbridge is not configured. AI agents will use IBKR data only.",
-    "longbridgeConfigured": "Longbridge API is configured for public market data."
+    "longbridgeConfigured": "Longbridge API is configured for public market data.",
+    "adminLabel": "ADMIN",
+    "runtime": "Runtime",
+    "failedToLoad": "Failed to load system status"
   },
   "adminLlm": {
     "title": "LLM Configuration",
@@ -179,7 +291,21 @@
     "allProviders": "ALL PROVIDERS",
     "noProviders": "No providers configured.",
     "active": "Active",
-    "inactive": "Inactive"
+    "inactive": "Inactive",
+    "name": "Name",
+    "model": "Model",
+    "baseUrl": "Base URL",
+    "temperature": "Temperature",
+    "maxTokens": "Max Tokens",
+    "apiKey": "API Key",
+    "activeLabel": "ACTIVE",
+    "healthyLabel": "HEALTHY",
+    "noActiveProvider": "No active LLM provider configured.",
+    "success": "SUCCESS",
+    "failed": "FAILED",
+    "noResponse": "No response",
+    "failedToLoad": "Failed to load LLM config",
+    "testFailed": "Test failed"
   },
   "adminIbkr": {
     "title": "IBKR Data",
@@ -196,7 +322,15 @@
     "testBtn": "Test IBKR Connection",
     "testing": "Testing...",
     "saveSettings": "Save Settings",
-    "saving": "Saving..."
+    "saving": "Saving...",
+    "adminLabel": "ADMIN",
+    "flexQueryId": "Flex Query ID",
+    "settingsSaved": "Settings saved successfully.",
+    "failedToLoad": "Failed to load IBKR settings",
+    "failedToSave": "Failed to save settings",
+    "testFailed": "Test failed",
+    "success": "SUCCESS",
+    "failed": "FAILED"
   },
   "adminEmail": {
     "title": "Email Configuration",
@@ -212,7 +346,15 @@
     "sendTest": "Send Test Email",
     "sending": "Sending...",
     "save": "Save",
-    "saving": "Saving..."
+    "saving": "Saving...",
+    "adminLabel": "ADMIN",
+    "set": "(set)",
+    "emailSettingsSaved": "Email settings saved.",
+    "failedToLoad": "Failed to load email settings",
+    "failedToSave": "Failed to save",
+    "sent": "SENT",
+    "failed": "FAILED",
+    "testFailed": "Test failed"
   },
   "adminPrompts": {
     "title": "Prompt Management",
@@ -229,7 +371,11 @@
     "version": "Version",
     "status": "Status",
     "created": "Created",
-    "selectPrompt": "Select a prompt from the list."
+    "selectPrompt": "Select a prompt from the list.",
+    "adminLabel": "ADMIN",
+    "createPrompt": "CREATE PROMPT",
+    "failedToLoad": "Failed to load prompts",
+    "failedToCreate": "Failed to create prompt"
   },
   "adminHarness": {
     "title": "Harness Console",
@@ -241,7 +387,62 @@
     "agent": "Agent",
     "status": "Status",
     "created": "Created",
-    "finished": "Finished"
+    "finished": "Finished",
+    "adminLabel": "ADMIN",
+    "failedToLoad": "Failed to load tasks"
+  },
+  "adminLongbridge": {
+    "title": "Longbridge MCP",
+    "subtitle": "Configure Longbridge market data integration.",
+    "adminLabel": "ADMIN",
+    "status": "STATUS",
+    "notConfigured": "NOT CONFIGURED",
+    "notConfiguredDesc": "Longbridge integration is not configured. To enable public market data for AI agents, set the following environment variables in the backend:"
+  },
+  "adminMonitoring": {
+    "title": "Agent Monitoring",
+    "subtitle": "Monitor LLM calls, IBKR tools, Longbridge MCP tools, and runtime failures.",
+    "adminLabel": "ADMIN",
+    "autoRefresh": "Auto-refresh",
+    "loadingMonitoring": "Loading monitoring data...",
+    "llmMetrics": "LLM Metrics",
+    "toolMetrics": "Tool Metrics",
+    "recentEvents": "Recent Events",
+    "noLlmMetrics": "No LLM metrics available",
+    "noToolMetrics": "No tool metrics available",
+    "noRecentEvents": "No recent monitoring events",
+    "model": "Model",
+    "calls": "Calls",
+    "tokens": "Tokens",
+    "avgLatency": "Avg Latency",
+    "errors": "Errors",
+    "tool": "Tool",
+    "success": "Success",
+    "failed": "Failed"
+  },
+  "bootstrap": {
+    "welcome": "WELCOME",
+    "welcomeTitle": "Welcome to IBKR Dashboard",
+    "welcomeDesc": "Create an admin account to get started",
+    "username": "Username",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "usernameEmpty": "Username cannot be empty",
+    "passwordLength": "Password must be at least 8 characters",
+    "passwordMismatch": "Passwords do not match",
+    "creating": "Creating...",
+    "createAndEnter": "Create and Enter System",
+    "initFailed": "Initialization failed"
+  },
+  "stockResearch": {
+    "research": "RESEARCH",
+    "title": "Stock Research",
+    "subtitle": "View financials, valuation, quotes, and peer analysis for any symbol.",
+    "symbol": "Symbol",
+    "query": "Query",
+    "search": "Search",
+    "enterQueryAndSearch": "Enter a query and click Search to analyze {{symbol}}",
+    "enterSymbolToBegin": "Enter a stock symbol to begin research"
   },
   "common": {
     "loading": "Loading...",

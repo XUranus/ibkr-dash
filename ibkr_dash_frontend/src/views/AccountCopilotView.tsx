@@ -162,8 +162,21 @@ export default function AccountCopilotView() {
                         }}>
                         {sessionDisplayName(s)}
                       </button>
-                      <button className="btn btn--ghost btn--sm" onClick={() => handleDeleteSession(s.session_id)}
-                        style={{ minWidth: 28, padding: 0, fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
+                      <button
+                        className="btn btn--ghost btn--sm"
+                        onClick={() => handleDeleteSession(s.session_id)}
+                        title="Delete session"
+                        style={{
+                          minWidth: 28,
+                          padding: 0,
+                          fontSize: '0.75rem',
+                          color: 'var(--color-text-muted)',
+                          opacity: 0.6,
+                          transition: 'opacity 0.15s, color 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = 'var(--color-negative)' }}
+                        onMouseLeave={e => { e.currentTarget.style.opacity = '0.6'; e.currentTarget.style.color = 'var(--color-text-muted)' }}
+                      >
                         ✕
                       </button>
                     </div>

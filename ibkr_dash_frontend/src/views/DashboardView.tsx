@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { fetchEquityCurve } from '@/api/charts'
 import { useAccountOverview } from '@/hooks/useAccountOverview'
 import EquityCurveSimple from '@/components/EquityCurveSimple'
@@ -11,6 +12,7 @@ import { buildDashboardStatCards } from '@/utils/dashboardMetrics'
 import { buildEquityCurveRangeParams, EQUITY_CURVE_RANGE_OPTIONS, type EquityCurveRangeKey } from '@/utils/equityCurveRange'
 
 export default function DashboardView() {
+  const { t } = useTranslation()
   const { overview, ensureLoaded } = useAccountOverview()
   const [curveItems, setCurveItems] = useState<EquityCurvePoint[]>([])
   const [pageLoading, setPageLoading] = useState(true)
@@ -33,11 +35,11 @@ export default function DashboardView() {
       )
       setCurveItems(curveResponse.items)
     } catch (err) {
-      setCurveError(err instanceof Error ? err.message : 'Failed to load equity curve')
+      setCurveError(err instanceof Error ? err.message : t('dashboard.error'))
     } finally {
       if (showLoading) setCurveLoading(false)
     }
-  }, [overview, selectedRange, ensureLoaded])
+  }, [overview, selectedRange, ensureLoaded, t])
 
   useEffect(() => {
     const load = async () => {
@@ -47,7 +49,7 @@ export default function DashboardView() {
         await ensureLoaded()
         await loadCurveData(false)
       } catch (err) {
-        setPageError(err instanceof Error ? err.message : 'Failed to load dashboard')
+        setPageError(err instanceof Error ? err.message : t('dashboard.error'))
       } finally {
         setPageLoading(false)
       }
