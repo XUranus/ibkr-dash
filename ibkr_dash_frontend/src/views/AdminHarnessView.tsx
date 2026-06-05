@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import AdminTabs from '@/components/AdminTabs'
 import { request } from '@/api/http'
 
@@ -15,6 +16,7 @@ interface AgentTask {
 }
 
 export default function AdminHarnessView() {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
   const [tasks, setTasks] = useState<AgentTask[]>([])
   const [errorMessage, setErrorMessage] = useState('')
@@ -26,7 +28,7 @@ export default function AdminHarnessView() {
       const data = await request<AgentTask[] | { items: AgentTask[] }>('/api/agent/tasks?limit=50')
       setTasks(Array.isArray(data) ? data : (data.items ?? []))
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to load tasks')
+      setErrorMessage(err instanceof Error ? err.message : t('adminHarness.failedToLoad'))
     } finally {
       setLoading(false)
     }
@@ -45,11 +47,11 @@ export default function AdminHarnessView() {
         <div className="surface-panel__content">
           <div className="section-header" style={{ alignItems: 'center' }}>
             <div>
-              <p className="eyebrow">ADMIN</p>
-              <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--color-text-bright)' }}>Harness Console</h2>
-              <p className="panel-subtitle">Agent task history and execution logs.</p>
+              <p className="eyebrow">{t('adminHarness.adminLabel')}</p>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--color-text-bright)' }}>{t('adminHarness.title')}</h2>
+              <p className="panel-subtitle">{t('adminHarness.subtitle')}</p>
             </div>
-            <button className="btn btn--ghost btn--sm" onClick={() => void loadData()}>Refresh</button>
+            <button className="btn btn--ghost btn--sm" onClick={() => void loadData()}>{t('adminHarness.refresh')}</button>
           </div>
           <AdminTabs />
         </div>
@@ -63,31 +65,31 @@ export default function AdminHarnessView() {
 
       <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease 0.1s both' }}>
         <div className="surface-panel__content">
-          <p className="eyebrow">AGENT TASKS ({tasks.length})</p>
+          <p className="eyebrow">{t('adminHarness.agentTasks')} ({tasks.length})</p>
           {loading ? (
-            <p style={{ color: 'var(--color-text-muted)', marginTop: 12 }}>Loading...</p>
+            <p style={{ color: 'var(--color-text-muted)', marginTop: 12 }}>{t('common.loading')}</p>
           ) : tasks.length === 0 ? (
-            <p style={{ color: 'var(--color-text-muted)', marginTop: 12 }}>No agent tasks found. Run an agent from the AI Decision, AI Review, or Risk Assessment pages.</p>
+            <p style={{ color: 'var(--color-text-muted)', marginTop: 12 }}>{t('adminHarness.noTasks')}</p>
           ) : (
             <div className="table-shell" style={{ marginTop: 12 }}>
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>ID</th>
-                    <th>Agent</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                    <th>Finished</th>
+                    <th>{t('adminHarness.id')}</th>
+                    <th>{t('adminHarness.agent')}</th>
+                    <th>{t('adminHarness.status')}</th>
+                    <th>{t('adminHarness.created')}</th>
+                    <th>{t('adminHarness.finished')}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {tasks.map((t) => (
-                    <tr key={t.id}>
-                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem' }}>{t.id.slice(0, 8)}...</td>
-                      <td style={{ fontWeight: 600 }}>{t.agent_name}</td>
-                      <td>{statusTag(t.status)}</td>
-                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>{t.created_at ? new Date(t.created_at).toLocaleString() : '--'}</td>
-                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>{t.finished_at ? new Date(t.finished_at).toLocaleString() : '--'}</td>
+                  {tasks.map((task) => (
+                    <tr key={task.id}>
+                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem' }}>{task.id.slice(0, 8)}...</td>
+                      <td style={{ fontWeight: 600 }}>{task.agent_name}</td>
+                      <td>{statusTag(task.status)}</td>
+                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>{task.created_at ? new Date(task.created_at).toLocaleString() : '--'}</td>
+                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>{task.finished_at ? new Date(task.finished_at).toLocaleString() : '--'}</td>
                     </tr>
                   ))}
                 </tbody>

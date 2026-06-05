@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { fetchCashFlows, fetchCashFlowSummary } from '@/api/cashFlows'
 import CashFlowTable from '@/components/CashFlowTable'
 import ErrorBlock from '@/components/ErrorBlock'
@@ -8,6 +9,7 @@ import type { CashFlowSummaryResponse } from '@/types/cashFlows'
 import { formatNumber } from '@/utils/format'
 
 export default function CashFlowsView() {
+  const { t } = useTranslation()
   const [state, setState] = useState({ start_date: '', end_date: '', currency: '', flow_direction: '', page: 1, page_size: 20 })
   const [cashFlowResponse, setCashFlowResponse] = useState<Awaited<ReturnType<typeof fetchCashFlows>> | null>(null)
   const [cashFlowSummary, setCashFlowSummary] = useState<CashFlowSummaryResponse | null>(null)
@@ -30,7 +32,7 @@ export default function CashFlowsView() {
       setCashFlowSummary(summaryResponse)
       setCashFlowResponse(listResponse)
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to load cash flows')
+      setErrorMessage(err instanceof Error ? err.message : t('cashFlows.failedToLoadCashFlows'))
     } finally {
       setLoading(false)
     }
@@ -58,32 +60,32 @@ export default function CashFlowsView() {
         <div className="surface-panel__content">
           <div className="section-header">
             <div>
-              <h2 className="panel-title">Filters</h2>
-              <p className="panel-subtitle">View historical deposits and withdrawals by time, currency, and direction.</p>
+              <h2 className="panel-title">{t('cashFlows.filters')}</h2>
+              <p className="panel-subtitle">{t('cashFlows.filtersDesc')}</p>
             </div>
           </div>
           <form style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 'var(--space-3)', alignItems: 'end' }} onSubmit={(e) => { e.preventDefault(); applyFilters() }}>
             <label className="field-stack">
-              <span className="field-stack__label">Start Date</span>
+              <span className="field-stack__label">{t('cashFlows.startDate')}</span>
               <input className="input" type="date" value={state.start_date} onChange={(e) => setState({ ...state, start_date: e.target.value })} />
             </label>
             <label className="field-stack">
-              <span className="field-stack__label">End Date</span>
+              <span className="field-stack__label">{t('cashFlows.endDate')}</span>
               <input className="input" type="date" value={state.end_date} onChange={(e) => setState({ ...state, end_date: e.target.value })} />
             </label>
             <label className="field-stack">
-              <span className="field-stack__label">Currency</span>
+              <span className="field-stack__label">{t('cashFlows.currency')}</span>
               <input className="input" type="text" placeholder="USD / CNH / HKD" value={state.currency} onChange={(e) => setState({ ...state, currency: e.target.value })} />
             </label>
             <div className="field-stack">
-              <span className="field-stack__label">Direction</span>
+              <span className="field-stack__label">{t('cashFlows.direction')}</span>
               <div style={{ display: 'flex', gap: 10 }}>
-                <button type="button" className={`btn ${state.flow_direction === 'deposit' ? 'btn--accent' : ''}`} onClick={() => setDirection('deposit')}>Deposit</button>
-                <button type="button" className={`btn ${state.flow_direction === 'withdrawal' ? 'btn--accent' : ''}`} onClick={() => setDirection('withdrawal')}>Withdrawal</button>
+                <button type="button" className={`btn ${state.flow_direction === 'deposit' ? 'btn--accent' : ''}`} onClick={() => setDirection('deposit')}>{t('cashFlows.deposit')}</button>
+                <button type="button" className={`btn ${state.flow_direction === 'withdrawal' ? 'btn--accent' : ''}`} onClick={() => setDirection('withdrawal')}>{t('cashFlows.withdrawal')}</button>
               </div>
             </div>
             <div className="field-stack">
-              <button type="submit" className="btn btn--accent" style={{ width: '100%' }}>Search</button>
+              <button type="submit" className="btn btn--accent" style={{ width: '100%' }}>{t('cashFlows.search')}</button>
             </div>
           </form>
         </div>
@@ -92,9 +94,9 @@ export default function CashFlowsView() {
       {loading ? <LoadingBlock /> : errorMessage ? <ErrorBlock message={errorMessage} /> : (
         <>
           <section className="stats-grid stats-grid--summary">
-            <StatCard title="Records" value={String(cashFlowSummary?.record_count ?? 0)} tone="accent" />
-            <StatCard title="Deposits" value={String(cashFlowSummary?.deposit_count ?? 0)} tone="positive" />
-            <StatCard title="Withdrawals" value={String(cashFlowSummary?.withdrawal_count ?? 0)} tone="negative" />
+            <StatCard title={t('cashFlows.records')} value={String(cashFlowSummary?.record_count ?? 0)} tone="accent" />
+            <StatCard title={t('cashFlows.deposits')} value={String(cashFlowSummary?.deposit_count ?? 0)} tone="positive" />
+            <StatCard title={t('cashFlows.withdrawals')} value={String(cashFlowSummary?.withdrawal_count ?? 0)} tone="negative" />
           </section>
 
           {cashFlowSummary?.by_currency && cashFlowSummary.by_currency.length > 0 && (
@@ -104,14 +106,14 @@ export default function CashFlowsView() {
                   <div className="surface-panel__content">
                     <div className="section-header">
                       <div>
-                        <h2 className="panel-title">{item.currency ?? 'Unknown'} Summary</h2>
-                        <p className="panel-subtitle">{item.record_count} records - {item.deposit_count} deposits - {item.withdrawal_count} withdrawals</p>
+                        <h2 className="panel-title">{item.currency ?? 'Unknown'} {t('cashFlows.summary')}</h2>
+                        <p className="panel-subtitle">{t('cashFlows.summaryDesc', { count: item.record_count, deposits: item.deposit_count, withdrawals: item.withdrawal_count })}</p>
                       </div>
                     </div>
                     <section className="stats-grid stats-grid--summary">
-                      <StatCard title="Total Deposits" value={formatNumber(item.total_deposit_amount)} tone="positive" />
-                      <StatCard title="Total Withdrawals" value={formatNumber(item.total_withdrawal_amount)} tone="negative" />
-                      <StatCard title="Net Flow" value={formatNumber(item.net_amount)} tone={item.net_amount >= 0 ? 'positive' : 'negative'} />
+                      <StatCard title={t('cashFlows.totalDeposits')} value={formatNumber(item.total_deposit_amount)} tone="positive" />
+                      <StatCard title={t('cashFlows.totalWithdrawals')} value={formatNumber(item.total_withdrawal_amount)} tone="negative" />
+                      <StatCard title={t('cashFlows.netFlow')} value={formatNumber(item.net_amount)} tone={item.net_amount >= 0 ? 'positive' : 'negative'} />
                     </section>
                   </div>
                 </section>
@@ -123,23 +125,23 @@ export default function CashFlowsView() {
             <div className="surface-panel__content">
               <div className="section-header">
                 <div>
-                  <h2 className="panel-title">Cash Flow Details</h2>
-                  <p className="panel-subtitle">Click column headers to sort by date or amount.</p>
+                  <h2 className="panel-title">{t('cashFlows.cashFlowDetails')}</h2>
+                  <p className="panel-subtitle">{t('cashFlows.cashFlowDetailsDesc')}</p>
                 </div>
               </div>
               {items.length > 0 ? (
                 <>
                   <CashFlowTable items={items} sortKey={sortKey} sortOrder={sortOrder} onSort={setSort} />
                   <div className="pager">
-                    <span className="terminal-note">Page {state.page} of {totalPages} ({cashFlowResponse?.pagination?.total ?? 0} total)</span>
+                    <span className="terminal-note">{t('cashFlows.pageInfo', { page: state.page, totalPages, total: cashFlowResponse?.pagination?.total ?? 0 })}</span>
                     <div className="pager__pages">
-                      <button className="pager__page" disabled={state.page <= 1} onClick={() => onPageChange(state.page - 1)}>Prev</button>
-                      <button className="pager__page" disabled={state.page >= totalPages} onClick={() => onPageChange(state.page + 1)}>Next</button>
+                      <button className="pager__page" disabled={state.page <= 1} onClick={() => onPageChange(state.page - 1)}>{t('cashFlows.prev')}</button>
+                      <button className="pager__page" disabled={state.page >= totalPages} onClick={() => onPageChange(state.page + 1)}>{t('cashFlows.next')}</button>
                     </div>
                   </div>
                 </>
               ) : (
-                <div className="empty-state">No cash flow records</div>
+                <div className="empty-state">{t('cashFlows.noCashFlowRecords')}</div>
               )}
             </div>
           </section>

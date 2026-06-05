@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { fetchDividendSummary, fetchDividends } from '@/api/dividends'
 import DividendTable from '@/components/DividendTable'
 import ErrorBlock from '@/components/ErrorBlock'
@@ -8,6 +9,7 @@ import type { DividendSummaryResponse } from '@/types/dividends'
 import { formatNumber } from '@/utils/format'
 
 export default function DividendsView() {
+  const { t } = useTranslation()
   const [state, setState] = useState({ start_date: '', end_date: '', currency: '', symbol: '', page: 1, page_size: 20 })
   const [dividendResponse, setDividendResponse] = useState<Awaited<ReturnType<typeof fetchDividends>> | null>(null)
   const [dividendSummary, setDividendSummary] = useState<DividendSummaryResponse | null>(null)
@@ -30,7 +32,7 @@ export default function DividendsView() {
       setDividendSummary(summaryRes)
       setDividendResponse(listRes)
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to load dividends')
+      setErrorMessage(err instanceof Error ? err.message : t('dividends.failedToLoadDividends'))
     } finally {
       setLoading(false)
     }
@@ -56,29 +58,29 @@ export default function DividendsView() {
         <div className="surface-panel__content">
           <div className="section-header">
             <div>
-              <h2 className="panel-title">Filters</h2>
-              <p className="panel-subtitle">View historical dividends, withholding taxes, and Payment In Lieu records.</p>
+              <h2 className="panel-title">{t('dividends.filters')}</h2>
+              <p className="panel-subtitle">{t('dividends.filtersDesc')}</p>
             </div>
           </div>
           <form style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 'var(--space-3)', alignItems: 'end' }} onSubmit={(e) => { e.preventDefault(); applyFilters() }}>
             <label className="field-stack">
-              <span className="field-stack__label">Start Date</span>
+              <span className="field-stack__label">{t('dividends.startDate')}</span>
               <input className="input" type="date" value={state.start_date} onChange={(e) => setState({ ...state, start_date: e.target.value })} />
             </label>
             <label className="field-stack">
-              <span className="field-stack__label">End Date</span>
+              <span className="field-stack__label">{t('dividends.endDate')}</span>
               <input className="input" type="date" value={state.end_date} onChange={(e) => setState({ ...state, end_date: e.target.value })} />
             </label>
             <label className="field-stack">
-              <span className="field-stack__label">Currency</span>
+              <span className="field-stack__label">{t('dividends.currency')}</span>
               <input className="input" type="text" placeholder="USD / CNH / HKD" value={state.currency} onChange={(e) => setState({ ...state, currency: e.target.value })} />
             </label>
             <label className="field-stack">
-              <span className="field-stack__label">Symbol</span>
+              <span className="field-stack__label">{t('dividends.symbol')}</span>
               <input className="input" type="text" placeholder="AAPL / MSFT / SGOV" value={state.symbol} onChange={(e) => setState({ ...state, symbol: e.target.value })} />
             </label>
             <div className="field-stack">
-              <button type="submit" className="btn btn--accent" style={{ width: '100%' }}>Search</button>
+              <button type="submit" className="btn btn--accent" style={{ width: '100%' }}>{t('dividends.search')}</button>
             </div>
           </form>
         </div>
@@ -87,33 +89,33 @@ export default function DividendsView() {
       {loading ? <LoadingBlock /> : errorMessage ? <ErrorBlock message={errorMessage} /> : (
         <>
           <section className="stats-grid stats-grid--summary">
-            <StatCard title="Records" value={String(dividendSummary?.record_count ?? 0)} tone="accent" />
-            <StatCard title="Gross Dividends" value={formatNumber(dividendSummary?.gross_dividend_amount ?? null)} tone="positive" />
-            <StatCard title="Withholding Tax" value={formatNumber(dividendSummary?.withholding_tax_amount ?? null)} tone="negative" />
-            <StatCard title="Net Received" value={formatNumber(dividendSummary?.net_amount ?? null)} tone={(dividendSummary?.net_amount ?? 0) >= 0 ? 'positive' : 'negative'} />
+            <StatCard title={t('dividends.records')} value={String(dividendSummary?.record_count ?? 0)} tone="accent" />
+            <StatCard title={t('dividends.grossDividends')} value={formatNumber(dividendSummary?.gross_dividend_amount ?? null)} tone="positive" />
+            <StatCard title={t('dividends.withholdingTax')} value={formatNumber(dividendSummary?.withholding_tax_amount ?? null)} tone="negative" />
+            <StatCard title={t('dividends.netReceived')} value={formatNumber(dividendSummary?.net_amount ?? null)} tone={(dividendSummary?.net_amount ?? 0) >= 0 ? 'positive' : 'negative'} />
           </section>
 
           <section className="surface-panel">
             <div className="surface-panel__content">
               <div className="section-header">
                 <div>
-                  <h2 className="panel-title">Dividend Details</h2>
-                  <p className="panel-subtitle">Click column headers to sort.</p>
+                  <h2 className="panel-title">{t('dividends.dividendDetails')}</h2>
+                  <p className="panel-subtitle">{t('dividends.dividendDetailsDesc')}</p>
                 </div>
               </div>
               {items.length > 0 ? (
                 <>
                   <DividendTable items={items} sortKey={sortKey} sortOrder={sortOrder} onSort={setSort} />
                   <div className="pager">
-                    <span className="terminal-note">Page {state.page} of {dividendResponse?.pagination?.total_pages ?? 1}</span>
+                    <span className="terminal-note">{t('dividends.pageInfo', { page: state.page, totalPages: dividendResponse?.pagination?.total_pages ?? 1 })}</span>
                     <div className="pager__pages">
-                      <button className="pager__page" disabled={state.page <= 1} onClick={() => onPageChange(state.page - 1)}>Prev</button>
-                      <button className="pager__page" disabled={state.page >= (dividendResponse?.pagination?.total_pages ?? 1)} onClick={() => onPageChange(state.page + 1)}>Next</button>
+                      <button className="pager__page" disabled={state.page <= 1} onClick={() => onPageChange(state.page - 1)}>{t('dividends.prev')}</button>
+                      <button className="pager__page" disabled={state.page >= (dividendResponse?.pagination?.total_pages ?? 1)} onClick={() => onPageChange(state.page + 1)}>{t('dividends.next')}</button>
                     </div>
                   </div>
                 </>
               ) : (
-                <div className="empty-state">No dividend records</div>
+                <div className="empty-state">{t('dividends.noDividendRecords')}</div>
               )}
             </div>
           </section>

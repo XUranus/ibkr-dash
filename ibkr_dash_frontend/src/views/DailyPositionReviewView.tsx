@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { fetchDailyPositionReviewHealth, fetchDailyPositionReviewDates, fetchDailyPositionReview, startDailyPositionReviewTask } from '@/api/dailyPositionReview'
 import type { DailyPositionReviewHealth, DailyPositionReviewResult } from '@/types/dailyPositionReview'
 
 export default function DailyPositionReviewView() {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [health, setHealth] = useState<DailyPositionReviewHealth | null>(null)
@@ -23,7 +25,7 @@ export default function DailyPositionReviewView() {
         setReview(await fetchDailyPositionReview(d[0]))
       }
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to load')
+      setErrorMessage(err instanceof Error ? err.message : t('dailyReview.failedToLoad'))
     } finally {
       setLoading(false)
     }
@@ -52,14 +54,14 @@ export default function DailyPositionReviewView() {
         setDates((prev) => [date, ...prev])
       }
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Generation failed')
+      setErrorMessage(err instanceof Error ? err.message : t('dailyReview.generationFailed'))
     } finally {
       setGenerating(false)
     }
   }
 
   if (loading) {
-    return <section className="page-section"><div className="surface-panel"><div className="surface-panel__content">Loading...</div></div></section>
+    return <section className="page-section"><div className="surface-panel"><div className="surface-panel__content">{t('common.loading')}</div></div></section>
   }
 
   const output = review?.review_output
@@ -72,13 +74,13 @@ export default function DailyPositionReviewView() {
         <div className="surface-panel__content">
           <div className="section-header" style={{ alignItems: 'center' }}>
             <div>
-              <p className="eyebrow">AI AGENT</p>
-              <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--color-text-bright)' }}>Daily Position Review</h2>
-              <p className="panel-subtitle">AI-generated daily portfolio review with market context.</p>
+              <p className="eyebrow">{t('dailyReview.aiAgent')}</p>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--color-text-bright)' }}>{t('dailyReview.title')}</h2>
+              <p className="panel-subtitle">{t('dailyReview.subtitle')}</p>
             </div>
             {health && (
               <span className={`tag ${health.llm_configured ? 'tag--positive' : 'tag--negative'}`}>
-                {health.llm_configured ? 'LLM READY' : 'LLM MISSING'}
+                {health.llm_configured ? t('dailyReview.llmReady') : t('dailyReview.llmMissing')}
               </span>
             )}
           </div>
@@ -96,14 +98,14 @@ export default function DailyPositionReviewView() {
         <div className="surface-panel__content">
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
             <label className="field-stack" style={{ flex: 1 }}>
-              <span className="field-stack__label">Report Date</span>
+              <span className="field-stack__label">{t('dailyReview.reportDate')}</span>
               <select className="select" value={selectedDate} onChange={(e) => handleSelectDate(e.target.value)}>
-                <option value="">Select date...</option>
+                <option value="">{t('dailyReview.selectDate')}</option>
                 {dates.map((d) => <option key={d} value={d}>{d}</option>)}
               </select>
             </label>
             <button className="btn btn--accent" onClick={handleGenerate} disabled={generating}>
-              {generating ? 'Generating...' : 'Generate Review'}
+              {generating ? t('dailyReview.generating') : t('dailyReview.generateReview')}
             </button>
           </div>
         </div>
@@ -113,13 +115,13 @@ export default function DailyPositionReviewView() {
       <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease 0.2s both' }}>
         <div className="surface-panel__content">
           {!review ? (
-            <div className="empty-state" style={{ minHeight: 300 }}>Select a date or generate a new review.</div>
+            <div className="empty-state" style={{ minHeight: 300 }}>{t('dailyReview.selectOrGenerate')}</div>
           ) : !reviewData ? (
-            <div className="empty-state" style={{ minHeight: 300 }}>Review data could not be parsed.</div>
+            <div className="empty-state" style={{ minHeight: 300 }}>{t('dailyReview.reviewDataParseError')}</div>
           ) : (
             <div style={{ display: 'grid', gap: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <p className="eyebrow" style={{ margin: 0 }}>DAILY REVIEW</p>
+                <p className="eyebrow" style={{ margin: 0 }}>{t('dailyReview.dailyReviewLabel')}</p>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>{review.report_date}</span>
               </div>
 
@@ -129,21 +131,21 @@ export default function DailyPositionReviewView() {
 
               {reviewData.account_conclusion && (
                 <div>
-                  <p className="eyebrow">ACCOUNT CONCLUSION</p>
+                  <p className="eyebrow">{t('dailyReview.accountConclusion')}</p>
                   <p style={{ margin: '4px 0 0', color: 'var(--color-text-secondary)', fontSize: '0.88rem', lineHeight: 1.6 }}>{reviewData.account_conclusion}</p>
                 </div>
               )}
 
               {reviewData.attribution_summary && (
                 <div>
-                  <p className="eyebrow">ATTRIBUTION</p>
+                  <p className="eyebrow">{t('dailyReview.attribution')}</p>
                   <p style={{ margin: '4px 0 0', color: 'var(--color-text-secondary)', fontSize: '0.88rem', lineHeight: 1.6 }}>{reviewData.attribution_summary}</p>
                 </div>
               )}
 
               {reviewData.focus_symbol_analyses?.length > 0 && (
                 <div>
-                  <p className="eyebrow">FOCUS SYMBOLS</p>
+                  <p className="eyebrow">{t('dailyReview.focusSymbols')}</p>
                   <div style={{ display: 'grid', gap: 8, marginTop: 4 }}>
                     {reviewData.focus_symbol_analyses.map((s: Record<string, unknown>, i: number) => (
                       <div key={i} style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'rgba(10,14,26,0.4)', border: '1px solid var(--color-border-subtle)' }}>
@@ -157,7 +159,7 @@ export default function DailyPositionReviewView() {
 
               {reviewData.tomorrow_watchlist?.length > 0 && (
                 <div>
-                  <p className="eyebrow">WATCHLIST</p>
+                  <p className="eyebrow">{t('dailyReview.watchlist')}</p>
                   <ul style={{ margin: '4px 0 0', padding: '0 0 0 16px', color: 'var(--color-text-secondary)', fontSize: '0.88rem' }}>
                     {reviewData.tomorrow_watchlist.map((w: string | Record<string, unknown>, i: number) => (
                       <li key={i}>{typeof w === 'string' ? w : JSON.stringify(w)}</li>

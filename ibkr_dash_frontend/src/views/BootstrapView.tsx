@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 
 export default function BootstrapView() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [username, setUsername] = useState('admin')
   const [password, setPassword] = useState('')
@@ -14,9 +16,9 @@ export default function BootstrapView() {
     setError('')
 
     const trimmedUsername = username.trim()
-    if (!trimmedUsername) { setError('Username cannot be empty'); return }
-    if (password.length < 8) { setError('Password must be at least 8 characters'); return }
-    if (password !== confirmPassword) { setError('Passwords do not match'); return }
+    if (!trimmedUsername) { setError(t('bootstrap.usernameEmpty')); return }
+    if (password.length < 8) { setError(t('bootstrap.passwordLength')); return }
+    if (password !== confirmPassword) { setError(t('bootstrap.passwordMismatch')); return }
 
     setLoading(true)
     try {
@@ -27,11 +29,11 @@ export default function BootstrapView() {
       })
       if (!response.ok) {
         const data = await response.json().catch(() => null)
-        throw new Error(data?.detail || 'Initialization failed')
+        throw new Error(data?.detail || t('bootstrap.initFailed'))
       }
       navigate('/admin/llm')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Initialization failed')
+      setError(err instanceof Error ? err.message : t('bootstrap.initFailed'))
     } finally {
       setLoading(false)
     }
@@ -51,27 +53,27 @@ export default function BootstrapView() {
         padding: '2rem',
       }}>
         <div style={{ marginBottom: '1.5rem' }}>
-          <p className="eyebrow">WELCOME</p>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.25rem' }}>Welcome to IBKR Dashboard</h1>
-          <p style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', margin: 0 }}>Create an admin account to get started</p>
+          <p className="eyebrow">{t('bootstrap.welcome')}</p>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.25rem' }}>{t('bootstrap.welcomeTitle')}</h1>
+          <p style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', margin: 0 }}>{t('bootstrap.welcomeDesc')}</p>
         </div>
 
         <form style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }} onSubmit={handleSubmit}>
           <label className="field-stack">
-            <span className="field-stack__label">Username</span>
+            <span className="field-stack__label">{t('bootstrap.username')}</span>
             <input className="input" value={username} onChange={(e) => setUsername(e.target.value)} type="text" autoComplete="username" />
           </label>
           <label className="field-stack">
-            <span className="field-stack__label">Password</span>
+            <span className="field-stack__label">{t('bootstrap.password')}</span>
             <input className="input" value={password} onChange={(e) => setPassword(e.target.value)} type="password" autoComplete="new-password" placeholder="At least 8 characters" />
           </label>
           <label className="field-stack">
-            <span className="field-stack__label">Confirm Password</span>
+            <span className="field-stack__label">{t('bootstrap.confirmPassword')}</span>
             <input className="input" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} type="password" autoComplete="new-password" />
           </label>
           {error && <p style={{ margin: 0, color: 'var(--color-negative)', fontSize: '0.85rem' }}>{error}</p>}
           <button type="submit" className="btn btn--accent" style={{ width: '100%', marginTop: '0.5rem' }} disabled={loading}>
-            {loading ? 'Creating...' : 'Create and Enter System'}
+            {loading ? t('bootstrap.creating') : t('bootstrap.createAndEnter')}
           </button>
         </form>
       </section>

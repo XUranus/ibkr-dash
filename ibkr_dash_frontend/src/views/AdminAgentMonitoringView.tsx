@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import AdminTabs from '@/components/AdminTabs'
 
 interface MonitoringEvent {
@@ -27,6 +28,7 @@ interface LLMMetric {
 }
 
 export default function AdminAgentMonitoringView() {
+  const { t } = useTranslation()
   const [events, setEvents] = useState<MonitoringEvent[]>([])
   const [toolMetrics, setToolMetrics] = useState<ToolMetric[]>([])
   const [llmMetrics, setLlmMetrics] = useState<LLMMetric[]>([])
@@ -68,13 +70,13 @@ export default function AdminAgentMonitoringView() {
         <div className="surface-panel__content">
           <div className="section-header">
             <div>
-              <p className="eyebrow">ADMIN</p>
-              <h2 style={{ margin: 0, fontSize: '1.5rem' }}>Agent Monitoring</h2>
-              <p className="panel-subtitle">Monitor LLM calls, IBKR tools, Longbridge MCP tools, and runtime failures.</p>
+              <p className="eyebrow">{t('adminMonitoring.adminLabel')}</p>
+              <h2 style={{ margin: 0, fontSize: '1.5rem' }}>{t('adminMonitoring.title')}</h2>
+              <p className="panel-subtitle">{t('adminMonitoring.subtitle')}</p>
             </div>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: 'var(--color-text-secondary)' }}>
               <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} style={{ accentColor: 'var(--color-accent)' }} />
-              <span>Auto-refresh</span>
+              <span>{t('adminMonitoring.autoRefresh')}</span>
             </label>
           </div>
           <AdminTabs />
@@ -82,18 +84,18 @@ export default function AdminAgentMonitoringView() {
       </section>
 
       {loading ? (
-        <section className="surface-panel"><div className="surface-panel__content"><div className="empty-state">Loading monitoring data...</div></div></section>
+        <section className="surface-panel"><div className="surface-panel__content"><div className="empty-state">{t('adminMonitoring.loadingMonitoring')}</div></div></section>
       ) : (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 'var(--space-4)' }}>
             <section className="surface-panel">
               <div className="surface-panel__content">
-                <h3 className="panel-title">LLM Metrics</h3>
+                <h3 className="panel-title">{t('adminMonitoring.llmMetrics')}</h3>
                 {llmMetrics.length > 0 ? (
                   <div className="table-shell" style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
-                        <tr>{['Model', 'Calls', 'Tokens', 'Avg Latency', 'Errors'].map((h) => <th key={h} style={{ padding: '10px 8px', borderBottom: '1px solid rgba(129, 160, 207, 0.1)', textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: '0.82rem', fontWeight: 700 }}>{h}</th>)}</tr>
+                        <tr>{[t('adminMonitoring.model'), t('adminMonitoring.calls'), t('adminMonitoring.tokens'), t('adminMonitoring.avgLatency'), t('adminMonitoring.errors')].map((h) => <th key={h} style={{ padding: '10px 8px', borderBottom: '1px solid rgba(129, 160, 207, 0.1)', textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: '0.82rem', fontWeight: 700 }}>{h}</th>)}</tr>
                       </thead>
                       <tbody>
                         {llmMetrics.map((m) => (
@@ -108,40 +110,40 @@ export default function AdminAgentMonitoringView() {
                       </tbody>
                     </table>
                   </div>
-                ) : <div className="empty-state">No LLM metrics available</div>}
+                ) : <div className="empty-state">{t('adminMonitoring.noLlmMetrics')}</div>}
               </div>
             </section>
 
             <section className="surface-panel">
               <div className="surface-panel__content">
-                <h3 className="panel-title">Tool Metrics</h3>
+                <h3 className="panel-title">{t('adminMonitoring.toolMetrics')}</h3>
                 {toolMetrics.length > 0 ? (
                   <div className="table-shell" style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
-                        <tr>{['Tool', 'Calls', 'Success', 'Failed', 'Avg Latency'].map((h) => <th key={h} style={{ padding: '10px 8px', borderBottom: '1px solid rgba(129, 160, 207, 0.1)', textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: '0.82rem', fontWeight: 700 }}>{h}</th>)}</tr>
+                        <tr>{[t('adminMonitoring.tool'), t('adminMonitoring.calls'), t('adminMonitoring.success'), t('adminMonitoring.failed'), t('adminMonitoring.avgLatency')].map((h) => <th key={h} style={{ padding: '10px 8px', borderBottom: '1px solid rgba(129, 160, 207, 0.1)', textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: '0.82rem', fontWeight: 700 }}>{h}</th>)}</tr>
                       </thead>
                       <tbody>
-                        {toolMetrics.map((t) => (
-                          <tr key={t.tool}>
-                            <td style={{ padding: '10px 8px', borderBottom: '1px solid rgba(129, 160, 207, 0.1)' }}>{t.tool}</td>
-                            <td style={{ padding: '10px 8px', borderBottom: '1px solid rgba(129, 160, 207, 0.1)' }}>{t.calls}</td>
-                            <td style={{ padding: '10px 8px', borderBottom: '1px solid rgba(129, 160, 207, 0.1)', color: 'var(--color-positive)' }}>{t.successes}</td>
-                            <td style={{ padding: '10px 8px', borderBottom: '1px solid rgba(129, 160, 207, 0.1)', color: t.failures > 0 ? 'var(--color-negative)' : undefined }}>{t.failures}</td>
-                            <td style={{ padding: '10px 8px', borderBottom: '1px solid rgba(129, 160, 207, 0.1)' }}>{Math.round(t.avgLatencyMs)}ms</td>
+                        {toolMetrics.map((tool) => (
+                          <tr key={tool.tool}>
+                            <td style={{ padding: '10px 8px', borderBottom: '1px solid rgba(129, 160, 207, 0.1)' }}>{tool.tool}</td>
+                            <td style={{ padding: '10px 8px', borderBottom: '1px solid rgba(129, 160, 207, 0.1)' }}>{tool.calls}</td>
+                            <td style={{ padding: '10px 8px', borderBottom: '1px solid rgba(129, 160, 207, 0.1)', color: 'var(--color-positive)' }}>{tool.successes}</td>
+                            <td style={{ padding: '10px 8px', borderBottom: '1px solid rgba(129, 160, 207, 0.1)', color: tool.failures > 0 ? 'var(--color-negative)' : undefined }}>{tool.failures}</td>
+                            <td style={{ padding: '10px 8px', borderBottom: '1px solid rgba(129, 160, 207, 0.1)' }}>{Math.round(tool.avgLatencyMs)}ms</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                ) : <div className="empty-state">No tool metrics available</div>}
+                ) : <div className="empty-state">{t('adminMonitoring.noToolMetrics')}</div>}
               </div>
             </section>
           </div>
 
           <section className="surface-panel">
             <div className="surface-panel__content">
-              <h3 className="panel-title">Recent Events</h3>
+              <h3 className="panel-title">{t('adminMonitoring.recentEvents')}</h3>
               {events.length > 0 ? (
                 <div style={{ display: 'grid', gap: 8 }}>
                   {events.map((ev) => (
@@ -154,7 +156,7 @@ export default function AdminAgentMonitoringView() {
                   ))}
                 </div>
               ) : (
-                <div className="empty-state">No recent monitoring events</div>
+                <div className="empty-state">{t('adminMonitoring.noRecentEvents')}</div>
               )}
             </div>
           </section>

@@ -1,24 +1,21 @@
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useLocation } from 'react-router-dom'
 
-interface TabLink {
-  path: string
-  label: string
-}
-
-const adminTabs: TabLink[] = [
-  { path: '/admin/llm', label: 'LLM Config' },
-  { path: '/admin/ibkr', label: 'IBKR Data' },
-  { path: '/admin/email', label: 'Email Config' },
-  { path: '/admin/longbridge-mcp', label: 'Longbridge MCP' },
-  { path: '/admin/system', label: 'System Status' },
-  { path: '/admin/agent-monitoring', label: 'Agent Monitor' },
-  { path: '/admin/prompts', label: 'Prompt Mgmt' },
-  { path: '/admin/harness', label: 'Harness Console' },
-]
-
 export default function AdminTabs() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
+
+  const adminTabs = [
+    { path: '/admin/llm', label: t('admin.llm') },
+    { path: '/admin/ibkr', label: t('admin.ibkr') },
+    { path: '/admin/email', label: t('admin.email') },
+    { path: '/admin/longbridge-mcp', label: t('admin.longbridge') },
+    { path: '/admin/system', label: t('admin.system') },
+    { path: '/admin/agent-monitoring', label: t('admin.monitoring') },
+    { path: '/admin/prompts', label: t('admin.prompts') },
+    { path: '/admin/harness', label: t('admin.harness') },
+  ]
 
   return (
     <nav className="admin-tabs">

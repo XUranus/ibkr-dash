@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { fetchEmailSettings, updateEmailSettings, sendEmailTest } from '@/api/adminEmail'
 import AdminTabs from '@/components/AdminTabs'
 import type { EmailSettings, EmailTestResponse } from '@/types/adminEmail'
 
 export default function AdminEmailView() {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
@@ -38,7 +40,7 @@ export default function AdminEmailView() {
         enabled: s.enabled,
       })
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to load email settings')
+      setErrorMessage(err instanceof Error ? err.message : t('adminEmail.failedToLoad'))
     } finally {
       setLoading(false)
     }
@@ -63,9 +65,9 @@ export default function AdminEmailView() {
       const updated = await updateEmailSettings(payload)
       setSettings(updated)
       setForm((prev) => ({ ...prev, smtp_password: '' }))
-      setNoticeMessage('Email settings saved.')
+      setNoticeMessage(t('adminEmail.emailSettingsSaved'))
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to save')
+      setErrorMessage(err instanceof Error ? err.message : t('adminEmail.failedToSave'))
     } finally {
       setSaving(false)
     }
@@ -77,14 +79,14 @@ export default function AdminEmailView() {
     try {
       setTestResult(await sendEmailTest())
     } catch (err) {
-      setTestResult({ success: false, message: err instanceof Error ? err.message : 'Test failed' })
+      setTestResult({ success: false, message: err instanceof Error ? err.message : t('adminEmail.testFailed') })
     } finally {
       setTesting(false)
     }
   }
 
   if (loading) {
-    return <section className="page-section"><div className="surface-panel"><div className="surface-panel__content">Loading...</div></div></section>
+    return <section className="page-section"><div className="surface-panel"><div className="surface-panel__content">{t('common.loading')}</div></div></section>
   }
 
   return (
@@ -93,9 +95,9 @@ export default function AdminEmailView() {
         <div className="surface-panel__content">
           <div className="section-header" style={{ alignItems: 'center' }}>
             <div>
-              <p className="eyebrow">ADMIN</p>
-              <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--color-text-bright)' }}>Email Configuration</h2>
-              <p className="panel-subtitle">Configure SMTP for sending reports and notifications.</p>
+              <p className="eyebrow">{t('adminEmail.adminLabel')}</p>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--color-text-bright)' }}>{t('adminEmail.title')}</h2>
+              <p className="panel-subtitle">{t('adminEmail.subtitle')}</p>
             </div>
           </div>
           <AdminTabs />
@@ -115,50 +117,50 @@ export default function AdminEmailView() {
 
       <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease 0.1s both' }}>
         <div className="surface-panel__content">
-          <p className="eyebrow">SMTP SETTINGS</p>
+          <p className="eyebrow">{t('adminEmail.smtpSettings')}</p>
           <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 12 }}>
               <label className="field-stack">
-                <span className="field-stack__label">SMTP Host</span>
+                <span className="field-stack__label">{t('adminEmail.smtpHost')}</span>
                 <input className="input" value={form.smtp_host} onChange={(e) => setForm({ ...form, smtp_host: e.target.value })} placeholder="smtp.gmail.com" />
               </label>
               <label className="field-stack">
-                <span className="field-stack__label">Port</span>
+                <span className="field-stack__label">{t('adminEmail.port')}</span>
                 <input className="input" type="number" value={form.smtp_port} onChange={(e) => setForm({ ...form, smtp_port: Number(e.target.value) })} />
               </label>
             </div>
             <label className="field-stack">
-              <span className="field-stack__label">Username</span>
+              <span className="field-stack__label">{t('adminEmail.username')}</span>
               <input className="input" value={form.smtp_username} onChange={(e) => setForm({ ...form, smtp_username: e.target.value })} placeholder="your@email.com" />
             </label>
             <label className="field-stack">
-              <span className="field-stack__label">Password {settings?.smtp_password_set && <span style={{ color: 'var(--color-positive)' }}>(set)</span>}</span>
-              <input className="input" type="password" value={form.smtp_password} onChange={(e) => setForm({ ...form, smtp_password: e.target.value })} placeholder={settings?.smtp_password_set ? '••••••••' : 'Enter password'} />
+              <span className="field-stack__label">{t('adminEmail.password')} {settings?.smtp_password_set && <span style={{ color: 'var(--color-positive)' }}>{t('adminEmail.set')}</span>}</span>
+              <input className="input" type="password" value={form.smtp_password} onChange={(e) => setForm({ ...form, smtp_password: e.target.value })} placeholder={settings?.smtp_password_set ? '••••••••' : t('adminEmail.password')} />
             </label>
             <label className="field-stack">
-              <span className="field-stack__label">From Address</span>
+              <span className="field-stack__label">{t('adminEmail.fromAddress')}</span>
               <input className="input" value={form.from_address} onChange={(e) => setForm({ ...form, from_address: e.target.value })} placeholder="noreply@example.com" />
             </label>
             <label className="field-stack">
-              <span className="field-stack__label">To Addresses (comma-separated)</span>
+              <span className="field-stack__label">{t('adminEmail.toAddresses')}</span>
               <input className="input" value={form.to_addresses} onChange={(e) => setForm({ ...form, to_addresses: e.target.value })} placeholder="user1@example.com, user2@example.com" />
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <input type="checkbox" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} style={{ accentColor: 'var(--color-accent)' }} />
-              <span style={{ fontSize: '0.88rem' }}>Enable email notifications</span>
+              <span style={{ fontSize: '0.88rem' }}>{t('adminEmail.enableEmail')}</span>
             </label>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button className="btn" onClick={handleTest} disabled={testing}>
-                {testing ? 'Sending...' : 'Send Test Email'}
+                {testing ? t('adminEmail.sending') : t('adminEmail.sendTest')}
               </button>
               <button className="btn btn--accent" onClick={handleSave} disabled={saving}>
-                {saving ? 'Saving...' : 'Save'}
+                {saving ? t('adminEmail.saving') : t('adminEmail.save')}
               </button>
             </div>
           </div>
           {testResult && (
             <div style={{ marginTop: 12, padding: '12px 16px', borderRadius: 'var(--radius-md)', border: `1px solid ${testResult.success ? 'rgba(61,214,140,0.2)' : 'rgba(242,92,92,0.2)'}`, background: testResult.success ? 'rgba(61,214,140,0.05)' : 'rgba(242,92,92,0.05)' }}>
-              <span className={`tag ${testResult.success ? 'tag--positive' : 'tag--negative'}`}>{testResult.success ? 'SENT' : 'FAILED'}</span>
+              <span className={`tag ${testResult.success ? 'tag--positive' : 'tag--negative'}`}>{testResult.success ? t('adminEmail.sent') : t('adminEmail.failed')}</span>
               <span style={{ marginLeft: 8, fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>{testResult.message}</span>
             </div>
           )}

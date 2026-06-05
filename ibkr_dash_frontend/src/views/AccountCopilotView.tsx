@@ -1,18 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { listSessions, chat, listMessages, deleteSession } from '@/api/accountCopilot'
 import type { CopilotSession, CopilotMessage } from '@/api/accountCopilot'
 
-const welcomeQuestions = [
-  'What is my total equity?',
-  'What are my top 5 positions?',
-  'What is my risk level?',
-  'How has AAPL performed recently?',
-  'Should I hold or sell my GOOG position?',
-]
-
 export default function AccountCopilotView() {
+  const { t } = useTranslation()
   const [sessions, setSessions] = useState<CopilotSession[]>([])
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const [messages, setMessages] = useState<CopilotMessage[]>([])
@@ -21,6 +15,8 @@ export default function AccountCopilotView() {
   const [errorMessage, setErrorMessage] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const welcomeQuestions = t('copilot.welcomeQuestions', { returnObjects: true }) as string[]
 
   const loadSessions = useCallback(async () => {
     try {
@@ -92,7 +88,7 @@ export default function AccountCopilotView() {
       // Reload sessions to pick up new one
       void loadSessions()
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to send message')
+      setErrorMessage(err instanceof Error ? err.message : t('copilot.failedToSend'))
       setMessages((prev) => prev.slice(0, -1))
     } finally {
       setSending(false)
@@ -139,12 +135,12 @@ export default function AccountCopilotView() {
           <section className="surface-panel">
             <div className="surface-panel__content" style={{ padding: '16px', display: 'grid', gap: 10, alignContent: 'start' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <p className="eyebrow" style={{ margin: 0 }}>SESSIONS</p>
-                <button className="btn btn--ghost btn--sm" onClick={handleNewChat} style={{ fontSize: '0.78rem' }}>+ New</button>
+                <p className="eyebrow" style={{ margin: 0 }}>{t('copilot.sessions').toUpperCase()}</p>
+                <button className="btn btn--ghost btn--sm" onClick={handleNewChat} style={{ fontSize: '0.78rem' }}>{t('copilot.newChat')}</button>
               </div>
               <div style={{ display: 'grid', gap: 4, maxHeight: '60vh', overflow: 'auto' }}>
                 {sessions.length === 0 ? (
-                  <p style={{ color: 'var(--color-text-muted)', fontSize: '0.82rem' }}>No sessions yet.</p>
+                  <p style={{ color: 'var(--color-text-muted)', fontSize: '0.82rem' }}>{t('copilot.noSessions')}</p>
                 ) : (
                   sessions.map((s) => (
                     <div key={s.session_id} style={{ display: 'flex', gap: 4 }}>
@@ -193,7 +189,7 @@ export default function AccountCopilotView() {
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <button className="btn btn--ghost btn--sm" onClick={() => setSidebarOpen(!sidebarOpen)} style={{ fontSize: '0.75rem' }}>
-                {sidebarOpen ? '◀ Hide' : '▶ Sessions'}
+                {sidebarOpen ? `◀ ${t('copilot.hide')}` : `▶ ${t('copilot.showSessions')}`}
               </button>
               {activeSessionId && (
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
@@ -206,8 +202,8 @@ export default function AccountCopilotView() {
             <div style={{ overflow: 'auto', display: 'grid', gap: 12, alignContent: 'start', paddingRight: 4 }}>
               {messages.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-                  <p className="eyebrow" style={{ marginBottom: 12 }}>ACCOUNT COPILOT</p>
-                  <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginBottom: 16 }}>Ask questions about your portfolio, positions, and trades.</p>
+                  <p className="eyebrow" style={{ marginBottom: 12 }}>{t('copilot.welcome')}</p>
+                  <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginBottom: 16 }}>{t('copilot.welcomeDesc')}</p>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
                     {welcomeQuestions.map((q) => (
                       <button key={q} className="btn btn--ghost btn--sm" onClick={() => void handleSend(q)}
@@ -250,7 +246,7 @@ export default function AccountCopilotView() {
               {sending && (
                 <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
                   <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'rgba(10,14,26,0.5)', border: '1px solid var(--color-border-subtle)' }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>Thinking...</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>{t('copilot.thinking')}</span>
                   </div>
                 </div>
               )}
@@ -269,12 +265,12 @@ export default function AccountCopilotView() {
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask about your portfolio..."
+                  placeholder={t('copilot.placeholder')}
                   rows={2}
                   style={{ resize: 'none', flex: 1 }}
                 />
                 <button className="btn btn--accent" onClick={() => void handleSend()} disabled={sending || !inputText.trim()}>
-                  Send
+                  {t('copilot.send')}
                 </button>
               </div>
             </div>

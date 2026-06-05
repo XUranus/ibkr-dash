@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { fetchAdminPrompts, createAdminPrompt, fetchActivePrompt } from '@/api/adminPrompts'
 import AdminTabs from '@/components/AdminTabs'
 import type { PromptItem } from '@/types/adminPrompts'
 
 export default function AdminPromptsView() {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [prompts, setPrompts] = useState<PromptItem[]>([])
@@ -18,7 +20,7 @@ export default function AdminPromptsView() {
     try {
       setPrompts(await fetchAdminPrompts())
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to load prompts')
+      setErrorMessage(err instanceof Error ? err.message : t('adminPrompts.failedToLoad'))
     } finally {
       setLoading(false)
     }
@@ -52,12 +54,12 @@ export default function AdminPromptsView() {
       setNewContent('')
       await loadData()
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to create prompt')
+      setErrorMessage(err instanceof Error ? err.message : t('adminPrompts.failedToCreate'))
     }
   }
 
   if (loading) {
-    return <section className="page-section"><div className="surface-panel"><div className="surface-panel__content">Loading...</div></div></section>
+    return <section className="page-section"><div className="surface-panel"><div className="surface-panel__content">{t('common.loading')}</div></div></section>
   }
 
   return (
@@ -66,12 +68,12 @@ export default function AdminPromptsView() {
         <div className="surface-panel__content">
           <div className="section-header" style={{ alignItems: 'center' }}>
             <div>
-              <p className="eyebrow">ADMIN</p>
-              <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--color-text-bright)' }}>Prompt Management</h2>
-              <p className="panel-subtitle">Manage prompt versions for AI agents.</p>
+              <p className="eyebrow">{t('adminPrompts.adminLabel')}</p>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--color-text-bright)' }}>{t('adminPrompts.title')}</h2>
+              <p className="panel-subtitle">{t('adminPrompts.subtitle')}</p>
             </div>
             <button className="btn btn--accent btn--sm" onClick={() => setShowCreate(!showCreate)}>
-              {showCreate ? 'Cancel' : 'New Prompt'}
+              {showCreate ? t('adminPrompts.cancel') : t('adminPrompts.newPrompt')}
             </button>
           </div>
           <AdminTabs />
@@ -88,19 +90,19 @@ export default function AdminPromptsView() {
       {showCreate && (
         <section className="surface-panel" style={{ animation: 'slideUp 0.3s ease' }}>
           <div className="surface-panel__content">
-            <p className="eyebrow">CREATE PROMPT</p>
+            <p className="eyebrow">{t('adminPrompts.createPrompt')}</p>
             <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
               <label className="field-stack">
-                <span className="field-stack__label">Prompt Key</span>
+                <span className="field-stack__label">{t('adminPrompts.promptKey')}</span>
                 <input className="input" value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder="e.g. trade_decision_composer" />
               </label>
               <label className="field-stack">
-                <span className="field-stack__label">Content</span>
-                <textarea className="input" value={newContent} onChange={(e) => setNewContent(e.target.value)} rows={8} style={{ resize: 'vertical', fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }} placeholder="Enter prompt content..." />
+                <span className="field-stack__label">{t('adminPrompts.content')}</span>
+                <textarea className="input" value={newContent} onChange={(e) => setNewContent(e.target.value)} rows={8} style={{ resize: 'vertical', fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }} placeholder={t('adminPrompts.content')} />
               </label>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                <button className="btn btn--ghost" onClick={() => setShowCreate(false)}>Cancel</button>
-                <button className="btn btn--accent" onClick={handleCreate} disabled={!newKey.trim() || !newContent.trim()}>Create</button>
+                <button className="btn btn--ghost" onClick={() => setShowCreate(false)}>{t('adminPrompts.cancel')}</button>
+                <button className="btn btn--accent" onClick={handleCreate} disabled={!newKey.trim() || !newContent.trim()}>{t('adminPrompts.create')}</button>
               </div>
             </div>
           </div>
@@ -111,10 +113,10 @@ export default function AdminPromptsView() {
         {/* Sidebar: prompt keys */}
         <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease 0.1s both' }}>
           <div className="surface-panel__content" style={{ padding: '16px' }}>
-            <p className="eyebrow" style={{ marginBottom: 8 }}>PROMPTS ({uniqueKeys.length})</p>
+            <p className="eyebrow" style={{ marginBottom: 8 }}>{t('adminPrompts.prompts')} ({uniqueKeys.length})</p>
             <div style={{ display: 'grid', gap: 4 }}>
               {uniqueKeys.length === 0 ? (
-                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>No prompts found.</p>
+                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>{t('adminPrompts.noPrompts')}</p>
               ) : (
                 uniqueKeys.map((key) => (
                   <button
@@ -147,14 +149,14 @@ export default function AdminPromptsView() {
         <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease 0.2s both' }}>
           <div className="surface-panel__content">
             {!selectedKey ? (
-              <div className="empty-state" style={{ minHeight: 300 }}>Select a prompt from the list.</div>
+              <div className="empty-state" style={{ minHeight: 300 }}>{t('adminPrompts.selectPrompt')}</div>
             ) : (
               <>
                 <p className="eyebrow">{selectedKey}</p>
                 {activeVersion && (
                   <div style={{ marginTop: 8, marginBottom: 16, padding: '12px 16px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(61,214,140,0.15)', background: 'rgba(61,214,140,0.04)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                      <span className="tag tag--positive">ACTIVE v{activeVersion.version}</span>
+                      <span className="tag tag--positive">{t('adminPrompts.active')} v{activeVersion.version}</span>
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>{activeVersion.created_at}</span>
                     </div>
                     <pre style={{ margin: 0, fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--color-text-secondary)', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 300, overflow: 'auto' }}>
@@ -162,14 +164,14 @@ export default function AdminPromptsView() {
                     </pre>
                   </div>
                 )}
-                <p className="eyebrow" style={{ marginTop: 16 }}>ALL VERSIONS ({selectedVersions.length})</p>
+                <p className="eyebrow" style={{ marginTop: 16 }}>{t('adminPrompts.allVersions')} ({selectedVersions.length})</p>
                 <div className="table-shell" style={{ marginTop: 8 }}>
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>Version</th>
-                        <th>Status</th>
-                        <th>Created</th>
+                        <th>{t('adminPrompts.version')}</th>
+                        <th>{t('adminPrompts.status')}</th>
+                        <th>{t('adminPrompts.created')}</th>
                       </tr>
                     </thead>
                     <tbody>

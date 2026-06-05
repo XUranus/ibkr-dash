@@ -1,4 +1,8 @@
+import { useTranslation } from 'react-i18next'
+
 export default function LoadingBlock() {
+  const { t } = useTranslation()
+
   const shimmerStyle = (delay = 0): React.CSSProperties => ({
     position: 'relative' as const,
     overflow: 'hidden' as const,
@@ -8,7 +12,7 @@ export default function LoadingBlock() {
   })
 
   return (
-    <section className="surface-panel">
+    <section className="surface-panel" aria-label={t('common.loading')}>
       <div className="surface-panel__content" style={{ display: 'grid', gap: 'var(--space-4)' }}>
         {/* Stat card skeletons */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>

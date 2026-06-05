@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { fetchSystemStatus } from '@/api/adminSystem'
 import AdminTabs from '@/components/AdminTabs'
 import type { AdminSystemStatus } from '@/types/adminSystem'
 
 export default function AdminSystemView() {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [status, setStatus] = useState<AdminSystemStatus | null>(null)
@@ -14,7 +16,7 @@ export default function AdminSystemView() {
     try {
       setStatus(await fetchSystemStatus())
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to load system status')
+      setErrorMessage(error instanceof Error ? error.message : t('adminSystem.failedToLoad'))
     } finally {
       setLoading(false)
     }
@@ -23,7 +25,7 @@ export default function AdminSystemView() {
   useEffect(() => { void loadData() }, [loadData])
 
   if (loading) {
-    return <section className="page-section"><div className="surface-panel"><div className="surface-panel__content">Loading...</div></div></section>
+    return <section className="page-section"><div className="surface-panel"><div className="surface-panel__content">{t('common.loading')}</div></div></section>
   }
 
   return (
@@ -32,8 +34,8 @@ export default function AdminSystemView() {
         <div className="surface-panel__content">
           <div className="section-header" style={{ alignItems: 'center' }}>
             <div>
-              <p className="eyebrow">ADMIN</p>
-              <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--color-text-bright)' }}>System Status</h2>
+              <p className="eyebrow">{t('adminSystem.adminLabel')}</p>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--color-text-bright)' }}>{t('adminSystem.title')}</h2>
             </div>
             {status && (
               <span className={`tag ${status.status === 'ok' ? 'tag--positive' : 'tag--negative'}`}>
@@ -57,9 +59,9 @@ export default function AdminSystemView() {
           <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease 0.1s both' }}>
             <div className="surface-panel__content">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--color-text-bright)' }}>Database</h3>
+                <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--color-text-bright)' }}>{t('adminSystem.database')}</h3>
                 <span className={`tag ${status.database.healthy ? 'tag--positive' : 'tag--negative'}`}>
-                  {status.database.healthy ? 'Healthy' : 'Error'}
+                  {status.database.healthy ? t('adminSystem.healthy') : t('adminSystem.error')}
                 </span>
               </div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--color-text-secondary)', marginBottom: 8 }}>
@@ -82,12 +84,12 @@ export default function AdminSystemView() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--color-text-bright)' }}>LLM</h3>
                 <span className={`tag ${status.llm.configured ? 'tag--positive' : 'tag--warning'}`}>
-                  {status.llm.configured ? 'Configured' : 'Not Set'}
+                  {status.llm.configured ? t('adminSystem.configured') : t('adminSystem.notSet')}
                 </span>
               </div>
               {[
-                { label: 'Model', value: status.llm.model },
-                { label: 'Base URL', value: status.llm.base_url },
+                { label: t('adminSystem.model'), value: status.llm.model },
+                { label: t('adminSystem.baseUrl'), value: status.llm.base_url },
               ].map((item) => (
                 <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderRadius: 'var(--radius-sm)', background: 'rgba(10,14,26,0.4)', marginBottom: 6 }}>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>{item.label}</span>
@@ -103,11 +105,11 @@ export default function AdminSystemView() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--color-text-bright)' }}>Longbridge</h3>
                 <span className={`tag ${status.longbridge.configured ? 'tag--positive' : 'tag--warning'}`}>
-                  {status.longbridge.configured ? 'Configured' : 'Not Set'}
+                  {status.longbridge.configured ? t('adminSystem.configured') : t('adminSystem.notSet')}
                 </span>
               </div>
               <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
-                {status.longbridge.configured ? 'Longbridge API is configured for public market data.' : 'Longbridge is not configured. AI agents will use IBKR data only.'}
+                {status.longbridge.configured ? t('adminSystem.longbridgeConfigured') : t('adminSystem.longbridgeNote')}
               </p>
             </div>
           </section>
@@ -115,12 +117,12 @@ export default function AdminSystemView() {
           {/* Runtime */}
           <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease 0.4s both' }}>
             <div className="surface-panel__content">
-              <h3 style={{ margin: '0 0 12px', fontSize: '1rem', color: 'var(--color-text-bright)' }}>Runtime</h3>
+              <h3 style={{ margin: '0 0 12px', fontSize: '1rem', color: 'var(--color-text-bright)' }}>{t('adminSystem.runtime')}</h3>
               {[
-                { label: 'Environment', value: status.runtime.app_env },
-                { label: 'Python', value: status.runtime.python_version.split(' ')[0] },
-                { label: 'Platform', value: status.runtime.platform },
-                { label: 'Timestamp', value: new Date(status.timestamp).toLocaleString() },
+                { label: t('adminSystem.environment'), value: status.runtime.app_env },
+                { label: t('adminSystem.python'), value: status.runtime.python_version.split(' ')[0] },
+                { label: t('adminSystem.platform'), value: status.runtime.platform },
+                { label: t('adminSystem.timestamp'), value: new Date(status.timestamp).toLocaleString() },
               ].map((item) => (
                 <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderRadius: 'var(--radius-sm)', background: 'rgba(10,14,26,0.4)', marginBottom: 6 }}>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>{item.label}</span>

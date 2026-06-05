@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { analyzeEntryDecision, analyzeHoldingDecision, fetchRecentTradeDecisions, fetchTradeDecisionDetail, fetchTradeDecisionHealth } from '@/api/tradeDecision'
 import type { TradeDecisionHealth, TradeDecisionResult } from '@/types/tradeDecision'
 
 type DecisionMode = 'entry' | 'holding'
 
 export default function TradeDecisionAgentView() {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [health, setHealth] = useState<TradeDecisionHealth | null>(null)
@@ -23,7 +25,7 @@ export default function TradeDecisionAgentView() {
       setHealth(h)
       setDecisions(d)
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to load')
+      setErrorMessage(err instanceof Error ? err.message : t('tradeDecision.failedToLoad'))
     } finally {
       setLoading(false)
     }
@@ -41,7 +43,7 @@ export default function TradeDecisionAgentView() {
       setSelectedDecision(result)
       setDecisions((prev) => [result, ...prev.filter((d) => d.id !== result.id)])
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Analysis failed')
+      setErrorMessage(err instanceof Error ? err.message : t('tradeDecision.analysisFailed'))
     } finally {
       setGenerating(false)
     }
@@ -51,18 +53,26 @@ export default function TradeDecisionAgentView() {
     try {
       setSelectedDecision(await fetchTradeDecisionDetail(id))
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to load decision')
+      setErrorMessage(err instanceof Error ? err.message : t('tradeDecision.failedToLoadDecision'))
     }
   }
 
   if (loading) {
-    return <section className="page-section"><div className="surface-panel"><div className="surface-panel__content">Loading...</div></div></section>
+    return <section className="page-section"><div className="surface-panel"><div className="surface-panel__content">{t('common.loading')}</div></div></section>
   }
 
   const output = selectedDecision?.decision_output
   const decisionData = typeof output === 'string' ? (() => { try { return JSON.parse(output) } catch { return null } })() : output
 
-  const actionLabels: Record<string, string> = { add: 'Add', hold: 'Hold', reduce: 'Reduce', sell: 'Sell', wait: 'Wait', avoid: 'Avoid', watchlist: 'Watchlist' }
+  const actionLabels: Record<string, string> = {
+    add: t('tradeDecision.actionAdd'),
+    hold: t('tradeDecision.actionHold'),
+    reduce: t('tradeDecision.actionReduce'),
+    sell: t('tradeDecision.actionSell'),
+    wait: t('tradeDecision.actionWait'),
+    avoid: t('tradeDecision.actionAvoid'),
+    watchlist: t('tradeDecision.actionWatchlist'),
+  }
 
   return (
     <section className="page-section">
@@ -71,13 +81,13 @@ export default function TradeDecisionAgentView() {
         <div className="surface-panel__content">
           <div className="section-header" style={{ alignItems: 'center' }}>
             <div>
-              <p className="eyebrow">AI AGENT</p>
-              <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--color-text-bright)' }}>Trade Decision</h2>
-              <p className="panel-subtitle">Analyze whether to enter, hold, or exit a position.</p>
+              <p className="eyebrow">{t('tradeDecision.aiAgent')}</p>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--color-text-bright)' }}>{t('tradeDecision.title')}</h2>
+              <p className="panel-subtitle">{t('tradeDecision.subtitle')}</p>
             </div>
             {health && (
               <span className={`tag ${health.llm_configured ? 'tag--positive' : 'tag--negative'}`}>
-                {health.llm_configured ? 'LLM READY' : 'LLM MISSING'}
+                {health.llm_configured ? t('tradeDecision.llmReady') : t('tradeDecision.llmMissing')}
               </span>
             )}
           </div>
@@ -93,7 +103,7 @@ export default function TradeDecisionAgentView() {
       {/* Input Form */}
       <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease 0.1s both' }}>
         <div className="surface-panel__content">
-          <p className="eyebrow">ANALYSIS INPUT</p>
+          <p className="eyebrow">{t('tradeDecision.analysisInput')}</p>
           <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
             <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
               {(['entry', 'holding'] as const).map((m) => (
@@ -105,21 +115,21 @@ export default function TradeDecisionAgentView() {
                     borderColor: mode === m ? 'rgba(212,168,67,0.2)' : 'transparent',
                     color: mode === m ? 'var(--color-accent-strong)' : 'var(--color-text-secondary)',
                   }}>
-                  {m === 'entry' ? 'Entry Decision' : 'Holding Decision'}
+                  {m === 'entry' ? t('tradeDecision.entryDecision') : t('tradeDecision.holdingDecision')}
                 </button>
               ))}
             </div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
               <label className="field-stack" style={{ flex: 1 }}>
-                <span className="field-stack__label">Symbol</span>
+                <span className="field-stack__label">{t('tradeDecision.symbol')}</span>
                 <input className="input" value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} placeholder="AAPL" />
               </label>
               <label className="field-stack" style={{ flex: 2 }}>
-                <span className="field-stack__label">Question (optional)</span>
+                <span className="field-stack__label">{t('tradeDecision.question')}</span>
                 <input className="input" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Should I add to my AAPL position?" />
               </label>
               <button className="btn btn--accent" onClick={handleAnalyze} disabled={generating || !symbol.trim()}>
-                {generating ? 'Analyzing...' : 'Analyze'}
+                {generating ? t('tradeDecision.analyzing') : t('tradeDecision.analyze')}
               </button>
             </div>
           </div>
@@ -130,10 +140,10 @@ export default function TradeDecisionAgentView() {
         {/* Recent decisions list */}
         <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease 0.2s both' }}>
           <div className="surface-panel__content" style={{ padding: '16px' }}>
-            <p className="eyebrow" style={{ marginBottom: 8 }}>RECENT DECISIONS ({decisions.length})</p>
+            <p className="eyebrow" style={{ marginBottom: 8 }}>{t('tradeDecision.recentDecisions')} ({decisions.length})</p>
             <div style={{ display: 'grid', gap: 6, maxHeight: 400, overflow: 'auto' }}>
               {decisions.length === 0 ? (
-                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>No decisions yet.</p>
+                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>{t('tradeDecision.noDecisions')}</p>
               ) : (
                 decisions.map((d) => (
                   <button key={d.id} className="btn btn--ghost btn--sm"
@@ -157,9 +167,9 @@ export default function TradeDecisionAgentView() {
         <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease 0.3s both' }}>
           <div className="surface-panel__content">
             {!selectedDecision ? (
-              <div className="empty-state" style={{ minHeight: 300 }}>Select a decision or run a new analysis.</div>
+              <div className="empty-state" style={{ minHeight: 300 }}>{t('tradeDecision.selectOrRun')}</div>
             ) : !decisionData ? (
-              <div className="empty-state" style={{ minHeight: 300 }}>Decision data could not be parsed.</div>
+              <div className="empty-state" style={{ minHeight: 300 }}>{t('tradeDecision.decisionDataParseError')}</div>
             ) : (
               <div style={{ display: 'grid', gap: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -182,7 +192,7 @@ export default function TradeDecisionAgentView() {
 
                 {decisionData.key_reasons?.length > 0 && (
                   <div>
-                    <p className="eyebrow">KEY REASONS</p>
+                    <p className="eyebrow">{t('tradeDecision.keyReasons')}</p>
                     <ul style={{ margin: '4px 0 0', padding: '0 0 0 16px', color: 'var(--color-text-secondary)', fontSize: '0.88rem' }}>
                       {decisionData.key_reasons.map((r: string, i: number) => <li key={i}>{r}</li>)}
                     </ul>
@@ -191,7 +201,7 @@ export default function TradeDecisionAgentView() {
 
                 {decisionData.major_risks?.length > 0 && (
                   <div>
-                    <p className="eyebrow" style={{ color: 'var(--color-negative)' }}>RISKS</p>
+                    <p className="eyebrow" style={{ color: 'var(--color-negative)' }}>{t('tradeDecision.risks')}</p>
                     <ul style={{ margin: '4px 0 0', padding: '0 0 0 16px', color: 'var(--color-text-secondary)', fontSize: '0.88rem' }}>
                       {decisionData.major_risks.map((r: string, i: number) => <li key={i}>{r}</li>)}
                     </ul>
