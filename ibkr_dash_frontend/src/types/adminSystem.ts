@@ -1,16 +1,22 @@
-export type SystemComponentStatusLevel = 'ok' | 'warning' | 'error' | 'disabled' | 'unknown'
-
-export type SystemComponentStatus = {
-  name: string
-  label: string
-  status: SystemComponentStatusLevel
-  configured: boolean | null
-  message: string
-  details: Record<string, unknown>
-}
-
-export type AdminSystemStatus = {
-  overall_status: 'ok' | 'warning' | 'error'
-  generated_at: string
-  components: SystemComponentStatus[]
+export interface AdminSystemStatus {
+  status: string
+  timestamp: string
+  database: {
+    healthy: boolean
+    path: string
+    record_counts: Record<string, number>
+  }
+  llm: {
+    configured: boolean
+    model: string
+    base_url: string
+  }
+  longbridge: {
+    configured: boolean
+  }
+  runtime: {
+    python_version: string
+    platform: string
+    app_env: string
+  }
 }

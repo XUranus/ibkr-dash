@@ -1,60 +1,19 @@
 import { request } from './http'
-import type {
-  PromptActivatePayload,
-  PromptCreateVersionPayload,
-  PromptDetailResponse,
-  PromptListItem,
-  PromptListResponse,
-  PromptMutationResponse,
-  PromptRuntimeResponse,
-  PromptSyncCodeDefaultsResponse,
-} from '@/types/adminPrompts'
+import type { PromptItem, PromptCreatePayload } from '@/types/adminPrompts'
 
-export async function fetchAdminPrompts(): Promise<PromptListItem[]> {
-  const response = await request<PromptListResponse>('/api/admin/prompts')
-  return response.items
+export async function fetchAdminPrompts(promptKey?: string): Promise<PromptItem[]> {
+  const query = promptKey ? `?prompt_key=${encodeURIComponent(promptKey)}` : ''
+  const response = await request<PromptItem[] | { items: PromptItem[] }>(`/api/admin/prompts${query}`)
+  return Array.isArray(response) ? response : (response.items ?? [])
 }
 
-export function fetchAdminPromptDetail(promptKey: string): Promise<PromptDetailResponse> {
-  return request<PromptDetailResponse>(`/api/admin/prompts/${encodeURIComponent(promptKey)}`)
-}
-
-export function createAdminPromptVersion(promptKey: string, payload: PromptCreateVersionPayload): Promise<PromptMutationResponse> {
-  return request<PromptMutationResponse>(`/api/admin/prompts/${encodeURIComponent(promptKey)}/versions`, {
+export function createAdminPrompt(payload: PromptCreatePayload): Promise<PromptItem> {
+  return request<PromptItem>('/api/admin/prompts', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
 }
 
-export function activateAdminPromptVersion(
-  promptKey: string,
-  version: string,
-  payload: PromptActivatePayload = {},
-): Promise<PromptMutationResponse> {
-  return request<PromptMutationResponse>(`/api/admin/prompts/${encodeURIComponent(promptKey)}/versions/${encodeURIComponent(version)}/activate`, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
-}
-
-export function seedDefaultAdminPrompts(): Promise<PromptMutationResponse> {
-  return request<PromptMutationResponse>('/api/admin/prompts/seed-defaults', {
-    method: 'POST',
-  })
-}
-
-export function createAdminPromptVersionFromCodeDefault(promptKey: string): Promise<PromptMutationResponse> {
-  return request<PromptMutationResponse>(`/api/admin/prompts/${encodeURIComponent(promptKey)}/versions/from-code-default`, {
-    method: 'POST',
-  })
-}
-
-export function syncCodeDefaultAdminPrompts(): Promise<PromptSyncCodeDefaultsResponse> {
-  return request<PromptSyncCodeDefaultsResponse>('/api/admin/prompts/sync-code-defaults', {
-    method: 'POST',
-  })
-}
-
-export function fetchAdminRuntimePrompt(promptKey: string): Promise<PromptRuntimeResponse> {
-  return request<PromptRuntimeResponse>(`/api/admin/prompts/${encodeURIComponent(promptKey)}/runtime`)
+export function fetchActivePrompt(promptKey: string): Promise<PromptItem> {
+  return request<PromptItem>(`/api/admin/prompts/${encodeURIComponent(promptKey)}/active`)
 }

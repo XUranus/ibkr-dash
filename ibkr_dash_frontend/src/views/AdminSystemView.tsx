@@ -1,49 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { fetchSystemStatus } from '@/api/adminSystem'
 import AdminTabs from '@/components/AdminTabs'
-import type { AdminSystemStatus, SystemComponentStatusLevel } from '@/types/adminSystem'
-
-function statusTagClass(level: SystemComponentStatusLevel): string {
-  switch (level) {
-    case 'ok': return 'tag-positive'
-    case 'error': return 'tag-negative'
-    default: return 'tag-warning'
-  }
-}
-
-function statusLabel(level: SystemComponentStatusLevel): string {
-  switch (level) {
-    case 'ok': return 'OK'
-    case 'warning': return 'Warning'
-    case 'error': return 'Error'
-    case 'disabled': return 'Disabled'
-    case 'unknown': return 'Unknown'
-    default: return level
-  }
-}
-
-function overallTagClass(level: string): string {
-  switch (level) {
-    case 'ok': return 'tag-positive'
-    case 'error': return 'tag-negative'
-    default: return 'tag-warning'
-  }
-}
-
-function overallLabel(level: string): string {
-  switch (level) {
-    case 'ok': return 'System OK'
-    case 'warning': return 'Partial Issues'
-    case 'error': return 'System Error'
-    default: return level
-  }
-}
+import type { AdminSystemStatus } from '@/types/adminSystem'
 
 export default function AdminSystemView() {
-  const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [status, setStatus] = useState<AdminSystemStatus | null>(null)
 
@@ -59,73 +20,116 @@ export default function AdminSystemView() {
     }
   }, [])
 
-  async function refresh(): Promise<void> {
-    setRefreshing(true)
-    setErrorMessage('')
-    try {
-      setStatus(await fetchSystemStatus())
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to refresh')
-    } finally {
-      setRefreshing(false)
-    }
-  }
-
   useEffect(() => { void loadData() }, [loadData])
+
+  if (loading) {
+    return <section className="page-section"><div className="surface-panel"><div className="surface-panel__content">Loading...</div></div></section>
+  }
 
   return (
     <section className="page-section">
-      <section className="surface-panel">
+      <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease' }}>
         <div className="surface-panel__content">
           <div className="section-header" style={{ alignItems: 'center' }}>
             <div>
               <p className="eyebrow">ADMIN</p>
-              <h2 style={{ margin: 0, fontSize: '1.5rem' }}>System Status</h2>
-              <p className="panel-subtitle">Aggregate configuration and connection status for all components.</p>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--color-text-bright)' }}>System Status</h2>
             </div>
             {status && (
-              <span style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)', fontSize: '0.82rem', fontWeight: 600 }}>{overallLabel(status.overall_status)}</span>
+              <span className={`tag ${status.status === 'ok' ? 'tag--positive' : 'tag--negative'}`}>
+                {status.status.toUpperCase()}
+              </span>
             )}
           </div>
           <AdminTabs />
         </div>
       </section>
 
-      {loading ? (
-        <section className="surface-panel"><div className="surface-panel__content"><div className="empty-state">Loading...</div></div></section>
-      ) : errorMessage ? (
-        <section className="surface-panel"><div className="surface-panel__content"><div className="empty-state" style={{ color: 'var(--color-negative)' }}>{errorMessage}</div></div></section>
-      ) : status && (
-        <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button className="btn btn--ghost" disabled={refreshing} onClick={() => void refresh()}>{refreshing ? 'Refreshing...' : 'Refresh'}</button>
-            <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.82rem' }}>Generated: {status.generated_at}</span>
-          </div>
+      {errorMessage && (
+        <div style={{ padding: '12px 16px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(242,92,92,0.2)', background: 'rgba(242,92,92,0.05)', color: 'var(--color-negative)', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
+          {errorMessage}
+        </div>
+      )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 'var(--space-4)' }}>
-            {status.components.map((comp) => (
-              <section key={comp.name} className="surface-panel">
-                <div className="surface-panel__content">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                    <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{comp.label}</h3>
-                    <span style={{ padding: '2px 10px', borderRadius: 'var(--radius-sm)', fontSize: '0.78rem', fontWeight: 600 }}>{statusLabel(comp.status)}</span>
+      {status && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 'var(--space-4)' }}>
+          {/* Database */}
+          <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease 0.1s both' }}>
+            <div className="surface-panel__content">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--color-text-bright)' }}>Database</h3>
+                <span className={`tag ${status.database.healthy ? 'tag--positive' : 'tag--negative'}`}>
+                  {status.database.healthy ? 'Healthy' : 'Error'}
+                </span>
+              </div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--color-text-secondary)', marginBottom: 8 }}>
+                {status.database.path}
+              </div>
+              <div style={{ display: 'grid', gap: 6 }}>
+                {Object.entries(status.database.record_counts).map(([table, count]) => (
+                  <div key={table} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderRadius: 'var(--radius-sm)', background: 'rgba(10,14,26,0.4)' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>{table}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--color-text-bright)', fontWeight: 600 }}>{count.toLocaleString()}</span>
                   </div>
-                  <p style={{ margin: '8px 0 0', color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>{comp.message}</p>
-                  {Object.keys(comp.details).length > 0 && (
-                    <dl style={{ display: 'grid', gap: 6, margin: '12px 0 0', padding: 12, borderRadius: 'var(--radius-md)', background: 'rgba(10, 18, 32, 0.52)', border: '1px solid rgba(129, 160, 207, 0.12)' }}>
-                      {Object.entries(comp.details).map(([key, value]) => (
-                        <div key={key}>
-                          <dt style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem', letterSpacing: '0.05em' }}>{key}</dt>
-                          <dd style={{ margin: '2px 0 0', fontSize: '0.85rem', fontWeight: 600, overflowWrap: 'anywhere' }}>{typeof value === 'object' ? JSON.stringify(value) : String(value)}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  )}
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* LLM */}
+          <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease 0.2s both' }}>
+            <div className="surface-panel__content">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--color-text-bright)' }}>LLM</h3>
+                <span className={`tag ${status.llm.configured ? 'tag--positive' : 'tag--warning'}`}>
+                  {status.llm.configured ? 'Configured' : 'Not Set'}
+                </span>
+              </div>
+              {[
+                { label: 'Model', value: status.llm.model },
+                { label: 'Base URL', value: status.llm.base_url },
+              ].map((item) => (
+                <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderRadius: 'var(--radius-sm)', background: 'rgba(10,14,26,0.4)', marginBottom: 6 }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>{item.label}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--color-text-bright)' }}>{item.value}</span>
                 </div>
-              </section>
-            ))}
-          </div>
-        </>
+              ))}
+            </div>
+          </section>
+
+          {/* Longbridge */}
+          <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease 0.3s both' }}>
+            <div className="surface-panel__content">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--color-text-bright)' }}>Longbridge</h3>
+                <span className={`tag ${status.longbridge.configured ? 'tag--positive' : 'tag--warning'}`}>
+                  {status.longbridge.configured ? 'Configured' : 'Not Set'}
+                </span>
+              </div>
+              <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
+                {status.longbridge.configured ? 'Longbridge API is configured for public market data.' : 'Longbridge is not configured. AI agents will use IBKR data only.'}
+              </p>
+            </div>
+          </section>
+
+          {/* Runtime */}
+          <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease 0.4s both' }}>
+            <div className="surface-panel__content">
+              <h3 style={{ margin: '0 0 12px', fontSize: '1rem', color: 'var(--color-text-bright)' }}>Runtime</h3>
+              {[
+                { label: 'Environment', value: status.runtime.app_env },
+                { label: 'Python', value: status.runtime.python_version.split(' ')[0] },
+                { label: 'Platform', value: status.runtime.platform },
+                { label: 'Timestamp', value: new Date(status.timestamp).toLocaleString() },
+              ].map((item) => (
+                <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderRadius: 'var(--radius-sm)', background: 'rgba(10,14,26,0.4)', marginBottom: 6 }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>{item.label}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--color-text-bright)', maxWidth: '60%', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
       )}
     </section>
   )

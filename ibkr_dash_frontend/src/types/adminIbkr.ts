@@ -1,35 +1,17 @@
-export type IbkrFlexSettings = {
-  query_id: string
-  flex_token_masked: string
-  has_flex_token: boolean
-  config_file: string
+export interface IbkrSettings {
+  flex_token: string | null
+  flex_query_id: string | null
+  account_id: string | null
 }
 
-export type IbkrFlexSettingsPayload = {
-  query_id?: string
-  flex_token?: string
+export interface IbkrSettingsUpdate {
+  flex_token?: string | null
+  flex_query_id?: string | null
+  account_id?: string | null
 }
 
-export type IbkrFlexSettingsMutationResponse = {
-  settings: IbkrFlexSettings
-  message: string
-}
-
-export type IbkrFlexTestResponse = {
+export interface IbkrTestResponse {
   success: boolean
-  query_id: string
-  reference_code: string | null
-  message: string | null
-}
-
-export type IbkrImportIndexResult = {
-  index: string
-  upserted: number
-}
-
-export type IbkrImportResponse = {
-  success: boolean
-  filename: string
-  result: Record<string, IbkrImportIndexResult>
   message: string
+  account_id: string | null
 }
