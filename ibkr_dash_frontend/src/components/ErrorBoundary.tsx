@@ -45,7 +45,6 @@ export default class ErrorBoundary extends Component<Props, State> {
           animation: 'slideUp 0.4s ease',
         }}>
           <div style={{ maxWidth: 440 }}>
-            {/* Amber accent line */}
             <div style={{
               width: 40,
               height: 2,

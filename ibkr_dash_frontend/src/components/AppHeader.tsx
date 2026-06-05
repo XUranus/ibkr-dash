@@ -1,25 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
 import { useAccountOverview } from '@/hooks/useAccountOverview'
 import { formatNumber, pnlClass } from '@/utils/format'
 
-const baseNavItems = [
-  { label: 'Dashboard', to: '/' },
-  { label: 'Positions', to: '/positions' },
-]
-
-const protectedNavItems = [
-  { label: 'Trades', to: '/trades' },
-  { label: 'Cash Flows', to: '/cash-flows' },
-  { label: 'Dividends', to: '/dividends' },
-  { label: 'AI Decision', to: '/trade-decision' },
-  { label: 'AI Review', to: '/trade-review' },
-  { label: 'Copilot', to: '/copilot' },
-  { label: 'Admin', to: '/admin/system' },
-]
-
 export default function AppHeader() {
+  const { t, i18n } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const { authenticated, username, loading: authLoading, ensureAuth, loginWithCredentials, logout } = useAuth()
@@ -27,6 +14,21 @@ export default function AppHeader() {
   const [showLogin, setShowLogin] = useState(false)
   const [loginForm, setLoginForm] = useState({ username: '', password: '' })
   const [loginError, setLoginError] = useState('')
+
+  const baseNavItems = [
+    { label: t('nav.dashboard'), to: '/' },
+    { label: t('nav.positions'), to: '/positions' },
+  ]
+
+  const protectedNavItems = [
+    { label: t('nav.trades'), to: '/trades' },
+    { label: t('nav.cashFlows'), to: '/cash-flows' },
+    { label: t('nav.dividends'), to: '/dividends' },
+    { label: t('nav.aiDecision'), to: '/trade-decision' },
+    { label: t('nav.aiReview'), to: '/trade-review' },
+    { label: t('nav.copilot'), to: '/copilot' },
+    { label: t('nav.admin'), to: '/admin/system' },
+  ]
 
   useEffect(() => {
     void ensureAuth()
@@ -58,6 +60,11 @@ export default function AppHeader() {
     if (location.pathname !== '/') navigate('/')
   }
 
+  function toggleLanguage() {
+    const next = i18n.language === 'zh-CN' ? 'en' : 'zh-CN'
+    void i18n.changeLanguage(next)
+  }
+
   return (
     <>
       <header className="surface-panel" style={{ animation: 'slideUp 0.5s ease' }}>
@@ -67,7 +74,7 @@ export default function AppHeader() {
             <div>
               <p className="eyebrow" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: 'var(--color-accent)', boxShadow: '0 0 8px rgba(212,168,67,0.4)' }} />
-                IBKR DASHBOARD
+                {t('app.title')}
               </p>
               <h1 style={{
                 margin: 0,
@@ -76,16 +83,19 @@ export default function AppHeader() {
                 fontWeight: 700,
                 color: 'var(--color-text-bright)',
               }}>
-                Portfolio Analytics
+                {t('app.subtitle')}
               </h1>
             </div>
 
             <div style={{ display: 'grid', gap: 12, justifyItems: 'end' }}>
               {/* Auth row */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                <button className="btn btn--ghost btn--sm" onClick={toggleLanguage} style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)' }}>
+                  {i18n.language === 'zh-CN' ? 'EN' : '中文'}
+                </button>
                 <span className="tag" style={{ fontSize: '0.62rem' }}>LIVE</span>
                 {!authenticated ? (
-                  <button className="btn btn--ghost btn--sm" onClick={() => setShowLogin(true)}>Login</button>
+                  <button className="btn btn--ghost btn--sm" onClick={() => setShowLogin(true)}>{t('auth.login')}</button>
                 ) : (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{
@@ -95,7 +105,7 @@ export default function AppHeader() {
                     }}>
                       {username}
                     </span>
-                    <button className="btn btn--ghost btn--sm" onClick={handleLogout}>Logout</button>
+                    <button className="btn btn--ghost btn--sm" onClick={handleLogout}>{t('auth.logout')}</button>
                   </div>
                 )}
               </div>
@@ -103,10 +113,10 @@ export default function AppHeader() {
               {/* Account metrics strip */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' }}>
                 {[
-                  { label: 'Date', value: overview?.report_date ?? '--' },
-                  { label: 'Equity', value: formatNumber(overview?.total_equity ?? null) },
+                  { label: t('header.date'), value: overview?.report_date ?? '--' },
+                  { label: t('header.equity'), value: formatNumber(overview?.total_equity ?? null) },
                   {
-                    label: 'P&L',
+                    label: t('header.pnl'),
                     value: formatNumber(overview?.fifo_total_pnl ?? null),
                     className: pnlClass(overview?.fifo_total_pnl),
                   },
@@ -177,23 +187,23 @@ export default function AppHeader() {
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
                 <div>
                   <p className="eyebrow">ACCESS</p>
-                  <h2 style={{ margin: 0, fontSize: '1.4rem', color: 'var(--color-text-bright)' }}>Login</h2>
+                  <h2 style={{ margin: 0, fontSize: '1.4rem', color: 'var(--color-text-bright)' }}>{t('auth.loginTitle')}</h2>
                 </div>
                 <button className="btn btn--ghost btn--sm" onClick={() => setShowLogin(false)} style={{ minWidth: 36, minHeight: 36, padding: 0 }}>✕</button>
               </div>
               <form style={{ display: 'grid', gap: 14 }} onSubmit={handleLogin}>
                 <label className="field-stack">
-                  <span className="field-stack__label">Username</span>
+                  <span className="field-stack__label">{t('auth.username')}</span>
                   <input className="input" value={loginForm.username} onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })} type="text" autoComplete="username" />
                 </label>
                 <label className="field-stack">
-                  <span className="field-stack__label">Password</span>
+                  <span className="field-stack__label">{t('auth.password')}</span>
                   <input className="input" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} type="password" autoComplete="current-password" />
                 </label>
                 {loginError && <p style={{ margin: 0, color: 'var(--color-negative)', fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>{loginError}</p>}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 4 }}>
-                  <button type="button" className="btn btn--ghost" onClick={() => setShowLogin(false)}>Cancel</button>
-                  <button type="submit" className="btn btn--accent" disabled={authLoading}>Login</button>
+                  <button type="button" className="btn btn--ghost" onClick={() => setShowLogin(false)}>{t('auth.cancel')}</button>
+                  <button type="submit" className="btn btn--accent" disabled={authLoading}>{t('auth.login')}</button>
                 </div>
               </form>
             </div>

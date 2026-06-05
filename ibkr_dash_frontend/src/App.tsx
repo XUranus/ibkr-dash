@@ -1,10 +1,13 @@
 import { useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import AppHeader from '@/components/AppHeader'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { ensureAuthSession } from '@/hooks/useAuth'
 
 export default function App() {
+  const { t } = useTranslation()
+
   useEffect(() => {
     void ensureAuthSession()
   }, [])
@@ -25,7 +28,6 @@ export default function App() {
         </ErrorBoundary>
       </main>
 
-      {/* Footer */}
       <footer style={{
         marginTop: 'var(--space-7)',
         paddingTop: 'var(--space-5)',
@@ -42,14 +44,14 @@ export default function App() {
           color: 'var(--color-text-muted)',
           letterSpacing: '0.08em',
         }}>
-          IBKR DASH v0.1.0
+          {t('app.version')}
         </span>
         <span style={{
           fontFamily: 'var(--font-mono)',
           fontSize: '0.68rem',
           color: 'var(--color-text-muted)',
         }}>
-          SQLite · FastAPI · React
+          {t('app.techStack')}
         </span>
       </footer>
     </div>
