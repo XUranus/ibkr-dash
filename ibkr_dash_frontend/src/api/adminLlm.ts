@@ -3,9 +3,6 @@ import type {
   LlmChatTestResponse,
   LlmHealth,
   LlmProvider,
-  LlmProviderListResponse,
-  LlmProviderMutationResponse,
-  LlmProviderPayload,
   LlmProviderTestResponse,
 } from '@/types/adminLlm'
 
@@ -14,46 +11,21 @@ export function fetchLlmHealth(): Promise<LlmHealth> {
 }
 
 export async function fetchLlmProviders(): Promise<LlmProvider[]> {
-  const response = await request<LlmProviderListResponse>('/api/admin/llm/providers')
-  return response.items
+  // Backend returns a plain array, not { items: [...] }
+  const response = await request<LlmProvider[] | { items: LlmProvider[] }>('/api/admin/llm/providers')
+  return Array.isArray(response) ? response : (response.items ?? [])
 }
 
-export function createLlmProvider(payload: LlmProviderPayload): Promise<LlmProviderMutationResponse> {
-  return request<LlmProviderMutationResponse>('/api/admin/llm/providers', {
+export function testLlmProvider(prompt: string): Promise<LlmProviderTestResponse> {
+  return request<LlmProviderTestResponse>('/api/admin/llm/test', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ message: prompt }),
   })
 }
 
-export function updateLlmProvider(id: string, payload: Partial<LlmProviderPayload>): Promise<LlmProviderMutationResponse> {
-  return request<LlmProviderMutationResponse>(`/api/admin/llm/providers/${encodeURIComponent(id)}`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  })
-}
-
-export function deleteLlmProvider(id: string): Promise<LlmProviderMutationResponse> {
-  return request<LlmProviderMutationResponse>(`/api/admin/llm/providers/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-  })
-}
-
-export function activateLlmProvider(id: string): Promise<LlmProviderMutationResponse> {
-  return request<LlmProviderMutationResponse>(`/api/admin/llm/providers/${encodeURIComponent(id)}/activate`, {
+export function testActiveLlmChat(message: string): Promise<LlmChatTestResponse> {
+  return request<LlmChatTestResponse>('/api/admin/llm/test', {
     method: 'POST',
-  })
-}
-
-export function testLlmProvider(id: string, prompt: string): Promise<LlmProviderTestResponse> {
-  return request<LlmProviderTestResponse>(`/api/admin/llm/providers/${encodeURIComponent(id)}/test`, {
-    method: 'POST',
-    body: JSON.stringify({ prompt }),
-  })
-}
-
-export function testActiveLlmChat(message: string, model: string): Promise<LlmChatTestResponse> {
-  return request<LlmChatTestResponse>('/api/admin/llm/chat-test', {
-    method: 'POST',
-    body: JSON.stringify({ message, model: model || undefined }),
+    body: JSON.stringify({ message }),
   })
 }
