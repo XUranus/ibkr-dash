@@ -18,6 +18,9 @@ from app.utils.dates import utc_now_iso
 
 logger = logging.getLogger(__name__)
 
+VALID_STATUSES = {"pending", "running", "completed", "failed", "cancelled"}
+TERMINAL_STATUSES = {"completed", "failed", "cancelled"}
+
 
 class AgentTaskService:
     """Manages background agent tasks with status tracking."""
@@ -26,17 +29,24 @@ class AgentTaskService:
         self.db = db
         self._running_tasks: dict[str, threading.Thread] = {}
 
-    def create_task(self, agent_name: str) -> str:
-        """Create a new agent task and return its ID."""
+    def create_task(self, agent_name: str) -> dict:
+        """Create a new agent task and return the task dict."""
         task_id = str(uuid.uuid4())
+        now = utc_now_iso()
         self.db.insert("agent_tasks", {
             "id": task_id,
             "agent_name": agent_name,
             "status": "pending",
             "progress": json.dumps({"step": "queued"}),
-            "created_at": utc_now_iso(),
+            "created_at": now,
         })
-        return task_id
+        return {
+            "id": task_id,
+            "agent_name": agent_name,
+            "status": "pending",
+            "progress": {"step": "queued"},
+            "created_at": now,
+        }
 
     def update_task_status(
         self,
@@ -60,15 +70,10 @@ class AgentTaskService:
         elif status in ("completed", "failed", "cancelled"):
             data["finished_at"] = utc_now_iso()
 
-        # SQLite upsert on task id
-        columns = ", ".join(data.keys())
-        placeholders = ", ".join("?" for _ in data)
-        set_clause = ", ".join(f"{k}=excluded.{k}" for k in data.keys())
-        sql = (
-            f"INSERT INTO agent_tasks (id, {columns}) VALUES (?, {placeholders}) "
-            f"ON CONFLICT(id) DO UPDATE SET {set_clause}"
-        )
-        self.db.execute(sql, (task_id, *data.values()))
+        # UPDATE existing task (task must already exist)
+        set_clause = ", ".join(f"{k} = ?" for k in data.keys())
+        sql = f"UPDATE agent_tasks SET {set_clause} WHERE id = ?"
+        self.db.execute(sql, (*data.values(), task_id))
 
     def get_task(self, task_id: str) -> dict | None:
         """Get task by ID."""
@@ -90,8 +95,9 @@ class AgentTaskService:
         agent_name: str | None = None,
         status: str | None = None,
         limit: int = 20,
+        offset: int = 0,
     ) -> list[dict]:
-        """List tasks with optional filters."""
+        """List tasks with optional filters and pagination."""
         conditions = []
         params: list[Any] = []
         if agent_name:
@@ -101,8 +107,8 @@ class AgentTaskService:
             conditions.append("status = ?")
             params.append(status)
         where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-        sql = f"SELECT * FROM agent_tasks {where} ORDER BY created_at DESC LIMIT ?"
-        params.append(limit)
+        sql = f"SELECT * FROM agent_tasks {where} ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
         return self.db.execute(sql, tuple(params))
 
     def run_in_background(
@@ -145,13 +151,105 @@ class AgentTaskService:
         thread.start()
         return task_id
 
-    def cancel_task(self, task_id: str) -> bool:
-        """Mark a task as cancelled. The thread will finish its current step."""
+    def start_task(self, task_id: str) -> dict | None:
+        """Transition a task from pending to running.
+
+        Returns:
+            The updated task dict, or None if task not found.
+
+        Raises:
+            ValueError: If the task is not in pending status.
+        """
         task = self.get_task(task_id)
-        if not task or task.get("status") in ("completed", "failed", "cancelled"):
-            return False
+        if task is None:
+            return None
+        if task["status"] != "pending":
+            raise ValueError(
+                f"Cannot start task {task_id}: current status is '{task['status']}', expected 'pending'"
+            )
+        self.update_task_status(task_id, "running")
+        return self.get_task(task_id)
+
+    def complete_task(self, task_id: str, result: dict | None = None) -> dict | None:
+        """Transition a task to completed status.
+
+        Args:
+            task_id: The task ID.
+            result: Optional result data to store.
+
+        Returns:
+            The updated task dict, or None if task not found.
+
+        Raises:
+            ValueError: If the task is not in running status.
+        """
+        task = self.get_task(task_id)
+        if task is None:
+            return None
+        if task["status"] != "running":
+            raise ValueError(
+                f"Cannot complete task {task_id}: current status is '{task['status']}', expected 'running'"
+            )
+        self.update_task_status(task_id, "completed", result=result)
+        return self.get_task(task_id)
+
+    def fail_task(self, task_id: str, error: str) -> dict | None:
+        """Transition a task to failed status.
+
+        Args:
+            task_id: The task ID.
+            error: Error message to store.
+
+        Returns:
+            The updated task dict, or None if task not found.
+
+        Raises:
+            ValueError: If the task is not in running status.
+        """
+        task = self.get_task(task_id)
+        if task is None:
+            return None
+        if task["status"] != "running":
+            raise ValueError(
+                f"Cannot fail task {task_id}: current status is '{task['status']}', expected 'running'"
+            )
+        self.update_task_status(task_id, "failed", error=error)
+        return self.get_task(task_id)
+
+    def update_progress(self, task_id: str, progress: dict) -> dict | None:
+        """Update the progress field of a running task.
+
+        Args:
+            task_id: The task ID.
+            progress: Progress data to store.
+
+        Returns:
+            The updated task dict, or None if task not found.
+        """
+        task = self.get_task(task_id)
+        if task is None:
+            return None
+        self.update_task_status(task_id, task.get("status", "running"), progress=progress)
+        return self.get_task(task_id)
+
+    def cancel_task(self, task_id: str) -> dict | None:
+        """Cancel a pending or running task.
+
+        Returns:
+            The updated task dict, or None if task not found.
+
+        Raises:
+            ValueError: If the task is already in a terminal status.
+        """
+        task = self.get_task(task_id)
+        if task is None:
+            return None
+        if task["status"] in TERMINAL_STATUSES:
+            raise ValueError(
+                f"Cannot cancel task {task_id}: current status is '{task['status']}' (terminal)"
+            )
         self.update_task_status(task_id, "cancelled")
-        return True
+        return self.get_task(task_id)
 
     def get_running_task_ids(self) -> list[str]:
         """Return IDs of currently running tasks."""

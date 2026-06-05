@@ -7,6 +7,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import get_settings
 from app.core.database import init_database
@@ -44,6 +46,23 @@ def create_app() -> FastAPI:
 
     # GZip compression for large JSON responses
     app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+    # Limit request body size to prevent abuse
+    class BodySizeLimitMiddleware(BaseHTTPMiddleware):
+        def __init__(self, app, max_bytes: int = 1_000_000):
+            super().__init__(app)
+            self.max_bytes = max_bytes
+
+        async def dispatch(self, request, call_next):
+            content_length = request.headers.get('content-length')
+            if content_length and int(content_length) > self.max_bytes:
+                return JSONResponse(
+                    status_code=413,
+                    content={"detail": "Request body too large"},
+                )
+            return await call_next(request)
+
+    app.add_middleware(BodySizeLimitMiddleware, max_bytes=1_000_000)
 
     # --- Register route blueprints ---
     from app.api.routes.health import router as health_router

@@ -36,6 +36,10 @@ class LLMService:
         self.temperature = settings.llm_temperature
         self.max_tokens = settings.llm_max_tokens
         self.timeout = 60.0
+        self._client = httpx.Client(
+            timeout=self.timeout,
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+        )
 
     def chat(
         self,
@@ -86,8 +90,7 @@ class LLMService:
 
         started = time.perf_counter()
         try:
-            with httpx.Client(timeout=self.timeout) as client:
-                response = client.post(url, headers=headers, json=payload)
+            response = self._client.post(url, headers=headers, json=payload)
         except httpx.TimeoutException as exc:
             raise LLMClientError("TIMEOUT", "LLM provider request timed out") from exc
         except httpx.HTTPError as exc:

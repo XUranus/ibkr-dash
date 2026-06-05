@@ -22,8 +22,8 @@ export default function AccountCopilotView() {
     try {
       const items = await listSessions(50)
       setSessions(items)
-    } catch {
-      // Silent fail
+    } catch (err) {
+      console.warn('Failed to load sessions:', err)
     }
   }, [])
 
@@ -57,7 +57,7 @@ export default function AccountCopilotView() {
 
     // Optimistic: add user message
     const userMsg: CopilotMessage = {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       session_id: activeSessionId ?? '',
       role: 'user',
       content,
@@ -76,7 +76,7 @@ export default function AccountCopilotView() {
 
       // Add assistant message
       const assistantMsg: CopilotMessage = {
-        id: Date.now() + 1,
+        id: crypto.randomUUID(),
         session_id: response.session_id,
         role: 'assistant',
         content: response.answer,
@@ -110,8 +110,8 @@ export default function AccountCopilotView() {
         setActiveSessionId(null)
         setMessages([])
       }
-    } catch {
-      // Silent fail
+    } catch (err) {
+      console.warn('Failed to delete session:', err)
     }
   }
 

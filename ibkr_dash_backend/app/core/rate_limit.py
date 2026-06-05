@@ -44,7 +44,11 @@ class SlidingWindowRateLimiter:
         timestamps = self._hits[key]
         self._hits[key] = [t for t in timestamps if t > cutoff]
 
-        if len(self._hits[key]) >= self.max_requests:
+        # Evict empty entries to prevent memory leak
+        if not self._hits[key]:
+            del self._hits[key]
+
+        if len(self._hits.get(key, [])) >= self.max_requests:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=(
@@ -53,7 +57,7 @@ class SlidingWindowRateLimiter:
                 ),
             )
 
-        self._hits[key].append(now)
+        self._hits.setdefault(key, []).append(now)
 
 
 # ---------------------------------------------------------------------------

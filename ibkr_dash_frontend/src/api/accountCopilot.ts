@@ -8,7 +8,7 @@ export interface CopilotSession {
 }
 
 export interface CopilotMessage {
-  id: number
+  id: number | string
   session_id: string
   role: string
   content: string

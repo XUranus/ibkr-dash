@@ -6,7 +6,7 @@ import pytest
 
 from app.core.config import Settings
 from app.core.database import Database, init_database
-from app.services.agent_task_service import AgentTaskService, VALID_STATUSES, TERMINAL_STATUSES
+from app.services.agent_services import AgentTaskService, VALID_STATUSES, TERMINAL_STATUSES
 
 
 @pytest.fixture

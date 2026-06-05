@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS trade_records (
     description     TEXT,
     asset_class     TEXT,
     conid           TEXT,
+    trade_id        TEXT,
     trade_date      TEXT NOT NULL,
     date_time       TEXT,
     settle_date     TEXT,
@@ -93,7 +94,8 @@ CREATE TABLE IF NOT EXISTS trade_records (
     buy_sell        TEXT,
     order_type      TEXT,
     raw_json        TEXT,
-    ingested_at     TEXT DEFAULT (datetime('now'))
+    ingested_at     TEXT DEFAULT (datetime('now')),
+    UNIQUE(account_id, trade_date, symbol, trade_id)
 );
 
 CREATE TABLE IF NOT EXISTS cash_flows (
@@ -107,6 +109,7 @@ CREATE TABLE IF NOT EXISTS cash_flows (
     amount          REAL,
     amount_in_base  REAL,
     flow_type       TEXT,
+    flow_direction  TEXT,
     dividend_type   TEXT,
     transaction_id  TEXT,
     raw_json        TEXT,
@@ -242,6 +245,9 @@ CREATE INDEX IF NOT EXISTS idx_copilot_messages_session ON copilot_messages(sess
 # Migrations that run after the main schema (safe to re-run)
 _MIGRATIONS = [
     "ALTER TABLE copilot_sessions ADD COLUMN title TEXT DEFAULT ''",
+    "ALTER TABLE trade_records ADD COLUMN trade_id TEXT",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_trade_records_unique ON trade_records(account_id, trade_date, symbol, trade_id)",
+    "ALTER TABLE cash_flows ADD COLUMN flow_direction TEXT",
 ]
 
 
@@ -384,9 +390,9 @@ def get_database(settings: Settings | None = None) -> Database:
     global _db_instance
     if _db_instance is None:
         s = settings or get_settings()
-        # Resolve relative paths against the backend directory
         db_path = s.sqlite_path
-        if not os.path.isabs(db_path):
+        # :memory: must stay as-is (not resolved to a file path)
+        if db_path != ":memory:" and not os.path.isabs(db_path):
             db_path = str(Path(__file__).resolve().parents[2] / db_path)
         _db_instance = Database(db_path)
     return _db_instance

@@ -5,6 +5,7 @@ Provides a conversational interface to the portfolio assistant agent.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 from datetime import datetime, timezone
@@ -66,7 +67,7 @@ class CopilotMessageResponse(BaseModel):
 
 
 @router.post("/chat", response_model=CopilotChatResponse)
-def copilot_chat(
+async def copilot_chat(
     request: CopilotChatRequest,
     db: Database = Depends(get_db),
     llm_service: LLMService = Depends(get_llm_service),
@@ -125,6 +126,10 @@ def copilot_chat(
             (session_id,),
         )
 
+        # Truncate to last 20 messages to avoid exceeding LLM context
+        if len(history) > 20:
+            history = history[-20:]
+
         # Build messages list from history
         messages = [{"role": h["role"], "content": h["content"]} for h in history]
 
@@ -157,7 +162,7 @@ def copilot_chat(
             errors=[],
         )
 
-        result_state = runtime.run(state)
+        result_state = await asyncio.to_thread(runtime.run, state)
 
         answer = result_state.get("final_answer") or ""
         run_id = result_state.get("run_id", str(uuid.uuid4()))
@@ -167,7 +172,7 @@ def copilot_chat(
         errors = [str(e) for e in result_state.get("errors", [])]
 
     except Exception as exc:
-        answer = f"I encountered an error processing your request: {str(exc)[:200]}"
+        answer = "I encountered an internal error. Please try again."
         run_id = str(uuid.uuid4())
         actions = []
         tool_calls = []

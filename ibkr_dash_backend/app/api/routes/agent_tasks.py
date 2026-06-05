@@ -146,13 +146,10 @@ def cancel_task(
     task_service: AgentTaskService = Depends(get_agent_task_service),
 ) -> AgentTaskResponse:
     """Cancel a running agent task."""
-    success = task_service.cancel_task(task_id)
-    if not success:
-        raise HTTPException(
-            status_code=400,
-            detail="Task not found or already completed/failed/cancelled",
-        )
-    task = task_service.get_task(task_id)
-    return AgentTaskResponse(**task) if task else AgentTaskResponse(
-        id=task_id, agent_name="", status="cancelled",
-    )
+    try:
+        task = task_service.cancel_task(task_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return AgentTaskResponse(**task)

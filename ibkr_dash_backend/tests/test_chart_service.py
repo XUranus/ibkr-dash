@@ -128,7 +128,8 @@ def test_performance_calendar_summary(chart_service: ChartService) -> None:
     """Test that performance calendar includes summary statistics."""
     result = chart_service.get_performance_calendar(view="month", anchor="2026-04")
     assert result.summary is not None
-    assert result.summary.periods_with_data == 4
+    # Only 3 of 4 snapshots have cnav_mtm data (first day has None)
+    assert result.summary.periods_with_data == 3
 
 
 def test_performance_calendar_invalid_view(chart_service: ChartService) -> None:
