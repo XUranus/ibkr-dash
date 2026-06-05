@@ -19,8 +19,8 @@ class TradeDecisionResponse(BaseModel):
     symbol: str
     decision_output: dict | str | None = None
     metadata: dict | None = None
-    evidence_summary: dict | None = None
-    run_trace: dict | None = None
+    evidence_summary: dict | list | None = None
+    run_trace: dict | list | None = None
     created_at: str | None = None
 
 
