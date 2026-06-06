@@ -130,14 +130,21 @@ class FlexClient:
             error_message = self._extract_text(root, ("ErrorMessage", "Message"))
             status = self._extract_text(root, ("Status",))
             message = error_message or "IBKR Flex statement is not ready."
+
             if error_code in STATEMENT_PENDING_CODES:
                 raise FlexStatementNotReady(message)
+
+            # Successful FlexQueryResponse (contains the actual data)
+            if root.tag == "FlexQueryResponse" and root.find(".//FlexStatement") is not None:
+                return body
+
             if status and status.lower() == "success":
                 url = self._extract_text(root, ("Url",))
                 if url:
                     download_response = self.session.get(url, timeout=60)
                     download_response.raise_for_status()
                     return download_response.text
+
             raise FlexClientError(f"{message} (error_code={error_code or 'unknown'})")
 
         return body

@@ -11,6 +11,7 @@ import json
 import logging
 import sqlite3
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Generator
 
@@ -474,3 +475,55 @@ class SQLiteWriter:
                 count += 1
         logger.info("Upserted %d price_history record(s)", count)
         return count
+
+    # ------------------------------------------------------------------
+    # Single-record helpers (for XML import)
+    # ------------------------------------------------------------------
+
+    def upsert_account_snapshot(self, doc: dict) -> None:
+        """Upsert a single account snapshot."""
+        self.bulk_upsert_account_snapshots([doc])
+
+    def insert_trade(self, doc: dict) -> None:
+        """Insert a single trade record."""
+        sql = """
+            INSERT INTO trade_records
+                (account_id, symbol, description, asset_class, conid,
+                 trade_date, date_time, settle_date, transaction_type, exchange,
+                 quantity, trade_price, trade_money, proceeds, taxes,
+                 ib_commission, net_cash, fifo_pnl_realized, buy_sell, order_type,
+                 raw_json, ingested_at)
+            VALUES
+                (:account_id, :symbol, :description, :asset_class, :conid,
+                 :trade_date, :date_time, :settle_date, :transaction_type, :exchange,
+                 :quantity, :trade_price, :trade_money, :proceeds, :taxes,
+                 :ib_commission, :net_cash, :fifo_pnl_realized, :buy_sell, :order_type,
+                 :raw_json, :ingested_at)
+        """
+        row = {
+            **doc,
+            "raw_json": json.dumps(doc, default=str),
+            "ingested_at": datetime.now(timezone.utc).isoformat(),
+        }
+        with self._get_conn() as conn:
+            conn.execute(sql, row)
+
+    def insert_cash_flow(self, doc: dict) -> None:
+        """Insert a single cash flow record."""
+        sql = """
+            INSERT INTO cash_flows
+                (account_id, currency, symbol, description, date_time, settle_date,
+                 amount, amount_in_base, flow_type, flow_direction, dividend_type,
+                 transaction_id, raw_json, ingested_at)
+            VALUES
+                (:account_id, :currency, :symbol, :description, :date_time, :settle_date,
+                 :amount, :amount_in_base, :flow_type, :flow_direction, :dividend_type,
+                 :transaction_id, :raw_json, :ingested_at)
+        """
+        row = {
+            **doc,
+            "raw_json": json.dumps(doc, default=str),
+            "ingested_at": datetime.now(timezone.utc).isoformat(),
+        }
+        with self._get_conn() as conn:
+            conn.execute(sql, row)

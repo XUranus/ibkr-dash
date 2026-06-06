@@ -11,11 +11,13 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parents[2]
+# Project root: worker/core/config.py -> worker/core -> worker -> ibkr_dash_worker -> project root
+_BASE_DIR = Path(__file__).resolve().parents[2]  # ibkr_dash_worker/
+_PROJECT_ROOT = _BASE_DIR.parent  # ibkr-dash/
 
 try:
     from dotenv import load_dotenv
-    load_dotenv(BASE_DIR / ".env")
+    load_dotenv(_BASE_DIR / ".env")
 except ImportError:
     pass  # python-dotenv is optional; env vars can be set externally
 
@@ -82,11 +84,11 @@ def get_settings() -> Settings:
         debug=_read_bool("DEBUG", False),
         sqlite_path=os.getenv(
             "SQLITE_PATH",
-            str(BASE_DIR.parent / "data" / "ibkr_dash.db"),
+            str(_PROJECT_ROOT / "data" / "ibkr_dash.db"),
         ),
         data_dir=os.getenv(
             "DATA_DIR",
-            str(BASE_DIR.parent / "data" / "flex_exports"),
+            str(_PROJECT_ROOT / "data" / "flex_exports"),
         ),
         scheduler_enabled=_read_bool("SCHEDULER_ENABLED", True),
         scheduler_hour=_read_int("SCHEDULER_HOUR", 12),
