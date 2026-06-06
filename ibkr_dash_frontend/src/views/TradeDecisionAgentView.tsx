@@ -61,8 +61,7 @@ export default function TradeDecisionAgentView() {
     return <section className="page-section"><div className="surface-panel"><div className="surface-panel__content">{t('common.loading')}</div></div></section>
   }
 
-  const output = selectedDecision?.decision_output
-  const decisionData = typeof output === 'string' ? (() => { try { return JSON.parse(output) } catch { return null } })() : output
+  const decisionData = selectedDecision ?? null
 
   const actionLabels: Record<string, string> = {
     add: t('tradeDecision.actionAdd'),

@@ -64,8 +64,7 @@ export default function DailyPositionReviewView() {
     return <section className="page-section"><div className="surface-panel"><div className="surface-panel__content">{t('common.loading')}</div></div></section>
   }
 
-  const output = review?.review_output
-  const reviewData = typeof output === 'string' ? (() => { try { return JSON.parse(output) } catch { return null } })() : output
+  const reviewData = review ?? null
 
   return (
     <section className="page-section">
