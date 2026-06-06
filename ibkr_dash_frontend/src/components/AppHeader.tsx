@@ -51,7 +51,7 @@ export default function AppHeader() {
       setShowLogin(false)
       setLoginForm({ username: '', password: '' })
     } catch (err) {
-      setLoginError(err instanceof Error ? err.message : 'Login failed')
+      setLoginError(err instanceof Error ? err.message : t('auth.loginFailed'))
     }
   }
 

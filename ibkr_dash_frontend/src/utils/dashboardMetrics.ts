@@ -5,6 +5,7 @@ export interface DashboardStatCard {
   title: string
   value: string
   helper?: string
+  helperData?: Record<string, string>
   tone: 'neutral' | 'positive' | 'negative' | 'accent'
   deltaAmount?: string
   deltaPercent?: string
@@ -24,7 +25,7 @@ function metricTone(value: number | null, fallback: 'neutral' | 'accent' = 'neut
 export function buildDashboardStatCards(overview: AccountOverview): DashboardStatCard[] {
   return [
     {
-      title: 'Total Equity',
+      title: 'dashboard.totalEquity',
       value: formatNumber(overview.total_equity),
       helper: overview.report_date,
       tone: 'accent',
@@ -32,20 +33,20 @@ export function buildDashboardStatCards(overview: AccountOverview): DashboardSta
       deltaPercent: formatSignedPercent(overview.total_equity_delta?.percent_change ?? null),
       deltaTone: deltaTone(overview.total_equity_delta),
     },
-    { title: 'Cash', value: formatNumber(overview.cash), tone: 'neutral' },
-    { title: 'Stock Value', value: formatNumber(overview.stock_value), tone: 'neutral' },
+    { title: 'dashboard.cash', value: formatNumber(overview.cash), tone: 'neutral' },
+    { title: 'dashboard.stockValue', value: formatNumber(overview.stock_value), tone: 'neutral' },
     {
-      title: 'Realized P&L',
+      title: 'dashboard.realizedPnl',
       value: formatNumber(overview.fifo_total_realized_pnl),
       tone: overview.fifo_total_realized_pnl !== null && overview.fifo_total_realized_pnl < 0 ? 'negative' : 'positive',
     },
     {
-      title: 'Unrealized P&L',
+      title: 'dashboard.unrealizedPnl',
       value: formatNumber(overview.fifo_total_unrealized_pnl),
       tone: overview.fifo_total_unrealized_pnl !== null && overview.fifo_total_unrealized_pnl < 0 ? 'negative' : 'positive',
     },
     {
-      title: 'Total P&L',
+      title: 'dashboard.totalPnl',
       value: formatNumber(overview.fifo_total_pnl),
       tone: overview.fifo_total_pnl !== null && overview.fifo_total_pnl < 0 ? 'negative' : 'positive',
       deltaAmount: formatSignedNumber(overview.fifo_total_pnl_delta?.amount_change ?? null),
@@ -53,19 +54,20 @@ export function buildDashboardStatCards(overview: AccountOverview): DashboardSta
       deltaTone: deltaTone(overview.fifo_total_pnl_delta),
     },
     {
-      title: 'Daily TWR',
+      title: 'dashboard.dailyTwr',
       value: formatPercent(overview.cnav_twr),
-      helper: 'IBKR CNAV daily return',
+      helper: 'dashboard.dailyTwrHelper',
       tone: metricTone(overview.cnav_twr, 'accent'),
     },
     {
-      title: 'YTD TWR',
+      title: 'dashboard.ytdTwr',
       value: formatPercent(overview.ytd_twr),
-      helper: `${overview.report_date.slice(0, 4)}-01-01 to date`,
+      helper: 'dashboard.ytdTwrHelper',
+      helperData: { startDate: `${overview.report_date.slice(0, 4)}-01-01` },
       tone: metricTone(overview.ytd_twr, 'accent'),
     },
-    { title: 'YTD Dividends', value: formatNumber(overview.crtt_dividends_ytd), tone: 'neutral' },
-    { title: 'YTD Interest', value: formatNumber(overview.crtt_broker_interest_ytd), tone: 'neutral' },
-    { title: 'YTD Commissions', value: formatNumber(overview.crtt_commissions_ytd), tone: 'negative' },
+    { title: 'dashboard.ytdDividends', value: formatNumber(overview.crtt_dividends_ytd), tone: 'neutral' },
+    { title: 'dashboard.ytdInterest', value: formatNumber(overview.crtt_broker_interest_ytd), tone: 'neutral' },
+    { title: 'dashboard.ytdCommissions', value: formatNumber(overview.crtt_commissions_ytd), tone: 'negative' },
   ]
 }

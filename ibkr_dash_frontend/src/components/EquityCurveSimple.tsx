@@ -1,4 +1,5 @@
 import { useRef, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import * as echarts from 'echarts/core'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, DataZoomComponent } from 'echarts/components'
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export default function EquityCurveSimple({ items, loading, errorMessage, rangeOptions, selectedRange, onSelectRange }: Props) {
+  const { t } = useTranslation()
   const chartRef = useRef<HTMLDivElement>(null)
   const chartInstance = useRef<echarts.ECharts | null>(null)
 
@@ -79,7 +81,7 @@ export default function EquityCurveSimple({ items, loading, errorMessage, rangeO
       ],
       series: [
         {
-          name: 'Total Equity', type: 'line', smooth: 0.18, sampling: 'lttb',
+          name: t('dashboard.totalEquity'), type: 'line', smooth: 0.18, sampling: 'lttb',
           data: equityData, lineStyle: { width: 3, color: '#56d5ff' },
           areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: 'rgba(86, 213, 255, 0.26)' },
@@ -88,7 +90,7 @@ export default function EquityCurveSimple({ items, loading, errorMessage, rangeO
           showSymbol: false,
         },
         {
-          name: 'Net P&L', type: 'line', smooth: 0.22, sampling: 'lttb',
+          name: t('dashboard.netPnl'), type: 'line', smooth: 0.22, sampling: 'lttb',
           data: pnlData, lineStyle: { width: 2.5, color: '#b7e11d' },
           areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: 'rgba(183, 225, 29, 0.18)' },
@@ -97,12 +99,12 @@ export default function EquityCurveSimple({ items, loading, errorMessage, rangeO
           showSymbol: false,
         },
         {
-          name: 'Net Cost', type: 'line', step: 'end',
+          name: t('dashboard.netCost'), type: 'line', step: 'end',
           data: costData, lineStyle: { width: 2.5, color: '#ffb454' },
           showSymbol: false,
         },
         {
-          name: 'Realized P&L', type: 'line', smooth: 0.16, sampling: 'lttb',
+          name: t('dashboard.realizedPnl'), type: 'line', smooth: 0.16, sampling: 'lttb',
           data: realizedData, lineStyle: { width: 2.4, color: '#8b7cff' },
           areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: 'rgba(139, 124, 255, 0.14)' },
@@ -140,17 +142,17 @@ export default function EquityCurveSimple({ items, loading, errorMessage, rangeO
       <div className="surface-panel__content">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
           <div>
-            <p className="eyebrow">Curves</p>
-            <h2 className="panel-title" style={{ fontSize: '1.45rem' }}>Equity / P&L / Cost / Realized P&L</h2>
+            <p className="eyebrow">{t('dashboard.curves')}</p>
+            <h2 className="panel-title" style={{ fontSize: '1.45rem' }}>{t('dashboard.curvesTitle')}</h2>
             <p className="panel-subtitle" style={{ maxWidth: '52rem' }}>
-              Net P&L is calculated as total equity minus cumulative net contributions. Realized P&L is derived from historical trade records.
+              {t('dashboard.curvesSubtitle')}
             </p>
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             <span className="tag tag--accent">
-              {items.length > 0 ? `${items[0].report_date} - ${items[items.length - 1].report_date}` : 'No history'}
+              {items.length > 0 ? `${items[0].report_date} - ${items[items.length - 1].report_date}` : t('dashboard.noHistory')}
             </span>
-            <span className="tag">{items.length} daily points</span>
+            <span className="tag">{t('dashboard.dailyPoints', { count: items.length })}</span>
           </div>
         </div>
 
@@ -174,7 +176,7 @@ export default function EquityCurveSimple({ items, loading, errorMessage, rangeO
         </div>
 
         {items.length === 0 ? (
-          <div className="empty-state">{errorMessage || 'No curve data available'}</div>
+          <div className="empty-state">{errorMessage || t('dashboard.noCurveData')}</div>
         ) : (
           <>
             {loading && (
@@ -184,7 +186,7 @@ export default function EquityCurveSimple({ items, loading, errorMessage, rangeO
                 background: 'rgba(5, 12, 24, 0.44)', backdropFilter: 'blur(3px)',
                 color: 'var(--color-text-primary)', fontWeight: 600,
               }}>
-                Updating curve...
+                {t('dashboard.updatingCurve')}
               </div>
             )}
             <div ref={chartRef} style={{ width: '100%', height: 620, borderRadius: 24, border: '1px solid rgba(129, 160, 207, 0.1)', background: 'rgba(8, 14, 28, 0.94)' }} />

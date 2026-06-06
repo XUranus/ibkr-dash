@@ -6,12 +6,12 @@ export type EquityCurveRangeOption = {
 }
 
 export const EQUITY_CURVE_RANGE_OPTIONS: EquityCurveRangeOption[] = [
-  { key: 'ytd', label: 'Year to Date' },
-  { key: 'all', label: 'All' },
-  { key: '1y', label: '1 Year' },
-  { key: '6m', label: '6 Months' },
-  { key: '3m', label: '3 Months' },
-  { key: '1m', label: '1 Month' },
+  { key: 'ytd', label: 'dashboard.rangeYearToDate' },
+  { key: 'all', label: 'dashboard.rangeAll' },
+  { key: '1y', label: 'dashboard.range1Year' },
+  { key: '6m', label: 'dashboard.range6Months' },
+  { key: '3m', label: 'dashboard.range3Months' },
+  { key: '1m', label: 'dashboard.range1Month' },
 ]
 
 export function buildEquityCurveRangeParams(

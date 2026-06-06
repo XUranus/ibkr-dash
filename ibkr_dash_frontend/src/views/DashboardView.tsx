@@ -86,18 +86,25 @@ export default function DashboardView() {
           <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease' }}>
             <div className="surface-panel__content">
               <section className="stats-grid stagger-reveal">
-                {statCards.map((card) => (
-                  <StatCard
-                    key={card.title}
-                    title={card.title}
-                    value={card.value}
-                    helper={card.helper}
-                    tone={card.tone}
-                    deltaAmount={card.deltaAmount}
-                    deltaPercent={card.deltaPercent}
-                    deltaTone={card.deltaTone}
-                  />
-                ))}
+                {statCards.map((card) => {
+                  const translatedHelper = card.helper
+                    ? (card.helper.startsWith('dashboard.') || card.helper.startsWith('common.')
+                      ? t(card.helper, card.helperData)
+                      : card.helper)
+                    : undefined
+                  return (
+                    <StatCard
+                      key={card.title}
+                      title={t(card.title)}
+                      value={card.value}
+                      helper={translatedHelper}
+                      tone={card.tone}
+                      deltaAmount={card.deltaAmount}
+                      deltaPercent={card.deltaPercent}
+                      deltaTone={card.deltaTone}
+                    />
+                  )
+                })}
               </section>
             </div>
           </section>
@@ -108,7 +115,7 @@ export default function DashboardView() {
               items={curveItems}
               loading={curveLoading}
               errorMessage={curveError}
-              rangeOptions={EQUITY_CURVE_RANGE_OPTIONS}
+              rangeOptions={EQUITY_CURVE_RANGE_OPTIONS.map((opt) => ({ ...opt, label: t(opt.label) }))}
               selectedRange={selectedRange}
               onSelectRange={setCurveRange}
             />

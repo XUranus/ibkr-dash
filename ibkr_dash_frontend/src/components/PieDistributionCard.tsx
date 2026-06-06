@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { formatNumber } from '@/utils/format'
 
 export interface PieSegmentItem {
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function PieDistributionCard({ title, subtitle, items }: Props) {
+  const { t } = useTranslation()
   const [hoveredItem, setHoveredItem] = useState<PieSegmentItem | null>(null)
   const chartSize = 220
   const strokeWidth = 30
@@ -46,7 +48,7 @@ export default function PieDistributionCard({ title, subtitle, items }: Props) {
   }
 
   function membersText(item: PieSegmentItem): string {
-    if (!item.members || item.members.length === 0) return 'No details'
+    if (!item.members || item.members.length === 0) return t('common.noDetails')
     return item.members.join(', ')
   }
 
@@ -59,7 +61,7 @@ export default function PieDistributionCard({ title, subtitle, items }: Props) {
         </div>
 
         {chartSegments.length === 0 ? (
-          <div className="empty-state" style={{ minHeight: 280 }}>No data to display</div>
+          <div className="empty-state" style={{ minHeight: 280 }}>{t('common.noData')}</div>
         ) : (
           <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
             <div style={{ position: 'relative', width: 240, height: 240, justifySelf: 'center' }}>
@@ -84,7 +86,7 @@ export default function PieDistributionCard({ title, subtitle, items }: Props) {
                 ))}
               </svg>
               <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'grid', gap: 4, textAlign: 'center' }}>
-                <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.82rem' }}>Total</span>
+                <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.82rem' }}>{t('common.total')}</span>
                 <strong style={{ fontSize: '1.05rem' }}>{formatNumber(total, 2)}</strong>
               </div>
             </div>
@@ -99,9 +101,9 @@ export default function PieDistributionCard({ title, subtitle, items }: Props) {
                         <strong>{seg.label}</strong>
                         <em style={{ color: 'var(--color-accent-strong)', fontStyle: 'normal', fontSize: '0.86rem' }}>{pct(seg.value)}</em>
                       </div>
-                      <p style={{ margin: '0.2rem 0 0', color: 'var(--color-text-secondary)', fontSize: '0.86rem' }}>{seg.note || 'Category'}</p>
+                      <p style={{ margin: '0.2rem 0 0', color: 'var(--color-text-secondary)', fontSize: '0.86rem' }}>{seg.note || t('common.category')}</p>
                       <small style={{ display: 'block', marginTop: '0.35rem', color: 'rgba(194, 207, 232, 0.9)', fontSize: '0.82rem' }}>
-                        Includes: {membersText(seg)}
+                        {t('common.includes')} {membersText(seg)}
                       </small>
                     </div>
                   </div>

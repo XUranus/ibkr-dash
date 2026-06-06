@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { fetchPerformanceCalendar } from '@/api/charts'
 import type { PerformanceCalendarItem, PerformanceCalendarResponse, PerformanceCalendarView } from '@/types/charts'
 import { formatNumber } from '@/utils/format'
@@ -15,11 +16,7 @@ type CalendarCell = {
 }
 
 const weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const viewOptions: Array<{ key: PerformanceCalendarView; label: string }> = [
-  { key: 'month', label: 'Month View' },
-  { key: 'year', label: 'Year View' },
-  { key: 'all-years', label: 'All Years' },
-]
+const weekdayKeys = ['dashboard.mon', 'dashboard.tue', 'dashboard.wed', 'dashboard.thu', 'dashboard.fri', 'dashboard.sat', 'dashboard.sun']
 
 function normalizeNumericValue(value: number | null): number | null {
   if (value === null || !Number.isFinite(value)) return null
@@ -32,10 +29,10 @@ function toneByValue(value: number | null): 'positive' | 'negative' | 'neutral' 
   return value > 0 ? 'positive' : 'negative'
 }
 
-function formatSignedInteger(value: number | null): string {
+function formatSignedInteger(value: number | null, t: (key: string) => string): string {
   value = normalizeNumericValue(value)
   if (value === null) return '--'
-  if (value === 0) return 'No change'
+  if (value === 0) return t('common.noChange')
   const rounded = Math.round(value)
   return `${rounded > 0 ? '+' : ''}${new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(rounded)}`
 }
@@ -52,6 +49,12 @@ function buildDefaultAnchor(view: PerformanceCalendarView, latestReportDate: str
 }
 
 export default function PerformanceCalendar({ latestReportDate }: Props) {
+  const { t } = useTranslation()
+  const viewOptions: Array<{ key: PerformanceCalendarView; label: string }> = [
+    { key: 'month', label: t('dashboard.monthView') },
+    { key: 'year', label: t('dashboard.yearView') },
+    { key: 'all-years', label: t('dashboard.allYears') },
+  ]
   const [activeView, setActiveView] = useState<PerformanceCalendarView>('month')
   const [response, setResponse] = useState<PerformanceCalendarResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -68,7 +71,7 @@ export default function PerformanceCalendar({ latestReportDate }: Props) {
       })
       setResponse(data)
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to load calendar')
+      setErrorMessage(err instanceof Error ? err.message : t('dashboard.failedToLoadCalendar'))
     } finally {
       if (showLoading) setLoading(false)
     }
@@ -110,25 +113,23 @@ export default function PerformanceCalendar({ latestReportDate }: Props) {
   const anchorLabel = response
     ? response.view === 'month' ? `${response.anchor.slice(0, 4)}/${Number(response.anchor.slice(5, 7))}`
       : response.view === 'year' ? response.anchor
-      : 'All Years'
+      : t('dashboard.allYears')
     : '--'
-
-  const periodLabel = activeView === 'month' ? 'trading day' : activeView === 'year' ? 'month' : 'year'
 
   return (
     <div className="surface-panel">
       <div className="surface-panel__content">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
           <div>
-            <p className="eyebrow">Calendar</p>
-            <h2 className="panel-title" style={{ fontSize: '1.4rem' }}>P&L Calendar</h2>
+            <p className="eyebrow">{t('dashboard.calendar')}</p>
+            <h2 className="panel-title" style={{ fontSize: '1.4rem' }}>{t('dashboard.pnlCalendar')}</h2>
             <p className="panel-subtitle" style={{ maxWidth: '48rem' }}>
-              Month view shows daily P&L, year view shows monthly P&L, all years shows yearly P&L.
+              {t('dashboard.calendarHint')}
             </p>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 10 }}>
             <span className="tag tag--accent">{anchorLabel}</span>
-            <span className="tag">{summary.periods_with_data} valid {periodLabel}s</span>
+            <span className="tag">{t('dashboard.validPeriods', { count: summary.periods_with_data, period: t(`dashboard.${activeView === 'month' ? 'tradingDays' : activeView === 'year' ? 'months' : 'years'}`) })}</span>
           </div>
         </div>
 
@@ -146,10 +147,10 @@ export default function PerformanceCalendar({ latestReportDate }: Props) {
           {response && activeView !== 'all-years' && (
             <div style={{ display: 'flex', gap: 10 }}>
               <button className="btn" disabled={!response.previous_anchor || loading} onClick={() => jumpAnchor('previous')}>
-                Previous {activeView === 'month' ? 'Month' : 'Year'}
+                {t('dashboard.previousPeriod', { period: t(activeView === 'month' ? 'dashboard.month' : 'dashboard.year') })}
               </button>
               <button className="btn" disabled={!response.next_anchor || loading} onClick={() => jumpAnchor('next')}>
-                Next {activeView === 'month' ? 'Month' : 'Year'}
+                {t('dashboard.nextPeriod', { period: t(activeView === 'month' ? 'dashboard.month' : 'dashboard.year') })}
               </button>
             </div>
           )}
@@ -157,25 +158,25 @@ export default function PerformanceCalendar({ latestReportDate }: Props) {
 
         {loading ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 180, borderRadius: 22, border: '1px solid rgba(86, 213, 255, 0.14)', background: 'rgba(8, 15, 28, 0.5)', color: 'var(--color-text-primary)', fontWeight: 600 }}>
-            Updating calendar...
+            {t('dashboard.updatingCalendar')}
           </div>
         ) : errorMessage ? (
           <div className="empty-state">{errorMessage}</div>
         ) : !response ? (
-          <div className="empty-state">No calendar data</div>
+          <div className="empty-state">{t('dashboard.noCalendarData')}</div>
         ) : (
           <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
               <div style={{ display: 'grid', gap: 6, padding: '14px 16px', borderRadius: 18, border: '1px solid rgba(129, 160, 207, 0.12)', background: 'rgba(15, 26, 45, 0.66)' }}>
-                <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.84rem' }}>Positive {periodLabel}s</span>
+                <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.84rem' }}>{t('dashboard.positivePeriods', { period: t(`dashboard.${activeView === 'month' ? 'tradingDays' : activeView === 'year' ? 'months' : 'years'}`) })}</span>
                 <strong className="metric-positive" style={{ fontSize: '1.12rem' }}>{summary.positive_periods}</strong>
               </div>
               <div style={{ display: 'grid', gap: 6, padding: '14px 16px', borderRadius: 18, border: '1px solid rgba(129, 160, 207, 0.12)', background: 'rgba(15, 26, 45, 0.66)' }}>
-                <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.84rem' }}>Negative {periodLabel}s</span>
+                <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.84rem' }}>{t('dashboard.negativePeriods', { period: t(`dashboard.${activeView === 'month' ? 'tradingDays' : activeView === 'year' ? 'months' : 'years'}`) })}</span>
                 <strong className="metric-negative" style={{ fontSize: '1.12rem' }}>{summary.negative_periods}</strong>
               </div>
               <div style={{ display: 'grid', gap: 6, padding: '14px 16px', borderRadius: 18, border: '1px solid rgba(129, 160, 207, 0.12)', background: 'rgba(15, 26, 45, 0.66)' }}>
-                <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.84rem' }}>Net Change</span>
+                <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.84rem' }}>{t('dashboard.netChange')}</span>
                 <strong className={toneByValue(summary.total_pnl) === 'positive' ? 'metric-positive' : toneByValue(summary.total_pnl) === 'negative' ? 'metric-negative' : ''} style={{ fontSize: '1.12rem' }}>
                   {formatNumber(summary.total_pnl)}
                 </strong>
@@ -184,8 +185,8 @@ export default function PerformanceCalendar({ latestReportDate }: Props) {
 
             {activeView === 'month' && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 10 }}>
-                {weekdayLabels.map((label) => (
-                  <div key={label} style={{ padding: '0 6px 4px', color: 'var(--color-text-secondary)', fontSize: '0.8rem', fontWeight: 600, textAlign: 'center' }}>{label}</div>
+                {weekdayLabels.map((label, i) => (
+                  <div key={label} style={{ padding: '0 6px 4px', color: 'var(--color-text-secondary)', fontSize: '0.8rem', fontWeight: 600, textAlign: 'center' }}>{t(weekdayKeys[i])}</div>
                 ))}
                 {monthCells.map((cell) => {
                   const tone = toneByValue(cell.item?.pnl ?? null)
@@ -203,10 +204,10 @@ export default function PerformanceCalendar({ latestReportDate }: Props) {
                         <>
                           <div style={{ color: '#b9c8e7', fontSize: '1.08rem', fontWeight: 700 }}>{cell.label}</div>
                           <div style={{ color: '#ebf5ff', fontSize: '1.95rem', fontWeight: 700, letterSpacing: '-0.06em' }}>
-                            {formatSignedInteger(cell.item.pnl)}
+                            {formatSignedInteger(cell.item.pnl, t)}
                           </div>
                           <div style={{ color: '#c6d7f2', fontSize: '0.96rem' }}>
-                            {formatSignedPercent(cell.item.twr) || 'No data'}
+                            {formatSignedPercent(cell.item.twr) || t('common.noData')}
                           </div>
                         </>
                       )}
@@ -231,10 +232,10 @@ export default function PerformanceCalendar({ latestReportDate }: Props) {
                     }}>
                       <div style={{ color: '#b9c8e7', fontSize: '1.08rem', fontWeight: 700 }}>{item.label}</div>
                       <div style={{ color: '#ebf5ff', fontSize: '1.95rem', fontWeight: 700, letterSpacing: '-0.06em' }}>
-                        {formatSignedInteger(item.pnl)}
+                        {formatSignedInteger(item.pnl, t)}
                       </div>
                       <div style={{ color: '#c6d7f2', fontSize: '0.96rem' }}>
-                        {formatSignedPercent(item.twr) || 'No data'}
+                        {formatSignedPercent(item.twr) || t('common.noData')}
                       </div>
                     </div>
                   )
