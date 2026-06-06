@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { fetchAuthSession, login, logout } from '@/api/auth'
 
 const AUTH_CACHE_KEY = 'ibkr-dash.auth-session'
-const AUTH_CACHE_TTL_MS = 30_000
+const AUTH_CACHE_TTL_MS = 3_600_000 // 1 hour
 
 interface AuthState {
   initialized: boolean
@@ -13,22 +13,22 @@ interface AuthState {
 
 function readCache(): { authenticated: boolean; username: string | null; cachedAt: number } | null {
   try {
-    const raw = sessionStorage.getItem(AUTH_CACHE_KEY)
+    const raw = localStorage.getItem(AUTH_CACHE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw)
     if (Date.now() - parsed.cachedAt > AUTH_CACHE_TTL_MS) {
-      sessionStorage.removeItem(AUTH_CACHE_KEY)
+      localStorage.removeItem(AUTH_CACHE_KEY)
       return null
     }
     return parsed
   } catch {
-    sessionStorage.removeItem(AUTH_CACHE_KEY)
+    localStorage.removeItem(AUTH_CACHE_KEY)
     return null
   }
 }
 
 function writeCache(authenticated: boolean, username: string | null): void {
-  sessionStorage.setItem(AUTH_CACHE_KEY, JSON.stringify({ authenticated, username, cachedAt: Date.now() }))
+  localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify({ authenticated, username, cachedAt: Date.now() }))
 }
 
 let globalAuthState: AuthState = {

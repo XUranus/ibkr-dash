@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.api.deps import get_db, get_llm_service
+from app.api.deps import get_current_user, get_db, get_llm_service
 from app.core.database import Database
 from app.core.rate_limit import check_llm_rate_limit
 from app.services.llm_service import LLMService
@@ -72,6 +72,7 @@ async def copilot_chat(
     db: Database = Depends(get_db),
     llm_service: LLMService = Depends(get_llm_service),
     _rate: None = Depends(check_llm_rate_limit),
+    _user: str | None = Depends(get_current_user),
 ) -> CopilotChatResponse:
     """Send a message to the Account Copilot and get a response.
 
@@ -207,6 +208,7 @@ async def copilot_chat(
 def list_sessions(
     limit: int = 20,
     db: Database = Depends(get_db),
+    _user: str | None = Depends(get_current_user),
 ) -> list[CopilotSessionResponse]:
     """List copilot sessions."""
     rows = db.execute(
@@ -223,6 +225,7 @@ def list_messages(
     session_id: str,
     limit: int = 100,
     db: Database = Depends(get_db),
+    _user: str | None = Depends(get_current_user),
 ) -> list[CopilotMessageResponse]:
     """List messages in a copilot session."""
     rows = db.execute(
@@ -253,6 +256,7 @@ def list_messages(
 def delete_session(
     session_id: str,
     db: Database = Depends(get_db),
+    _user: str | None = Depends(get_current_user),
 ) -> None:
     """Delete a copilot session and its messages."""
     existing = db.execute_one(

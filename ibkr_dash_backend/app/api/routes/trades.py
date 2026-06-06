@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.api.deps import get_trade_service
+from app.api.deps import get_current_user, get_trade_service
 from app.schemas.trades import TradeListResponse, TradeSummaryResponse
 from app.services.trade_service import TradeService
 
@@ -21,6 +21,7 @@ def list_trades(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=200),
     service: TradeService = Depends(get_trade_service),
+    _user: str | None = Depends(get_current_user),
 ) -> TradeListResponse:
     try:
         return service.list_trades(
@@ -46,6 +47,7 @@ def get_trade_summary(
     asset_class: str | None = Query(default=None),
     buy_sell: str | None = Query(default=None),
     service: TradeService = Depends(get_trade_service),
+    _user: str | None = Depends(get_current_user),
 ) -> TradeSummaryResponse:
     try:
         return service.summarize_trades(

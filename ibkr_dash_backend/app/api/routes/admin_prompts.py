@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from app.api.deps import get_db
+from app.api.deps import get_current_user, get_db
 from app.core.database import Database
 
 router = APIRouter(prefix="/admin/prompts", tags=["admin", "prompts"])
@@ -30,6 +30,7 @@ class PromptResponse(BaseModel):
 def list_prompts(
     prompt_key: str | None = None,
     db: Database = Depends(get_db),
+    _user: str | None = Depends(get_current_user),
 ) -> list[PromptResponse]:
     """List all prompt versions, optionally filtered by key."""
     if prompt_key:
@@ -48,6 +49,7 @@ def list_prompts(
 def create_prompt(
     request: PromptCreateRequest,
     db: Database = Depends(get_db),
+    _user: str | None = Depends(get_current_user),
 ) -> PromptResponse:
     """Create a new prompt version."""
     # Get next version number
@@ -72,6 +74,7 @@ def create_prompt(
 def get_active_prompt(
     prompt_key: str,
     db: Database = Depends(get_db),
+    _user: str | None = Depends(get_current_user),
 ) -> PromptResponse:
     """Get the active version of a prompt."""
     row = db.execute_one(

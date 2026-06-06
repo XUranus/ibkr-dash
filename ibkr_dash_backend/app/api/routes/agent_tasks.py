@@ -8,7 +8,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-from app.api.deps import get_agent_task_service, get_llm_service
+from app.api.deps import get_agent_task_service, get_current_user, get_llm_service
 from app.core.rate_limit import check_llm_rate_limit
 from app.services.agent_services import AgentTaskService
 from app.services.llm_service import LLMService
@@ -57,6 +57,7 @@ def run_agent(
     llm_service: LLMService = Depends(get_llm_service),
     task_service: AgentTaskService = Depends(get_agent_task_service),
     _rate: None = Depends(check_llm_rate_limit),
+    _user: str | None = Depends(get_current_user),
 ) -> AgentTaskResponse:
     """Run an agent in the background and return a task ID for tracking."""
     agent_name = request.agent_name
@@ -122,6 +123,7 @@ def list_tasks(
     task_status: str | None = Query(default=None, alias="status"),
     limit: int = Query(default=20, ge=1, le=100),
     task_service: AgentTaskService = Depends(get_agent_task_service),
+    _user: str | None = Depends(get_current_user),
 ) -> list[AgentTaskResponse]:
     """List agent tasks with optional filters."""
     tasks = task_service.list_tasks(agent_name=agent_name, status=task_status, limit=limit)
@@ -132,6 +134,7 @@ def list_tasks(
 def get_task(
     task_id: str,
     task_service: AgentTaskService = Depends(get_agent_task_service),
+    _user: str | None = Depends(get_current_user),
 ) -> AgentTaskResponse:
     """Get a specific agent task by ID."""
     task = task_service.get_task(task_id)
@@ -144,6 +147,7 @@ def get_task(
 def cancel_task(
     task_id: str,
     task_service: AgentTaskService = Depends(get_agent_task_service),
+    _user: str | None = Depends(get_current_user),
 ) -> AgentTaskResponse:
     """Cancel a running agent task."""
     try:

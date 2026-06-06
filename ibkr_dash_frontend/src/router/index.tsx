@@ -2,12 +2,32 @@ import React, { lazy, Suspense } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import App from '@/App'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import { useAuth } from '@/hooks/useAuth'
 
 const LoadingFallback = () => (
   <div style={{ display: 'grid', placeItems: 'center', minHeight: '40vh', color: '#adc0df' }}>
     Loading...
   </div>
 )
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { authenticated, initialized } = useAuth()
+
+  if (!initialized) return <LoadingFallback />
+  if (!authenticated) {
+    return (
+      <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+        <p style={{ color: 'var(--color-text-muted)', marginBottom: 16 }}>
+          Please log in to access this page.
+        </p>
+        <button className="btn btn--accent" onClick={() => window.location.href = '/'}>
+          Go to Login
+        </button>
+      </div>
+    )
+  }
+  return <>{children}</>
+}
 
 const DashboardView = lazy(() => import('@/views/DashboardView'))
 const PositionsView = lazy(() => import('@/views/PositionsView'))
@@ -57,19 +77,19 @@ export const router = createBrowserRouter([
       { path: 'trades', element: lazyViewWithErrorBoundary(TradesView) },
       { path: 'cash-flows', element: lazyViewWithErrorBoundary(CashFlowsView) },
       { path: 'dividends', element: lazyViewWithErrorBoundary(DividendsView) },
-      { path: 'stock-research', element: lazyViewWithErrorBoundary(StockResearchView) },
-      { path: 'daily-position-review', element: lazyViewWithErrorBoundary(DailyPositionReviewView) },
-      { path: 'trade-decision', element: lazyViewWithErrorBoundary(TradeDecisionAgentView) },
-      { path: 'trade-review', element: lazyViewWithErrorBoundary(TradeReviewAgentView) },
-      { path: 'copilot', element: lazyViewWithErrorBoundary(AccountCopilotView) },
-      { path: 'admin/system', element: lazyViewWithErrorBoundary(AdminSystemView) },
-      { path: 'admin/llm', element: lazyViewWithErrorBoundary(AdminLlmView) },
-      { path: 'admin/ibkr', element: lazyViewWithErrorBoundary(AdminIbkrView) },
-      { path: 'admin/email', element: lazyViewWithErrorBoundary(AdminEmailView) },
-      { path: 'admin/longbridge-mcp', element: lazyViewWithErrorBoundary(AdminLongbridgeMcpView) },
-      { path: 'admin/harness', element: lazyViewWithErrorBoundary(AdminHarnessView) },
-      { path: 'admin/prompts', element: lazyViewWithErrorBoundary(AdminPromptsView) },
-      { path: 'admin/agent-monitoring', element: lazyViewWithErrorBoundary(AdminAgentMonitoringView) },
+      { path: 'stock-research', element: <ProtectedRoute>{lazyViewWithErrorBoundary(StockResearchView)}</ProtectedRoute> },
+      { path: 'daily-position-review', element: <ProtectedRoute>{lazyViewWithErrorBoundary(DailyPositionReviewView)}</ProtectedRoute> },
+      { path: 'trade-decision', element: <ProtectedRoute>{lazyViewWithErrorBoundary(TradeDecisionAgentView)}</ProtectedRoute> },
+      { path: 'trade-review', element: <ProtectedRoute>{lazyViewWithErrorBoundary(TradeReviewAgentView)}</ProtectedRoute> },
+      { path: 'copilot', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AccountCopilotView)}</ProtectedRoute> },
+      { path: 'admin/system', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AdminSystemView)}</ProtectedRoute> },
+      { path: 'admin/llm', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AdminLlmView)}</ProtectedRoute> },
+      { path: 'admin/ibkr', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AdminIbkrView)}</ProtectedRoute> },
+      { path: 'admin/email', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AdminEmailView)}</ProtectedRoute> },
+      { path: 'admin/longbridge-mcp', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AdminLongbridgeMcpView)}</ProtectedRoute> },
+      { path: 'admin/harness', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AdminHarnessView)}</ProtectedRoute> },
+      { path: 'admin/prompts', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AdminPromptsView)}</ProtectedRoute> },
+      { path: 'admin/agent-monitoring', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AdminAgentMonitoringView)}</ProtectedRoute> },
       { path: 'bootstrap', element: lazyViewWithErrorBoundary(BootstrapView) },
       { path: '*', element: <Navigate to="/" replace /> },
     ],

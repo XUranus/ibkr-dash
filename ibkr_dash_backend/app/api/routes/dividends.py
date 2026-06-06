@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.api.deps import get_dividend_service
+from app.api.deps import get_current_user, get_dividend_service
 from app.schemas.dividends import DividendListResponse
 from app.services.dividend_service import DividendService
 
@@ -20,6 +20,7 @@ def list_dividends(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=200),
     service: DividendService = Depends(get_dividend_service),
+    _user: str | None = Depends(get_current_user),
 ) -> DividendListResponse:
     try:
         return service.list_dividends(

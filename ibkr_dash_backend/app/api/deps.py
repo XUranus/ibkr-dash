@@ -6,13 +6,15 @@ and optional basic-auth dependencies.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import secrets
 from functools import lru_cache
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
+from app.core.auth import SESSION_COOKIE_NAME, verify_session_token
 from app.core.config import Settings, get_settings
 from app.core.database import Database, get_database
 
@@ -111,32 +113,38 @@ def get_agent_task_service(db: Database = Depends(get_db)) -> "AgentTaskService"
 
 
 def get_current_user(
+    request: Request,
     credentials: HTTPBasicCredentials | None = Depends(security),
     settings: Settings = Depends(get_app_settings),
 ) -> str | None:
-    """Validate HTTP Basic credentials when auth_password is configured.
+    """Validate authentication via session cookie or HTTP Basic credentials.
 
-    Returns the username on success, or None when auth is not configured.
-    Raises 401 when credentials are required but missing or invalid.
+    When ``auth_password`` is not configured, anonymous access is allowed.
+    Otherwise, the dependency first checks for a session cookie
+    (``ibkr_dash_session``) and then falls back to HTTP Basic auth.
+    Raises 401 when auth is required but no valid credential is provided.
     """
     if not settings.auth_password:
         # Auth is not configured -- allow anonymous access.
         return None
 
-    if credentials is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-            headers={"WWW-Authenticate": "Basic"},
-        )
+    # Try session cookie first
+    session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    if session_token:
+        secret = hashlib.sha256(settings.auth_password.encode()).hexdigest()
+        session = verify_session_token(session_token, secret=secret)
+        if session:
+            return session.username
 
-    correct_username = secrets.compare_digest(credentials.username, settings.auth_username)
-    correct_password = secrets.compare_digest(credentials.password, settings.auth_password)
-    if not (correct_username and correct_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials",
-            headers={"WWW-Authenticate": "Basic"},
-        )
+    # Fall back to HTTP Basic
+    if credentials:
+        correct_username = secrets.compare_digest(credentials.username, settings.auth_username)
+        correct_password = secrets.compare_digest(credentials.password, settings.auth_password)
+        if correct_username and correct_password:
+            return credentials.username
 
-    return credentials.username
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentication required",
+        headers={"WWW-Authenticate": "Basic"},
+    )

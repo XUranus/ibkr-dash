@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.api.deps import get_position_service
+from app.api.deps import get_current_user, get_position_service
 from app.schemas.positions import PositionDetailResponse, PositionListResponse, PositionSummaryResponse
 from app.services.position_service import PositionService
 
@@ -20,6 +20,7 @@ def list_positions(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=200),
     service: PositionService = Depends(get_position_service),
+    _user: str | None = Depends(get_current_user),
 ) -> PositionListResponse:
     try:
         return service.list_positions(
@@ -42,6 +43,7 @@ def get_positions_summary(
     symbol: str | None = Query(default=None),
     asset_class: str | None = Query(default=None),
     service: PositionService = Depends(get_position_service),
+    _user: str | None = Depends(get_current_user),
 ) -> PositionSummaryResponse:
     try:
         return service.get_positions_summary(
@@ -58,6 +60,7 @@ def get_position_detail(
     symbol: str,
     asset_class: str | None = Query(default=None),
     service: PositionService = Depends(get_position_service),
+    _user: str | None = Depends(get_current_user),
 ) -> PositionDetailResponse:
     try:
         return service.get_position_detail(symbol=symbol, asset_class=asset_class)

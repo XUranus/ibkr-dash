@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.api.deps import get_cash_flow_service
+from app.api.deps import get_cash_flow_service, get_current_user
 from app.schemas.cash_flows import CashFlowListResponse
 from app.services.cash_flow_service import CashFlowService
 
@@ -20,6 +20,7 @@ def list_cash_flows(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=200),
     service: CashFlowService = Depends(get_cash_flow_service),
+    _user: str | None = Depends(get_current_user),
 ) -> CashFlowListResponse:
     try:
         return service.list_cash_flows(

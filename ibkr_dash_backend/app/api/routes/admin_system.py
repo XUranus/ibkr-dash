@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends
 
-from app.api.deps import get_db, get_app_settings
+from app.api.deps import get_current_user, get_db, get_app_settings
 from app.core.config import Settings
 from app.core.database import Database
 
@@ -19,6 +19,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 def system_status(
     db: Database = Depends(get_db),
     settings: Settings = Depends(get_app_settings),
+    _user: str | None = Depends(get_current_user),
 ) -> dict:
     """Return system health and configuration status."""
     # Check DB connectivity
