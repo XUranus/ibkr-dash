@@ -11,8 +11,8 @@ const config: Config = {
     v4: true,
   },
 
-  url: 'https://your-domain.com',
-  baseUrl: '/',
+  url: 'https://xuranus.github.io',
+  baseUrl: '/ibkr-dash/',
 
   organizationName: 'ibkr-dash',
   projectName: 'ibkr-dash',
@@ -41,7 +41,7 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
-          editUrl: 'https://github.com/your-org/ibkr-dash/tree/main/wiki/',
+          editUrl: 'https://github.com/xuranus/ibkr-dash/tree/main/docs/',
         },
         blog: false,
         theme: {
@@ -70,7 +70,7 @@ const config: Config = {
           position: 'right',
         },
         {
-          href: 'https://github.com/your-org/ibkr-dash',
+          href: 'https://github.com/xuranus/ibkr-dash',
           label: 'GitHub',
           position: 'right',
         },
@@ -90,7 +90,7 @@ const config: Config = {
         {
           title: 'More',
           items: [
-            {label: 'GitHub', href: 'https://github.com/your-org/ibkr-dash'},
+            {label: 'GitHub', href: 'https://github.com/xuranus/ibkr-dash'},
           ],
         },
       ],
