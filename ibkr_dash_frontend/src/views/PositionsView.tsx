@@ -1,5 +1,10 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
+import * as echarts from 'echarts/core'
+import { PieChart } from 'echarts/charts'
+import { CanvasRenderer } from 'echarts/renderers'
+import { TooltipComponent, LegendComponent } from 'echarts/components'
+import type { EChartsType } from 'echarts/core'
 import { fetchPositions, fetchPositionDetail } from '@/api/positions'
 import { useAccountOverview } from '@/hooks/useAccountOverview'
 import ErrorBlock from '@/components/ErrorBlock'
@@ -8,6 +13,10 @@ import PieDistributionCard, { type PieSegmentItem } from '@/components/PieDistri
 import PositionTable from '@/components/PositionTable'
 import type { PositionDetailResponse, PositionItem, PositionListResponse, PositionSummaryResponse } from '@/types/positions'
 import { formatNumber } from '@/utils/format'
+
+echarts.use([PieChart, CanvasRenderer, TooltipComponent, LegendComponent])
+
+const PALETTE = ['#56d5ff', '#6ee7b7', '#8b7cff', '#ffb454', '#ff7b98', '#7dd3fc', '#c084fc', '#fbbf24', '#34d399', '#f87171', '#a78bfa', '#38bdf8', '#4ade80', '#facc15', '#fb923c', '#e879f9', '#22d3ee', '#f472b6', '#34d399', '#fbbf24']
 
 export default function PositionsView() {
   const { t } = useTranslation()
@@ -21,6 +30,8 @@ export default function PositionsView() {
   const [activeDetail, setActiveDetail] = useState<{
     key: string; symbol: string; description: string; detail: PositionDetailResponse | null
   } | null>(null)
+  const chartRef = useRef<HTMLDivElement | null>(null)
+  const chartInstance = useRef<EChartsType | null>(null)
 
   async function loadPositions() {
     setLoading(true)
@@ -39,6 +50,75 @@ export default function PositionsView() {
   }
 
   useEffect(() => { void loadPositions() }, [])
+
+  // Initialize ECharts pie chart
+  useEffect(() => {
+    if (!chartRef.current || !response?.items?.length) return
+
+    if (!chartInstance.current) {
+      chartInstance.current = echarts.init(chartRef.current, undefined, { renderer: 'canvas' })
+    }
+
+    const items = response.items
+    const totalValue = items.reduce((sum, p) => sum + (p.position_value ?? 0), 0)
+    const topN = 15
+    const topItems = items.slice(0, topN)
+    const othersValue = items.slice(topN).reduce((sum, p) => sum + (p.position_value ?? 0), 0)
+
+    const data = topItems.map((p, i) => ({
+      name: p.symbol ?? '--',
+      value: p.position_value ?? 0,
+      itemStyle: { color: PALETTE[i % PALETTE.length] },
+    }))
+
+    if (othersValue > 0) {
+      data.push({
+        name: 'Others',
+        value: othersValue,
+        itemStyle: { color: '#4a5568' },
+      })
+    }
+
+    chartInstance.current.setOption({
+      tooltip: {
+        trigger: 'item',
+        formatter: (params: { name: string; value: number; percent: number }) => {
+          return `<strong>${params.name}</strong><br/>$${params.value.toLocaleString()}<br/>${params.percent.toFixed(1)}%`
+        },
+      },
+      legend: {
+        orient: 'vertical',
+        right: 10,
+        top: 'center',
+        textStyle: { color: '#8a8d9e', fontSize: 11 },
+        itemWidth: 10,
+        itemHeight: 10,
+        itemGap: 6,
+      },
+      series: [{
+        type: 'pie',
+        radius: ['40%', '70%'],
+        center: ['40%', '50%'],
+        avoidLabelOverlap: false,
+        itemStyle: {
+          borderRadius: 4,
+          borderColor: '#080b12',
+          borderWidth: 2,
+        },
+        label: { show: false },
+        emphasis: {
+          label: { show: true, fontSize: 14, fontWeight: 'bold', color: '#e8e4dc' },
+        },
+        data,
+      }],
+    })
+
+    const handleResize = () => chartInstance.current?.resize()
+    window.addEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [response])
 
   function classifyAssetBucket(item: PositionItem): string {
     const desc = `${item.description ?? ''}`.toUpperCase()
@@ -120,6 +200,17 @@ export default function PositionsView() {
     <section className="page-section">
       {loading ? <LoadingBlock /> : errorMessage ? <ErrorBlock message={errorMessage} /> : (
         <>
+          {/* Portfolio Overview Chart */}
+          {response?.items && response.items.length > 0 && (
+            <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease' }}>
+              <div className="surface-panel__content">
+                <p className="eyebrow">PORTFOLIO OVERVIEW</p>
+                <div ref={chartRef} style={{ width: '100%', height: 360 }} />
+              </div>
+            </section>
+          )}
+
+          {/* Summary cards */}
           <section className="summary-layout summary-layout--triple">
             <section className="surface-panel">
               <div className="surface-panel__content">
@@ -149,6 +240,7 @@ export default function PositionsView() {
             <PieDistributionCard title={t('positions.industryDistribution')} subtitle={t('positions.industryDistributionDesc')} items={industryPieItems} />
           </section>
 
+          {/* Position table */}
           <section className="surface-panel">
             <div className="surface-panel__content">
               <div className="section-header">
