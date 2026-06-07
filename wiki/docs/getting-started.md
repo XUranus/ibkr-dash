@@ -30,11 +30,32 @@ Python 3.11 or higher is required. The codebase uses modern Python features like
 
 ---
 
+## Setup Flow Overview
+
+Here is a visual overview of the setup process:
+
+```mermaid
+flowchart TD
+    A["Step 1: Clone Repository"] --> B["Step 2: Configure .env"]
+    B --> C["Step 3: Start Backend"]
+    B --> D["Step 4: Start Frontend"]
+    B --> E["Step 5: Start Worker"]
+    C --> F["Step 6: Import Data"]
+    E --> F
+    F --> G["Step 7: Log In & Explore"]
+
+    style A fill:#e1f5fe
+    style G fill:#e8f5e9
+```
+
+---
+
 ## Step 1: Clone the Repository
 
 Open your terminal and clone the project:
 
 ```bash
+# Clone the repository
 git clone https://github.com/your-username/ibkr-dash.git
 cd ibkr-dash
 ```
@@ -186,6 +207,15 @@ You should see output like:
 ```
 
 Open your browser and navigate to **http://localhost:5173**. You should see the IBKR Dash login page (or the dashboard if auth is disabled).
+
+### What to Expect
+
+When you first open the dashboard, you will see:
+
+- **Login page** (if `AUTH_PASSWORD` is set) -- Enter your credentials to proceed
+- **Dashboard overview** -- Portfolio summary cards showing total equity, cash, P&L
+- **Position table** -- List of all holdings (empty until you import data)
+- **Navigation sidebar** -- Links to all views (Positions, Trades, Cash Flows, Copilot, Admin)
 
 ---
 
@@ -414,6 +444,10 @@ uvicorn app.main:app --reload --port 8000
 Another process is using port 8000. Either stop that process or use a different port:
 
 ```bash
+# Find what's using port 8000
+lsof -i :8000
+
+# Or use a different port
 uvicorn app.main:app --reload --port 8001
 ```
 
@@ -491,6 +525,21 @@ On Linux, you may need to add your user to the `docker` group:
 ```bash
 sudo usermod -aG docker $USER
 # Log out and log back in for the change to take effect
+```
+
+### "npm ERR! ERESOLVE unable to resolve dependency tree"
+
+This is usually caused by a Node.js version mismatch. Make sure you are using Node.js 18+:
+
+```bash
+node --version
+# Should be v18.x.x or higher
+```
+
+If using `nvm`, switch to the correct version:
+
+```bash
+nvm use 18
 ```
 
 ---

@@ -49,7 +49,9 @@ These tables store raw IBKR data imported from Flex CSV/XML reports.
 |-------|---------|
 | `admin_settings` | Key-value store for admin configuration (IBKR tokens, email settings). |
 
-## ER Diagram
+## Full ER Diagram
+
+This diagram shows all 16 tables with their columns and relationships:
 
 ```mermaid
 erDiagram
@@ -61,45 +63,68 @@ erDiagram
         REAL total_equity
         REAL cash
         REAL stock_value
+        REAL options_value
         REAL cnav_mtm
         REAL cnav_twr
+        REAL fifo_total_realized_pnl
+        REAL fifo_total_unrealized_pnl
     }
 
     position_snapshots {
         INTEGER id PK
-        TEXT account_id
+        TEXT account_id FK
         TEXT report_date
         TEXT symbol
+        TEXT asset_class
+        TEXT currency
         REAL quantity
         REAL mark_price
         REAL position_value
+        REAL average_cost_price
+        REAL fifo_pnl_unrealized
         REAL total_unrealized_pnl
+        REAL total_realized_pnl
+        REAL percent_of_nav
+        REAL previous_day_change_percent
     }
 
     trade_records {
         INTEGER id PK
-        TEXT account_id
+        TEXT account_id FK
         TEXT symbol
         TEXT trade_date
+        TEXT trade_id
+        TEXT buy_sell
+        TEXT asset_class
+        TEXT currency
         REAL quantity
         REAL trade_price
+        REAL net_cash
         REAL fifo_pnl_realized
+        REAL commission
     }
 
     cash_flows {
         INTEGER id PK
-        TEXT account_id
+        TEXT account_id FK
+        TEXT currency
+        TEXT symbol
         TEXT date_time
         REAL amount
         TEXT flow_type
+        TEXT flow_direction
+        TEXT description
     }
 
     price_history {
         INTEGER id PK
-        TEXT account_id
+        TEXT account_id FK
         TEXT report_date
         TEXT symbol
         REAL close_price
+        REAL open_price
+        REAL high_price
+        REAL low_price
     }
 
     trade_reviews {
@@ -107,6 +132,9 @@ erDiagram
         TEXT review_type
         TEXT symbol
         TEXT review_output
+        TEXT evidence_summary
+        TEXT run_trace
+        TEXT created_at
     }
 
     trade_decisions {
@@ -114,24 +142,53 @@ erDiagram
         TEXT decision_type
         TEXT symbol
         TEXT decision_output
+        TEXT evidence_summary
+        TEXT run_trace
+        TEXT created_at
     }
 
     daily_position_reviews {
         TEXT id PK
         TEXT report_date
         TEXT review_output
+        TEXT evidence_summary
+        TEXT run_trace
+        TEXT created_at
+    }
+
+    risk_assessments {
+        TEXT id PK
+        TEXT assessment_type
+        TEXT risk_report
+        TEXT run_trace
+        TEXT created_at
+    }
+
+    agent_prompts {
+        INTEGER id PK
+        TEXT prompt_key
+        INTEGER version
+        TEXT content
+        TEXT status
+        TEXT created_at
     }
 
     agent_tasks {
         TEXT id PK
         TEXT agent_name
         TEXT status
+        TEXT progress
         TEXT result
+        TEXT error
+        TEXT created_at
+        TEXT started_at
+        TEXT finished_at
     }
 
     copilot_sessions {
         TEXT id PK
         TEXT title
+        TEXT created_at
     }
 
     copilot_messages {
@@ -139,17 +196,31 @@ erDiagram
         TEXT session_id FK
         TEXT role
         TEXT content
+        TEXT metadata
+        TEXT created_at
+    }
+
+    copilot_memories {
+        TEXT id PK
+        TEXT session_id FK
+        TEXT memory_type
+        TEXT content
+        TEXT status
+        TEXT created_at
     }
 
     admin_settings {
         TEXT key PK
         TEXT value
+        TEXT updated_at
     }
 
     account_snapshots ||--o{ position_snapshots : "account_id + report_date"
     account_snapshots ||--o{ trade_records : "account_id"
     account_snapshots ||--o{ cash_flows : "account_id"
+    account_snapshots ||--o{ price_history : "account_id + report_date"
     copilot_sessions ||--o{ copilot_messages : "session_id"
+    copilot_sessions ||--o{ copilot_memories : "session_id"
 ```
 
 ## Indexes
@@ -157,6 +228,7 @@ erDiagram
 Indexes are created on the most common query patterns:
 
 ```sql
+-- From app/core/database.py
 CREATE INDEX idx_account_snapshots_date      ON account_snapshots(report_date);
 CREATE INDEX idx_position_snapshots_date     ON position_snapshots(report_date);
 CREATE INDEX idx_position_snapshots_symbol   ON position_snapshots(symbol);
@@ -167,11 +239,16 @@ CREATE INDEX idx_price_history_symbol_date   ON price_history(symbol, report_dat
 CREATE INDEX idx_copilot_messages_session    ON copilot_messages(session_id, created_at);
 ```
 
+:::tip
+These indexes are designed around the most common query patterns: filtering by date, filtering by symbol, and ordering by session. If you add new query patterns with different filters, consider adding corresponding indexes.
+:::
+
 ## Migration System
 
 Migrations are defined as a simple list of `ALTER TABLE` / `CREATE INDEX` statements in `app/core/database.py`. They run automatically on startup:
 
 ```python
+# From app/core/database.py
 _MIGRATIONS = [
     "ALTER TABLE copilot_sessions ADD COLUMN title TEXT DEFAULT ''",
     "ALTER TABLE trade_records ADD COLUMN trade_id TEXT",
@@ -182,8 +259,26 @@ _MIGRATIONS = [
 
 Each migration is wrapped in a `try/except` so that re-running them is safe (column-already-exists errors are silently ignored).
 
+### How to Add a New Migration
+
+To add a new column or index:
+
+1. Open `app/core/database.py`
+2. Find the `_MIGRATIONS` list
+3. Append your `ALTER TABLE` or `CREATE INDEX` statement
+4. The migration runs automatically on the next backend startup
+
+```python
+# Example: Adding a new column
+_MIGRATIONS = [
+    # ... existing migrations ...
+    "ALTER TABLE position_snapshots ADD COLUMN sector TEXT DEFAULT ''",
+    "CREATE INDEX IF NOT EXISTS idx_position_snapshots_sector ON position_snapshots(sector)",
+]
+```
+
 :::warning
-There is no formal migration framework (like Alembic). Migrations are append-only SQL strings. If you need to add a column, append a new `ALTER TABLE` statement to the `_MIGRATIONS` list.
+There is no formal migration framework (like Alembic). Migrations are append-only SQL strings. If you need to add a column, append a new `ALTER TABLE` statement to the `_MIGRATIONS` list. Never modify or remove existing migrations.
 :::
 
 ## Query Patterns
@@ -193,6 +288,7 @@ There is no formal migration framework (like Alembic). Migrations are append-onl
 The `Database.upsert()` method uses SQLite's `ON CONFLICT ... DO UPDATE SET` syntax:
 
 ```python
+# From app/core/database.py
 db.upsert("admin_settings", {"key": "ibkr_flex_token", "value": "abc123"}, conflict_cols=["key"])
 ```
 
@@ -221,6 +317,10 @@ rows = db.execute(
 )
 ```
 
+:::warning
+Never use string formatting (f-strings or `.format()`) to build SQL queries. Always use parameterized queries with `?` placeholders to prevent SQL injection attacks.
+:::
+
 ### Row Factory
 
 All connections use `sqlite3.Row` as the row factory, so query results are returned as dictionaries:
@@ -235,6 +335,7 @@ conn.row_factory = sqlite3.Row
 Every connection applies these PRAGMAs:
 
 ```sql
+-- From app/core/database.py
 PRAGMA journal_mode = WAL;      -- Write-Ahead Logging for concurrent access
 PRAGMA foreign_keys = ON;       -- Enforce FK constraints
 PRAGMA busy_timeout = 5000;     -- Wait up to 5s if database is locked

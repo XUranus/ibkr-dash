@@ -48,11 +48,54 @@ flowchart TD
     N -->|No| Q
 ```
 
+## Parse-Validate-Repair-Fallback Flow
+
+```mermaid
+sequenceDiagram
+    participant Agent
+    participant Runtime as StructuredOutputRuntime
+    participant Parser as JSON Parser
+    participant Pydantic as Pydantic Validator
+    participant LLM
+    participant Fallback as Fallback Builder
+
+    Agent->>Runtime: generate(messages, contract)
+
+    Note over Runtime: Stage 1: Parse
+    Runtime->>Parser: extract_json_object(raw_text)
+    alt Parsed successfully
+        Parser-->>Runtime: dict
+    else Parse failed
+        Parser-->>Runtime: StructuredOutputError
+    end
+
+    Note over Runtime: Stage 2: Validate
+    Runtime->>Pydantic: OutputModel(**parsed_dict)
+    alt Valid
+        Pydantic-->>Runtime: BaseModel
+    else Invalid
+        Pydantic-->>Runtime: ValidationError
+    end
+
+    Note over Runtime: Stage 3: Repair (if enabled)
+    Runtime->>LLM: repair_messages(raw_output + error)
+    LLM-->>Runtime: repaired_text
+    Runtime->>Parser: extract_json_object(repaired_text)
+    Parser-->>Runtime: dict or error
+
+    Note over Runtime: Stage 4: Fallback (if enabled)
+    Runtime->>Fallback: fallback_builder(ctx, error, raw)
+    Fallback-->>Runtime: safe default dict
+
+    Runtime-->>Agent: StructuredOutputResult
+```
+
 ## StructuredOutputContract
 
 The contract defines how to parse, validate, repair, and fallback for a specific LLM output:
 
 ```python
+# app/agents/structured_output/contracts.py
 @dataclass
 class StructuredOutputContract:
     name: str                          # Contract identifier
@@ -107,6 +150,42 @@ The parser strips these fences using a regex pattern: `^\s*```(?:json|JSON)?\s*(
 
 If direct parsing fails, the parser scans for the first `{` character and uses `json.JSONDecoder().raw_decode()` to extract a JSON object from anywhere in the text. This handles cases where the LLM includes explanatory text before or after the JSON.
 
+```python
+# app/agents/structured_output/json_parser.py
+import json
+import re
+
+_MD_FENCE_RE = re.compile(r'^\s*```(?:json|JSON)?\s*(.*?)\s*```\s*$', re.DOTALL)
+
+def extract_json_object(text: str) -> dict:
+    """Extract a JSON object from LLM text, handling markdown fences."""
+    # Step 1: Strip markdown fences
+    m = _MD_FENCE_RE.match(text.strip())
+    if m:
+        text = m.group(1).strip()
+
+    # Step 2: Try direct parse
+    try:
+        result = json.loads(text)
+        if isinstance(result, dict):
+            return result
+        raise StructuredOutputError(ErrorCode.LLM_OUTPUT_NOT_OBJECT)
+    except json.JSONDecodeError:
+        pass
+
+    # Step 3: raw_decode fallback -- find first '{'
+    for i, ch in enumerate(text):
+        if ch == '{':
+            try:
+                obj, _ = json.JSONDecoder().raw_decode(text, i)
+                if isinstance(obj, dict):
+                    return obj
+            except json.JSONDecodeError:
+                continue
+
+    raise StructuredOutputError(ErrorCode.LLM_JSON_PARSE_FAILED)
+```
+
 ### Error Codes
 
 | Code | Meaning |
@@ -120,6 +199,7 @@ If direct parsing fails, the parser scans for the first `{` character and uses `
 All output models extend `FlexibleModel` which uses `extra="allow"`:
 
 ```python
+# app/agents/structured_output/contracts.py
 class FlexibleModel(BaseModel):
     model_config = ConfigDict(extra="allow")
 ```
@@ -140,6 +220,7 @@ Output models include custom validators for resilience:
 When validation fails, the system builds repair messages:
 
 ```python
+# app/agents/structured_output/runtime.py
 messages = contract.build_repair_messages(
     raw_response=raw_text,
     error=structured_output_error,
@@ -163,6 +244,7 @@ The repair LLM call uses `temperature=0.0` for deterministic output. This maximi
 If all repair attempts fail and `fallback_enabled=True`, the system calls `fallback_builder`:
 
 ```python
+# app/agents/structured_output/runtime.py
 fallback_output = contract.fallback_builder(context, last_error, raw_text)
 ```
 
@@ -178,6 +260,7 @@ Each agent defines its own fallback builder that returns a conservative default.
 The pipeline returns a `StructuredOutputResult` with full traceability:
 
 ```python
+# app/agents/structured_output/runtime.py
 @dataclass
 class StructuredOutputResult:
     ok: bool                           # Did the pipeline succeed?
@@ -200,6 +283,7 @@ class StructuredOutputResult:
 The contract registry in `registry.py` provides a static listing of all contracts for auditing and monitoring:
 
 ```python
+# app/agents/structured_output/registry.py
 specs = get_structured_output_contract_specs()
 for spec in specs:
     print(f"{spec.name}: {spec.agent_name}/{spec.node_name}")
@@ -212,6 +296,7 @@ This is used by the admin monitoring view to show which contracts exist, their r
 Here's how an agent uses the pipeline:
 
 ```python
+# app/agents/trade_review/agent.py
 from app.agents.structured_output import StructuredOutputContract, StructuredOutputRuntime
 
 contract = StructuredOutputContract(

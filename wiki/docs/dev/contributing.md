@@ -115,6 +115,24 @@ def get_positions(db, symbol=None, page=1):
     ...
 ```
 
+**Import ordering example:**
+
+```python
+# stdlib
+import os
+from datetime import datetime
+from typing import Optional
+
+# third-party
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+
+# local
+from app.core.database import Database
+from app.core.config import get_settings
+from app.schemas.positions import PositionListResponse
+```
+
 ### TypeScript (Frontend)
 
 - **Strict mode** enabled in `tsconfig.json`.
@@ -136,6 +154,16 @@ function formatCurrency(value: number): string {
     style: 'currency',
     currency: 'USD',
   }).format(value);
+}
+
+// Good -- React component with named export
+export function PositionCard({ position }: { position: Position }) {
+  return (
+    <div className="position-card">
+      <span>{position.symbol}</span>
+      <span>{formatCurrency(position.markPrice)}</span>
+    </div>
+  );
 }
 ```
 

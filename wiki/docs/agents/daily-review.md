@@ -38,6 +38,29 @@ All numbers in this step are **exact database values** -- the LLM never modifies
 
 Focus symbols are selected deterministically based on:
 
+```mermaid
+flowchart TD
+    A[All Positions] --> B[Rank by Daily PnL Contribution]
+    B --> C[Top 3 Profit Contributors]
+    B --> D[Top 3 Loss Drags]
+    A --> E[Rank by Weight Change]
+    E --> F[Top 3 Weight Movers]
+    A --> G[Rank by Daily Price Move]
+    G --> H[Top 3 Price Movers]
+
+    C --> I[Deduplicate & Merge]
+    D --> I
+    F --> I
+    H --> I
+
+    I --> J[Focus Symbols List - max 6]
+
+    J --> K{Enough diversity?}
+    K -->|No| L[Add from secondary candidates]
+    K -->|Yes| M[Final Focus Symbols]
+    L --> M
+```
+
 - Top profit contributors (highest daily PnL contribution)
 - Top loss drags (lowest daily PnL contribution)
 - Largest position weight changes
@@ -45,9 +68,50 @@ Focus symbols are selected deterministically based on:
 
 This selection is **not** done by the LLM -- it is pure Python logic to ensure reproducibility.
 
+```python
+# app/agents/daily_review/focus_selection.py
+def select_focus_symbols(positions: list[Position], max_count: int = 6) -> list[str]:
+    """Deterministically select focus symbols for the daily review."""
+    by_pnl = sorted(positions, key=lambda p: p.daily_pnl_contribution, reverse=True)
+    top_contributors = by_pnl[:3]
+    bottom_drags = by_pnl[-3:]
+
+    by_weight_change = sorted(positions, key=lambda p: abs(p.weight_change), reverse=True)
+    top_movers = by_weight_change[:3]
+
+    # Deduplicate and return up to max_count symbols
+    seen = set()
+    focus = []
+    for sym in [p.symbol for p in top_contributors + bottom_drags + top_movers]:
+        if sym not in seen:
+            seen.add(sym)
+            focus.append(sym)
+    return focus[:max_count]
+```
+
 ## Step 3: Symbol Cards and Macro Card
 
 In the sub-agent card mode, the system generates:
+
+```mermaid
+flowchart TD
+    A[Focus Symbols] --> B[Generate Symbol Cards in Parallel]
+
+    B --> C1[AAPL Card]
+    B --> C2[NVDA Card]
+    B --> C3[MSFT Card]
+    B --> C4[...]
+
+    D[Market Context] --> E[Generate Macro Card]
+
+    C1 --> F[Collect All Cards]
+    C2 --> F
+    C3 --> F
+    C4 --> F
+    E --> F
+
+    F --> G[Pass to Main LLM Composition]
+```
 
 - **Symbol evidence cards**: One card per focus symbol, containing price action, news, valuation notes, and technical levels
 - **Macro evidence card**: A card covering market regime, sector context, risk sentiment, and tech sentiment
@@ -65,6 +129,7 @@ The main LLM call receives all the evidence and composes the final review. The p
 ## Output Schema
 
 ```python
+# app/agents/daily_review/output_schema.py
 class DailyPositionReviewOutput(FlexibleModel):
     report_date: str
     summary: str | None = None
@@ -158,6 +223,16 @@ If the LLM fails, the fallback generates a report using only deterministic data:
 ## Email Integration
 
 The daily review can be sent via email using the SMTP configuration in the Admin panel. The worker service (`ibkr_dash_worker`) can trigger daily review generation and email delivery on a schedule.
+
+```mermaid
+flowchart LR
+    A[Scheduler / Cron] --> B[ibkr_dash_worker]
+    B --> C[generate_daily_review]
+    C --> D[Review Saved to DB]
+    D --> E[Format as Email HTML]
+    E --> F[Send via SMTP]
+    F --> G[User Inbox]
+```
 
 ## API Usage
 

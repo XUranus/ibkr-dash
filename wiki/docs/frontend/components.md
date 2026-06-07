@@ -45,6 +45,43 @@ graph TB
     TradeReviewView --> AgentEvidencePanel
 ```
 
+## Component Categories
+
+```mermaid
+graph LR
+    subgraph Layout["Layout Components"]
+        AppHeader
+        ErrorBoundary
+        AdminTabs
+    end
+
+    subgraph Data["Data Display"]
+        StatCard
+        PositionTable
+        TradeTable
+        CashFlowTable
+        DividendTable
+    end
+
+    subgraph Charts["Chart Components"]
+        EquityCurveSimple
+        PerformanceCalendar
+        PieDistributionCard
+    end
+
+    subgraph AI["AI Agent Components"]
+        AgentEvidencePanel
+        AgentTaskGraph
+    end
+
+    subgraph Utility["Utility Components"]
+        JsonBlock
+        LoadingBlock
+        ErrorBlock
+        SymbolInput
+    end
+```
+
 ## Key Components
 
 ### AppHeader
@@ -63,15 +100,46 @@ The main navigation header displayed on every page. It includes:
 The header uses the `useAuth` hook for authentication state and the `useAccountOverview` hook for account metrics.
 
 ```tsx
+// ibkr_dash_frontend/src/App.tsx
 <AppHeader />
-// Renders inside <App /> as the first child
+// Renders inside <App /> as the first child, above the <Outlet />
+```
+
+**Internal structure (simplified):**
+
+```tsx
+function AppHeader() {
+  const { authenticated, username, logout } = useAuth()
+  const { data: overview } = useAccountOverview()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { t, i18n } = useTranslation()
+
+  return (
+    <header className="app-header">
+      <div className="app-header__title">
+        <h1>{t('app.title')}</h1>
+        <span>{t('app.subtitle')}</span>
+      </div>
+      <div className="app-header__metrics">
+        {/* Report date, total equity, total P&L */}
+      </div>
+      <nav className="app-header__nav">
+        {/* Navigation buttons for each route */}
+      </nav>
+      <div className="app-header__controls">
+        {/* Language toggle + auth controls */}
+      </div>
+    </header>
+  )
+}
 ```
 
 ### StatCard
 
 **File**: `src/components/StatCard.tsx`
 
-A styled card displaying a single metric with title, value, helper text, and optional delta indicators.
+A styled card displaying a single metric with title, value, helper text, and optional delta indicators. Used on the Dashboard to show Total Equity, Cash, Total P&L, YTD TWR, etc.
 
 ```tsx
 <StatCard
@@ -95,6 +163,18 @@ A styled card displaying a single metric with title, value, helper text, and opt
 | `deltaPercent` | string? | Delta percent badge (top-right) |
 | `deltaTone` | string? | Color for delta badges |
 | `icon` | string? | Optional icon prefix |
+
+**Rendering flow:**
+
+```mermaid
+graph LR
+    Props["Props: title, value, tone, ..."] --> Card["surface-panel container"]
+    Card --> AccentBar["Accent bar (left edge, color = tone)"]
+    Card --> Title["Title (uppercase mono)"]
+    Card --> Value["Value (tone color)"]
+    Card --> Helper["Helper text (muted)"]
+    Card --> Delta["Delta badges (top-right)"]
+```
 
 ### ErrorBoundary
 
@@ -130,11 +210,39 @@ Features:
 - P&L color coding (green for positive, red for negative)
 - Monospace numbers with tabular-nums
 
+```tsx
+// ibkr_dash_frontend/src/views/PositionsView.tsx
+<PositionTable
+  positions={positions}
+  onSelectSymbol={(symbol) => setSelectedSymbol(symbol)}
+/>
+```
+
+**Sorting implementation:**
+
+```tsx
+// Inside PositionTable.tsx
+const [sortKey, setSortKey] = useState<string>('marketValue')
+const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+
+const sorted = useMemo(() => {
+  return [...positions].sort((a, b) => {
+    const av = a[sortKey] ?? 0
+    const bv = b[sortKey] ?? 0
+    return sortDir === 'asc' ? av - bv : bv - av
+  })
+}, [positions, sortKey, sortDir])
+```
+
 ### TradeTable
 
 **File**: `src/components/TradeTable.tsx`
 
 Displays trade history with date, symbol, side (BUY/SELL), quantity, price, and P&L columns.
+
+```tsx
+<TradeTable trades={trades} />
+```
 
 ### CashFlowTable
 
@@ -154,17 +262,39 @@ Displays dividend income records with gross amount, withholding tax, and net rec
 
 An ECharts-based pie chart card showing distribution data (e.g., position concentration, asset class allocation). Supports interactive hover tooltips and legend.
 
+```tsx
+<PieDistributionCard
+  title="Position Concentration"
+  data={[
+    { name: 'AAPL', value: 45000 },
+    { name: 'MSFT', value: 30000 },
+    { name: 'GOOGL', value: 25000 },
+  ]}
+/>
+```
+
 ### EquityCurveSimple
 
 **File**: `src/components/EquityCurveSimple.tsx`
 
 An ECharts line chart showing the equity curve over time. Supports multiple series (equity, P&L, cost basis) and range selection.
 
+```tsx
+<EquityCurveSimple
+  data={equityCurveData}
+  series={['equity', 'pnl', 'costBasis']}
+/>
+```
+
 ### PerformanceCalendar
 
 **File**: `src/components/PerformanceCalendar.tsx`
 
 An ECharts calendar heatmap showing daily P&L. Green cells for positive days, red for negative. Supports month view, year view, and all-years view.
+
+```tsx
+<PerformanceCalendar data={calendarData} year={2025} />
+```
 
 ### AgentEvidencePanel
 
@@ -184,6 +314,10 @@ Visualizes the execution trace of an agent run as a timeline graph. Shows LLM ca
 
 A collapsible JSON viewer component. Shows a toggle button that expands to display formatted JSON. Used to show raw agent output, evidence packs, and debug data.
 
+```tsx
+<JsonBlock data={rawAgentOutput} label="Raw Output" />
+```
+
 ### LoadingBlock
 
 **File**: `src/components/LoadingBlock.tsx`
@@ -196,11 +330,26 @@ A loading placeholder with a shimmer animation. Used while data is being fetched
 
 An error display component with an error message and optional retry button.
 
+```tsx
+<ErrorBlock
+  message="Failed to load positions"
+  onRetry={() => refetch()}
+/>
+```
+
 ### SymbolInput
 
 **File**: `src/components/SymbolInput.tsx`
 
 A text input for entering stock symbols with autocomplete suggestions.
+
+```tsx
+<SymbolInput
+  value={symbol}
+  onChange={setSymbol}
+  onSelect={(s) => handleSearch(s)}
+/>
+```
 
 ### AdminTabs
 
@@ -249,3 +398,14 @@ Components use three styling approaches:
 3. **Component-scoped inline styles** for layout-specific styling
 
 The design system uses CSS custom properties defined in `theme.css` for colors, spacing, typography, and shadows. This makes it easy to maintain visual consistency across components.
+
+```tsx
+// Example: Combining CSS classes and inline styles
+<div className="surface-panel" style={{ padding: 'var(--space-5)' }}>
+  <StatCard
+    title={t('dashboard.totalEquity')}
+    value={formatCurrency(overview.totalEquity)}
+    tone={overview.totalPnl >= 0 ? 'positive' : 'negative'}
+  />
+</div>
+```

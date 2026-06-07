@@ -20,6 +20,31 @@ Each agent follows the same core pattern:
 
 This approach ensures that outputs are always valid JSON, always conform to a schema, and degrade gracefully when the LLM fails.
 
+```python
+# Simplified agent lifecycle -- every agent follows this pattern
+# app/agents/trade_decision/agent.py
+
+async def analyze_trade(symbol: str, decision_type: str) -> TradeDecisionOutput:
+    # Step 1: Load data
+    account_data = load_account_from_db()
+    position_data = load_positions_from_db(symbol)
+
+    # Step 2: Build evidence pack with context budget
+    evidence = build_trade_decision_evidence_pack(account_data, position_data)
+
+    # Step 3: Call LLM with structured output contract
+    contract = TRADE_DECISION_CONTRACT
+    result = structured_output_runtime.generate(messages, contract)
+
+    # Step 4: Normalize with domain invariants
+    if result.ok:
+        normalized = normalize_trade_decision_output(result.payload)
+
+    # Step 5: Save to DB
+    save_decision_to_db(normalized)
+    return normalized
+```
+
 ## The Five Agents
 
 ### 1. Account Copilot
@@ -61,6 +86,22 @@ Assesses portfolio risk across concentration, sector/theme exposure, and stress 
 - **Input**: Optional user question
 - **Output**: Risk report with scores, scenarios, and recommendations
 - **Key feature**: Deterministic risk cards + LLM narrative
+
+## Capability Comparison
+
+| Feature | Copilot | Trade Decision | Trade Review | Daily Review | Risk Assessment |
+|---|---|---|---|---|---|
+| **Runtime type** | ReAct loop (multi-turn) | Structured output (single-shot) | Structured output (single-shot) | Structured output (single-shot) | Structured output (single-shot) |
+| **LLM calls per run** | 2-8 rounds | 5 (4 sub-agents + 1 compose) | 1 | 1 + N cards | 1 |
+| **Deterministic work** | Minimal | Account fit scoring | Trade fact loading | Attribution, focus selection | All risk computations |
+| **Tool calling** | Yes (9 IBKR tools) | Yes (Longbridge MCP) | No | No | No |
+| **Skill system** | Yes (5 skills) | No | No | No | No |
+| **Parallel execution** | Tool calls in parallel | 4 sub-analyses in parallel | No | Card generation in parallel | No |
+| **User approval** | Yes (for skills) | No | No | No | No |
+| **Fallback strategy** | Graceful message | `watchlist` + `low` confidence | Score 50, `neutral` | Deterministic-only report | Risk cards without narrative |
+| **Score dimensions** | N/A | 7 dimensions (100 pts) | 8 dimensions (100 pts) | N/A | 3 cards (65 pts) |
+| **Output format** | Conversational text | JSON decision document | JSON review document | JSON review document | JSON risk report |
+| **Memory/context** | Conversation memory | Evidence pack | Evidence pack | Evidence pack | Portfolio snapshot |
 
 ## Architecture Diagram
 
@@ -115,6 +156,19 @@ graph TB
     DR --> INV
 ```
 
+### Data Flow Summary
+
+```mermaid
+flowchart LR
+    A[SQLite DB] -->|raw rows| B[Evidence Builder]
+    B -->|evidence pack| C[Context Budget]
+    C -->|budgeted context| D[LLM Prompt]
+    D -->|raw JSON| E[Structured Output]
+    E -->|validated model| F[Domain Invariants]
+    F -->|normalized output| G[Save to DB]
+    G -->|API response| H[Frontend]
+```
+
 ## Key Design Principles
 
 - **Deterministic first**: Computations like PnL, concentration ratios, and stress tests run in Python. The LLM interprets and narrates, not calculates.
@@ -122,6 +176,29 @@ graph TB
 - **Evidence packs**: Agents never see raw database rows. Data is packaged into evidence packs with section budgets, data source annotations, and quality metadata.
 - **Graceful degradation**: If the LLM is unavailable or returns invalid output, every agent has a deterministic fallback that returns a conservative result.
 - **Traceability**: Every agent run produces a trace of LLM calls, tool calls, latencies, and errors for debugging and monitoring.
+
+## Source Code Layout
+
+```
+app/agents/
+    runtime.py                    # ToolCallingRuntime (ReAct loop)
+    structured_output/
+        runtime.py                # StructuredOutputRuntime
+        contracts.py              # StructuredOutputContract
+        json_parser.py            # JSON extraction from LLM text
+        errors.py                 # Error types
+        registry.py               # Contract registry
+    evidence.py                   # Evidence pack builders
+    context_budget.py             # Context budget enforcement
+    invariants.py                 # Domain invariants and normalizers
+    eval_checks.py                # Generic eval checks
+    eval_domain_checks.py         # Agent-specific eval checks
+    account_copilot/              # Copilot agent
+    trade_decision/               # Trade Decision agent
+    trade_review/                 # Trade Review agent
+    daily_review/                 # Daily Review agent
+    risk_assessment/              # Risk Assessment agent
+```
 
 ## Next Steps
 

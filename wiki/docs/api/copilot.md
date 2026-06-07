@@ -22,6 +22,61 @@ All endpoints require authentication (unless `AUTH_PASSWORD` is empty). The chat
 
 ---
 
+## Chat Flow Diagram
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant API as FastAPI
+    participant Copilot as Copilot Service
+    participant LLM as LLM Provider
+    participant DB as Database
+
+    User->>API: POST /api/copilot/chat<br/>{message, session_id?}
+    API->>API: Rate limit check
+
+    alt New session
+        API->>Copilot: Create session
+    else Existing session
+        API->>Copilot: Load session history
+    end
+
+    loop ReAct Loop (max 12 rounds)
+        Copilot->>LLM: Send message + history + tools
+        LLM-->>Copilot: Tool call (e.g., get_positions)
+        Copilot->>DB: Execute tool query
+        DB-->>Copilot: Query results
+        Copilot->>LLM: Send tool results
+        LLM-->>Copilot: Final answer or more tool calls
+    end
+
+    Copilot->>Copilot: Save messages to session
+    Copilot-->>API: Return response
+    API-->>User: {session_id, answer, actions, tool_calls}
+```
+
+---
+
+## Session Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Created: First message (no session_id)
+    Created --> Active: Session has messages
+    Active --> Active: User sends follow-up
+    Active --> Truncated: > 20 messages
+    Truncated --> Active: Oldest messages removed
+    Active --> Deleted: DELETE /sessions/{id}
+    Deleted --> [*]
+```
+
+- Sessions are created automatically when no `session_id` is provided.
+- Each session stores the full conversation history.
+- History is truncated to the last 20 messages to stay within LLM context limits.
+- Deleting a session removes all its messages permanently.
+
+---
+
 ## Send a Message
 
 Send a message to the copilot and receive an AI-generated response. If no `session_id` is provided, a new session is created automatically.
@@ -89,6 +144,20 @@ curl -X POST "http://localhost:8000/api/copilot/chat" \
 | `tool_calls` | list | Detailed tool call results |
 | `pending_approval` | object | If set, the copilot needs user confirmation before acting |
 | `errors` | list | Any errors encountered during the run |
+
+### Available Tools
+
+The copilot has access to these portfolio data tools:
+
+| Tool | Description |
+|------|-------------|
+| `get_positions` | Query current positions with filters |
+| `get_position_detail` | Get history for a specific symbol |
+| `get_trades` | Query trade history with filters |
+| `get_trade_summary` | Get aggregated trade statistics |
+| `get_account_overview` | Get account-level metrics |
+| `get_equity_curve` | Get equity curve data |
+| `get_performance_calendar` | Get P&L by period |
 
 ### How It Works
 

@@ -26,6 +26,30 @@ flowchart TD
     E --> F[Save to DB]
 ```
 
+## Risk Card Hierarchy
+
+```mermaid
+flowchart TD
+    A[Risk Assessment Output] --> B[overall_risk_score = sum of all cards]
+    B --> C[risk_level from score ratio]
+
+    A --> D[Concentration Risk Card - max 25]
+    D --> D1[Single position weight check]
+    D --> D2[Top-3 concentration check]
+    D --> D3[Diversification check]
+    D --> D4[Cash buffer check]
+
+    A --> E[Sector/Theme Exposure Card - max 20]
+    E --> E1[AI exposure threshold]
+    E --> E2[Semiconductor exposure threshold]
+    E --> E3[China exposure threshold]
+
+    A --> F[Stress Test Card - max 20]
+    F --> F1[Market -10% scenario]
+    F --> F2[Market -20% scenario]
+    F --> F3[Largest position -30% scenario]
+```
+
 ## Step 1: Portfolio Snapshot
 
 The agent loads the latest portfolio data from the database:
@@ -39,6 +63,37 @@ The agent loads the latest portfolio data from the database:
 ### Concentration Risk Card (max score: 25)
 
 Computes concentration risk using pure Python logic:
+
+```python
+# app/agents/risk_assessment/concentration.py
+def compute_concentration_risk(positions: list[Position]) -> dict:
+    """Deterministic concentration risk computation."""
+    weights = sorted([p.weight for p in positions], reverse=True)
+    largest = weights[0] if weights else 0
+    top3 = sum(weights[:3])
+    cash_pct = 1.0 - sum(weights)
+
+    score = 0
+    findings = []
+
+    if largest > 0.40:
+        score += 20; findings.append("Extreme single-position concentration")
+    elif largest > 0.25:
+        score += 14; findings.append("High single-position concentration")
+    elif largest > 0.15:
+        score += 7; findings.append("Moderate single-position concentration")
+
+    if top3 > 0.70:
+        score += 5; findings.append("High top-3 concentration")
+
+    if len(positions) <= 2 and largest > 0.30:
+        score += 5; findings.append("Insufficient diversification")
+
+    if cash_pct < 0.05:
+        score += 3; findings.append("Low liquidity buffer")
+
+    return {"score": score, "max_score": 25, "findings": findings}
+```
 
 | Condition | Score | Finding |
 |---|---|---|
@@ -61,6 +116,23 @@ The risk level is derived from the score ratio:
 ### Sector/Theme Exposure Card (max score: 20)
 
 Classifies positions into themes using symbol-based rules:
+
+```python
+# app/agents/risk_assessment/themes.py
+THEME_MAP = {
+    "NVDA": ["semiconductor", "ai"],
+    "AMD": ["semiconductor"],
+    "MSFT": ["ai", "cloud"],
+    "GOOG": ["ai", "cloud"],
+    "BABA": ["china"],
+    "JD": ["china"],
+    "PDD": ["china"],
+}
+
+def classify_symbol_theme(symbol: str) -> list[str]:
+    base = symbol.split(".")[0]
+    return THEME_MAP.get(base, ["other"])
+```
 
 | Theme | Threshold | Score |
 |---|---|---|
@@ -94,6 +166,7 @@ The LLM receives all three risk cards and the portfolio snapshot, then composes 
 ## Output Schema
 
 ```python
+# app/agents/risk_assessment/output_schema.py
 class RiskAssessmentOutput(FlexibleModel):
     overall_risk_score: float = 0
     risk_level: str = "medium"         # "low", "medium", "high", "extreme"
@@ -137,6 +210,7 @@ The overall risk score is the sum of all three cards:
 The risk level is derived from the total score:
 
 ```python
+# app/agents/risk_assessment/agent.py
 def _risk_level_from_score(score, max_score):
     ratio = score / max_score
     if ratio >= 0.75: return "extreme"
@@ -145,9 +219,36 @@ def _risk_level_from_score(score, max_score):
     return "low"
 ```
 
-## Deterministic vs. LLM Analysis
+## Deterministic vs. LLM Split
 
 This agent has a clear separation between deterministic and LLM work:
+
+```mermaid
+flowchart LR
+    subgraph "Deterministic (Python)"
+        A1[Concentration Ratios]
+        A2[Theme Classification]
+        A3[Stress Test Math]
+        A4[Risk Level Derivation]
+        A5[Score Aggregation]
+    end
+
+    subgraph "LLM (Language Model)"
+        B1[Narrative Report]
+        B2[Recommendations]
+        B3[Key Risks Summary]
+        B4[Watch Points]
+    end
+
+    A1 --> B1
+    A2 --> B1
+    A3 --> B1
+    A4 --> B1
+    A5 --> B1
+    B1 --> B2
+    B1 --> B3
+    B1 --> B4
+```
 
 | Component | Type | Purpose |
 |---|---|---|

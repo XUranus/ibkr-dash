@@ -54,6 +54,49 @@ graph TB
 
 ---
 
+## Dependency Version Matrix
+
+### Backend Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `fastapi` | ^0.115.0 | Web framework with async support |
+| `uvicorn` | ^0.34.0 | ASGI server for FastAPI |
+| `pydantic` | ^2.10.0 | Data validation and JSON Schema generation |
+| `pydantic-settings` | ^2.7.0 | Environment variable configuration |
+| `httpx` | ^0.28.0 | HTTP client for LLM API calls |
+| `python-dotenv` | ^1.0.0 | .env file loading |
+
+### Frontend Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `react` | ^18.3.1 | UI library |
+| `react-dom` | ^18.3.1 | DOM rendering |
+| `react-router-dom` | ^6.23.0 | Client-side routing |
+| `typescript` | ^5.5.0 | Type-safe JavaScript |
+| `vite` | ^5.4.0 | Build tool and dev server |
+| `echarts` | ^5.5.0 | Charting library |
+| `react-markdown` | ^10.1.0 | Markdown rendering |
+| `remark-gfm` | ^4.0.1 | GitHub Flavored Markdown |
+| `i18next` | ^26.3.1 | Internationalization framework |
+| `react-i18next` | ^17.0.8 | React i18n bindings |
+| `vitest` | ^2.1.0 | Test framework |
+
+### Worker Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `apscheduler` | ^3.10.0 | Cron-like job scheduling |
+| `requests` | ^2.32.0 | IBKR Flex API HTTP client |
+| `python-dotenv` | ^1.0.0 | .env file loading |
+
+:::info
+The worker has the fewest dependencies. The CSV parser uses Python's built-in `csv` module, and the XML parser uses `xml.etree.ElementTree` from the standard library. The `sqlite3` module is also part of the standard library.
+:::
+
+---
+
 ## Backend Technologies
 
 ### FastAPI
@@ -692,50 +735,6 @@ The frontend has 74 tests covering:
 
 :::info
 Vitest is used instead of Jest because it is faster (native ESM support), has a smaller configuration footprint, and integrates seamlessly with Vite.
-:::
-
----
-
-## Dependency Summary
-
-### Backend Dependencies (`requirements.txt`)
-
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `fastapi` | Latest | Web framework |
-| `uvicorn` | Latest | ASGI server |
-| `pydantic` | v2 | Data validation |
-| `pydantic-settings` | Latest | Settings from env vars |
-| `httpx` | Latest | LLM HTTP client |
-| `python-dotenv` | Latest | .env file loading |
-
-:::info
-The backend has minimal dependencies. The `sqlite3` module is part of Python's standard library and does not need to be installed.
-:::
-
-### Frontend Dependencies (`package.json`)
-
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `react` | ^18.3.1 | UI library |
-| `react-dom` | ^18.3.1 | DOM rendering |
-| `react-router-dom` | ^6.23.0 | Client-side routing |
-| `echarts` | ^5.5.0 | Charting library |
-| `react-markdown` | ^10.1.0 | Markdown rendering |
-| `remark-gfm` | ^4.0.1 | GitHub Flavored Markdown |
-| `i18next` | ^26.3.1 | Internationalization |
-| `react-i18next` | ^17.0.8 | React i18n bindings |
-
-### Worker Dependencies (`requirements.txt`)
-
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `apscheduler` | Latest | Job scheduling |
-| `requests` | Latest | IBKR Flex API client |
-| `python-dotenv` | Latest | .env file loading |
-
-:::info
-The worker has the fewest dependencies. The CSV parser uses Python's built-in `csv` module, and the XML parser uses `xml.etree.ElementTree` from the standard library.
 :::
 
 ---

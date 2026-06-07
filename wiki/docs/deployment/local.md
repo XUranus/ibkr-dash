@@ -37,7 +37,13 @@ ibkr-dash/
 
 ---
 
-## Step 1: Environment Variables
+## Step 1: Clone and Configure
+
+```bash
+# Clone the repository
+git clone https://github.com/your-org/ibkr-dash.git
+cd ibkr-dash
+```
 
 Create a `.env` file in the project root by copying the example:
 
@@ -80,6 +86,8 @@ See `.env.example` for the full list of worker-specific variables.
 
 ## Step 2: Start the Backend
 
+Open **Terminal 1**:
+
 ```bash
 cd ibkr_dash_backend
 
@@ -104,11 +112,15 @@ curl http://localhost:8000/api/health
 
 Interactive API docs are at `http://localhost:8000/docs`.
 
+:::info
+**What you should see:** The terminal shows uvicorn startup logs with `Uvicorn running on http://0.0.0.0:8000`. Any code changes in `app/` will trigger an automatic reload.
+:::
+
 ---
 
 ## Step 3: Start the Frontend
 
-In a new terminal:
+Open **Terminal 2**:
 
 ```bash
 cd ibkr_dash_frontend
@@ -122,9 +134,15 @@ npm run dev
 
 The frontend is now running at `http://localhost:5173`. It proxies API requests to the backend automatically (configured in `vite.config.ts`).
 
+:::info
+**What you should see:** Vite prints `Local: http://localhost:5173/` in the terminal. Opening this URL in your browser shows the IBKR Dash dashboard. If `AUTH_PASSWORD` is empty, you are logged in automatically.
+:::
+
 ---
 
 ## Step 4: Initialize the Database and Import Data
+
+Open **Terminal 3**:
 
 ### Option A: Use Sample Data
 
@@ -178,6 +196,17 @@ You need three terminal windows:
 | 1 | `cd ibkr_dash_backend && uvicorn app.main:app --reload --port 8000` | `http://localhost:8000` |
 | 2 | `cd ibkr_dash_frontend && npm run dev` | `http://localhost:5173` |
 | 3 | `cd ibkr_dash_worker && python -m worker.main run-scheduler` | (background) |
+
+```mermaid
+graph LR
+    T1[Terminal 1] -->|Runs| B[Backend :8000]
+    T2[Terminal 2] -->|Runs| F[Frontend :5173]
+    T3[Terminal 3] -->|Runs| W[Worker]
+    F -->|Proxy /api/*| B
+    B -->|Reads/Writes| DB[(SQLite)]
+    W -->|Reads/Writes| DB
+    W -->|Fetches| IBKR[IBKR Flex API]
+```
 
 ---
 

@@ -16,6 +16,65 @@ The IBKR Dash worker is a standalone Python application that imports financial d
 4. **Writes to SQLite** using upsert semantics (insert or update on conflict).
 5. **Runs on a schedule** (APScheduler) for daily incremental imports.
 
+## System Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph External["External Sources"]
+        IBKR["IBKR Flex Web Service"]
+        Manual["Manual CSV Export"]
+    end
+
+    subgraph Worker["ibkr_dash_worker"]
+        CLI["main.py (CLI)"]
+        Scheduler["scheduler.py (APScheduler)"]
+        Job["daily_incremental_job.py"]
+
+        subgraph Clients["HTTP Clients"]
+            FlexClient["flex_client.py"]
+            ReviewClient["daily_review_client.py"]
+            EmailClient["daily_snapshot_email_client.py"]
+        end
+
+        subgraph Parsers["Parsers"]
+            CSVParser["flex_csv_parser.py"]
+            XMLParser["flex_xml_parser.py"]
+            Transformers["transformers.py"]
+        end
+
+        subgraph Writers["Writers"]
+            SQLiteWriter["sqlite_writer.py"]
+        end
+
+        subgraph Utils["Utilities"]
+            Dates["dates.py"]
+            Numbers["numbers.py"]
+            Config["config.py"]
+            Logger["logger.py"]
+        end
+    end
+
+    subgraph Storage["Shared Storage"]
+        DB[(SQLite: ibkr_dash.db)]
+        DataDir["data/flex_exports/"]
+        TrackFile["imported_files.txt"]
+    end
+
+    IBKR -->|"XML response"| FlexClient
+    Manual -->|"CSV drop"| DataDir
+    CLI --> Scheduler
+    CLI --> Job
+    Scheduler -->|"cron trigger"| Job
+    Job --> FlexClient
+    Job --> CSVParser
+    FlexClient --> XMLParser
+    CSVParser --> Transformers
+    XMLParser --> SQLiteWriter
+    Transformers --> SQLiteWriter
+    SQLiteWriter -->|"upsert"| DB
+    Job --> TrackFile
+```
+
 ## Directory Layout
 
 ```
@@ -50,20 +109,68 @@ ibkr_dash_worker/
 
 ## CLI Usage
 
-The worker is invoked as a Python module:
+The worker is invoked as a Python module with four commands:
+
+### Initialize Database
 
 ```bash
-# Initialize the database schema
 python -m worker.main init-db
+```
 
-# Import a single Flex CSV file
+Creates all SQLite tables (`account_snapshots`, `position_snapshots`, `trade_records`, `cash_flows`, `price_history`, `admin_settings`) using `CREATE TABLE IF NOT EXISTS`. Safe to run multiple times.
+
+### Import a Single File
+
+```bash
 python -m worker.main import /path/to/flex_export.csv
+```
 
-# One-shot scan of data_dir for new CSV files
+Imports a single Flex CSV file through the full pipeline: parse -> transform -> upsert.
+
+### Scan for New Files
+
+```bash
 python -m worker.main scan
+```
 
-# Run the background scheduler (daily imports)
+One-shot scan of `data_dir` for new CSV files. Checks `imported_files.txt` to skip already-processed files.
+
+### Run Scheduler
+
+```bash
 python -m worker.main run-scheduler
+```
+
+Starts the APScheduler daemon that runs the daily incremental import job at the configured time (default: 12:30 Asia/Shanghai).
+
+## CLI Command Flow
+
+```mermaid
+flowchart TD
+    Main["python -m worker.main"] --> Cmd{"Command?"}
+
+    Cmd -->|"init-db"| InitDB["CREATE TABLE IF NOT EXISTS\nfor all tables"]
+    InitDB --> Done["Exit"]
+
+    Cmd -->|"import <file>"| Import["import_daily_snapshot.py"]
+    Import --> Parse["Parse CSV"]
+    Parse --> Transform["Transform"]
+    Transform --> Write["Upsert to SQLite"]
+    Write --> Done
+
+    Cmd -->|"scan"| Scan["Scan data_dir"]
+    Scan --> Check{"New CSV files?"}
+    Check -->|Yes| ImportLoop["Import each new file"]
+    Check -->|No| Done
+    ImportLoop --> Mark["Mark as imported"]
+    Mark --> Done
+
+    Cmd -->|"run-scheduler"| Sched["Start APScheduler"]
+    Sched --> Wait["Wait for cron trigger"]
+    Wait --> DailyJob["daily_incremental_job"]
+    DailyJob --> Pull["Pull from IBKR (if configured)"]
+    Pull --> Scan
+    Scan --> Wait
 ```
 
 ## Module Relationships

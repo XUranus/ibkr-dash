@@ -11,6 +11,37 @@ IBKR Dash provides a Docker Compose setup for running all three services (backen
 
 ## Architecture
 
+```mermaid
+graph TB
+    subgraph Host["Host Machine"]
+        P8080[":8080"]
+        P8000[":8000"]
+    end
+
+    subgraph DockerNetwork["Docker Network"]
+        subgraph Frontend["Frontend Container (Nginx)"]
+            NGINX["nginx.conf"]
+            STATIC["React SPA static files"]
+        end
+        subgraph Backend["Backend Container"]
+            UVICORN["uvicorn + FastAPI"]
+        end
+        subgraph Worker["Worker Container"]
+            SCHEDULER["APScheduler"]
+        end
+        VOLUME[("backend-data volume<br/>(SQLite DB)")]
+    end
+
+    P8080 --> NGINX
+    P8000 --> UVICORN
+    NGINX -->|"/api/* proxy"| UVICORN
+    UVICORN --> VOLUME
+    SCHEDULER --> VOLUME
+    SCHEDULER -->|Fetch Flex reports| IBKR["IBKR Flex API"]
+
+    style VOLUME fill:#f9f,stroke:#333
+```
+
 ```
                     ┌─────────────────────────────────────┐
                     │            Docker Network            │
@@ -85,6 +116,7 @@ docker compose exec worker python -m worker.main init-db
 ### Backend
 
 ```yaml
+# docker-compose.yml (backend section)
 backend:
   build:
     context: .
@@ -107,6 +139,7 @@ backend:
 ### Worker
 
 ```yaml
+# docker-compose.yml (worker section)
 worker:
   build:
     context: .
@@ -126,6 +159,7 @@ worker:
 ### Frontend
 
 ```yaml
+# docker-compose.yml (frontend section)
 frontend:
   build:
     context: .
@@ -187,6 +221,7 @@ COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 The frontend uses Nginx to serve the SPA and proxy API requests:
 
 ```nginx
+# docker/nginx.conf
 server {
     listen 80;
     server_name _;

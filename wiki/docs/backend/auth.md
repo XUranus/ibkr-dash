@@ -8,11 +8,45 @@ description: HMAC session tokens, cookie-based sessions, and HTTP Basic fallback
 
 IBKR Dash supports two authentication methods: **cookie-based sessions** (primary) and **HTTP Basic auth** (fallback). If `AUTH_PASSWORD` is not configured, all endpoints are publicly accessible.
 
+## Login Flow
+
+Here is the complete authentication flow from the browser to the backend:
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant API as /api/auth/login
+    participant Auth as auth.py
+    participant DB as Settings
+
+    Browser->>API: POST { username, password }
+    API->>DB: Read AUTH_PASSWORD
+
+    alt AUTH_PASSWORD is empty
+        API->>Auth: create_session_token(username)
+        Auth-->>API: token (any credentials accepted)
+        API->>Browser: Set-Cookie: ibkr_dash_session=<token>
+        API-->>Browser: { authenticated: true, username: "admin" }
+    else AUTH_PASSWORD is set
+        API->>API: secrets.compare_digest(username, stored)
+        API->>API: secrets.compare_digest(password, stored)
+        alt Credentials match
+            API->>Auth: create_session_token(username)
+            Auth-->>API: signed token
+            API->>Browser: Set-Cookie: ibkr_dash_session=<token>
+            API-->>Browser: { authenticated: true, username: "admin" }
+        else Credentials wrong
+            API-->>Browser: 401 Unauthorized
+        end
+    end
+```
+
 ## HMAC Session Tokens
 
 Session tokens are signed using **HMAC-SHA256**. The signing secret is derived from the configured `AUTH_PASSWORD`:
 
 ```python
+# From app/core/auth.py
 secret = hashlib.sha256(settings.auth_password.encode()).hexdigest()
 ```
 
@@ -55,34 +89,6 @@ The session cookie is named `ibkr_dash_session` and is set with these attributes
 | `path` | `/` | Cookie is sent for all paths. |
 | `max_age` | `604800` | 7 days. |
 
-## Login Flow
-
-```mermaid
-sequenceDiagram
-    participant Browser
-    participant API as /api/auth/login
-    participant Auth as auth.py
-
-    Browser->>API: POST { username, password }
-    API->>API: Check if AUTH_PASSWORD is set
-
-    alt AUTH_PASSWORD is empty
-        API->>Auth: create_session_token(username)
-        Auth-->>API: token (any credentials accepted)
-        API->>Browser: Set-Cookie: ibkr_dash_session=<token>
-    else AUTH_PASSWORD is set
-        API->>API: secrets.compare_digest(username, stored)
-        API->>API: secrets.compare_digest(password, stored)
-        alt Credentials match
-            API->>Auth: create_session_token(username)
-            Auth-->>API: signed token
-            API->>Browser: Set-Cookie: ibkr_dash_session=<token>
-        else Credentials wrong
-            API-->>Browser: 401 Unauthorized
-        end
-    end
-```
-
 :::warning
 Credential comparison uses `secrets.compare_digest()` to prevent timing attacks. Never use `==` for password comparison.
 :::
@@ -102,6 +108,7 @@ The `get_current_user` dependency checks Basic auth credentials only if no valid
 The `get_current_user` function in `app/api/deps.py` is the central authentication gate:
 
 ```python
+# From app/api/deps.py
 def get_current_user(
     request: Request,
     credentials: HTTPBasicCredentials | None = Depends(security),
@@ -110,6 +117,26 @@ def get_current_user(
 ```
 
 **Step-by-step logic:**
+
+```mermaid
+flowchart TD
+    Request["Incoming Request"] --> CheckConfig{"AUTH_PASSWORD<br/>configured?"}
+
+    CheckConfig -->|No| AllowAnon["Return None<br/>(anonymous access)"]
+    CheckConfig -->|Yes| TryCookie{"Session cookie<br/>present?"}
+
+    TryCookie -->|Yes| VerifyCookie{"HMAC valid?<br/>Not expired?"}
+    VerifyCookie -->|Yes| ReturnUser["Return username"]
+    VerifyCookie -->|No| TryBasic{"Basic auth<br/>credentials?"}
+
+    TryCookie -->|No| TryBasic
+
+    TryBasic -->|Yes| CompareCreds{"Credentials<br/>match?"}
+    CompareCreds -->|Yes| ReturnUser
+    CompareCreds -->|No| Raise401["Raise 401"]
+
+    TryBasic -->|No| Raise401
+```
 
 1. **Check if auth is configured.** If `settings.auth_password` is empty, return `None` (anonymous access allowed).
 
@@ -120,7 +147,7 @@ def get_current_user(
 4. **Raise 401.** If neither method succeeds, raise `HTTPException(status_code=401)`.
 
 ```python
-# Simplified flow
+# Simplified flow from app/api/deps.py
 if not settings.auth_password:
     return None  # anonymous access
 
@@ -145,6 +172,7 @@ raise HTTPException(status_code=401)
 The logout endpoint simply deletes the cookie:
 
 ```python
+# From app/api/routes/auth.py
 @router.post("/logout")
 def logout(response: Response) -> SessionResponse:
     response.delete_cookie(key=SESSION_COOKIE_NAME, path="/", samesite="lax")
@@ -156,6 +184,7 @@ def logout(response: Response) -> SessionResponse:
 The `/api/auth/session` endpoint allows the frontend to check if the user is currently authenticated:
 
 ```python
+# From app/api/routes/auth.py
 @router.get("/session")
 def get_session(request: Request, settings: Settings) -> SessionResponse:
     session = _get_optional_session(request, settings)
@@ -182,6 +211,7 @@ The session check endpoint does not raise 401 -- it always returns a response in
 ### Creation
 
 ```python
+# From app/core/auth.py
 def create_session_token(*, username: str, secret: str, max_age_seconds: int) -> str:
     expires_at = int(time.time()) + max_age_seconds
     payload = base64_urlsafe_encode(json.dumps({"u": username, "e": expires_at}))
@@ -192,6 +222,7 @@ def create_session_token(*, username: str, secret: str, max_age_seconds: int) ->
 ### Verification
 
 ```python
+# From app/core/auth.py
 def verify_session_token(token: str, *, secret: str) -> AuthSession | None:
     payload, signature = token.rsplit(".", 1)
     expected = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()

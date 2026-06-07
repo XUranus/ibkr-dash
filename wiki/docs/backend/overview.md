@@ -67,7 +67,7 @@ ibkr_dash_backend/
 Every route handler declares its dependencies as function parameters annotated with `Depends(...)`. FastAPI resolves these automatically at request time.
 
 ```python
-# Example from positions.py
+# From app/api/routes/positions.py
 @router.get("", response_model=PositionListResponse)
 def list_positions(
     report_date: str | None = Query(default=None),
@@ -80,6 +80,7 @@ def list_positions(
 The dependency providers live in `app/api/deps.py`. Each provider creates a service instance and injects the shared `Database` singleton:
 
 ```python
+# From app/api/deps.py
 def get_position_service(db: Database = Depends(get_db)) -> PositionService:
     return PositionService(db)
 ```
@@ -93,6 +94,8 @@ All business logic sits in **service classes** (e.g., `AccountService`, `Positio
 All request bodies and response shapes are defined as **Pydantic models** in the `schemas/` directory. FastAPI uses these for automatic request validation and response serialization.
 
 ## Request Lifecycle
+
+Here is how a typical API request flows through the backend, from the HTTP request arriving to the JSON response being sent:
 
 ```mermaid
 sequenceDiagram
@@ -114,6 +117,27 @@ sequenceDiagram
     Service-->>FastAPI: Pydantic response model
     FastAPI-->>Client: JSON response
 ```
+
+### Middleware Stack
+
+The request passes through three middleware layers before reaching the route handler:
+
+```mermaid
+flowchart LR
+    Request["Incoming HTTP Request"] --> CORS["CORS Middleware<br/>Check Origin Headers"]
+    CORS --> GZip["GZip Middleware<br/>Compress Response > 1KB"]
+    GZip --> BodyLimit["Body Size Limit<br/>Reject > 1MB"]
+    BodyLimit --> Router["FastAPI Router<br/>Match Route"]
+    Router --> Response["JSON Response"]
+```
+
+1. **CORS** (`app/core/cors.py`) -- Allows the frontend dev server to call the API. Origins are configured via `CORS_ORIGINS`.
+2. **GZip** -- Compresses large JSON responses (threshold: 1000 bytes).
+3. **Body Size Limit** -- Rejects requests with bodies larger than 1 MB (prevents abuse).
+
+:::tip
+The CORS middleware is critical during development. Without it, the browser blocks requests from `localhost:5173` (frontend) to `localhost:8000` (backend) due to the Same-Origin Policy. The `CORS_ORIGINS` setting must include the frontend URL.
+:::
 
 ## Why SQLite?
 
@@ -137,6 +161,7 @@ When the FastAPI app starts (via the `lifespan` context manager), it:
 3. Initializes the SQLite database schema (creates tables and indexes if they do not exist)
 
 ```python
+# From app/main.py
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
@@ -145,13 +170,9 @@ async def lifespan(app: FastAPI):
     yield
 ```
 
-## Middleware Stack
-
-The app applies three middleware layers in order:
-
-1. **CORS** -- Allows the frontend dev server to call the API. Origins are configured via `CORS_ORIGINS`.
-2. **GZip** -- Compresses large JSON responses (threshold: 1000 bytes).
-3. **Body Size Limit** -- Rejects requests with bodies larger than 1 MB (prevents abuse).
+:::info
+The `init_database()` function (in `app/core/database.py`) runs the full DDL schema creation with `CREATE TABLE IF NOT EXISTS` statements. It also runs any pending migrations from the `_MIGRATIONS` list.
+:::
 
 ## Tech Stack
 
@@ -167,7 +188,7 @@ The app applies three middleware layers in order:
 
 ## AI Agent Architecture
 
-The backend includes four specialized AI agents, each designed for a specific portfolio analysis task:
+The backend includes five specialized AI agents, each designed for a specific portfolio analysis task:
 
 | Agent | Purpose | Trigger |
 |-------|---------|---------|
@@ -178,6 +199,27 @@ The backend includes four specialized AI agents, each designed for a specific po
 | **Account Copilot** | Conversational assistant with tool use. | `POST /api/copilot/chat` |
 
 Agents gather **evidence** from the database (positions, trades, PnL), build a **prompt** with context, call the LLM, and parse the **structured output** into a typed response. Results are persisted in dedicated database tables for later retrieval.
+
+```mermaid
+flowchart TD
+    subgraph AgentFlow ["Agent Execution Flow"]
+        Trigger["API Trigger<br/>(POST /api/...)"] --> Task["Create Agent Task<br/>status=pending"]
+        Task --> Evidence["Gather Evidence<br/>Query SQLite"]
+        Evidence --> Prompt["Build Prompt<br/>System + Context"]
+        Prompt --> LLM["Call LLM<br/>ReAct Loop"]
+        LLM --> Parse["Parse Output<br/>Structured JSON"]
+        Parse --> Store["Store Result<br/>Update Task Status"]
+    end
+
+    subgraph Data ["Data Sources"]
+        Positions["position_snapshots"]
+        Trades["trade_records"]
+        CashFlows["cash_flows"]
+        Prices["price_history"]
+    end
+
+    Evidence --> Data
+```
 
 ## Testing
 

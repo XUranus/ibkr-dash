@@ -12,11 +12,6 @@ The Trade Review agent evaluates your historical trading performance for a speci
 
 The entry point is `review_trade()` in `app/agents/trade_review/agent.py`. It follows a four-step pipeline:
 
-1. **Load trade facts** from the database (trades, positions, lifecycle stage)
-2. **Build evidence pack** with trade facts, performance metrics, and market context
-3. **Call LLM** with structured output contract for analysis and scoring
-4. **Normalize and save** the result
-
 ```mermaid
 flowchart TD
     A[API: review_trade] --> B[Load Trade Facts from DB]
@@ -29,6 +24,41 @@ flowchart TD
     B --> B2[Current position]
     B --> B3[Lifecycle stage]
     B --> B4[Performance metrics]
+```
+
+### Evidence Gathering Flow
+
+```mermaid
+flowchart LR
+    subgraph "Database Queries"
+        Q1[Trade Records Query]
+        Q2[Position Snapshot Query]
+        Q3[Lifecycle Stage Query]
+        Q4[Performance Metrics Query]
+    end
+
+    subgraph "Evidence Pack Sections"
+        E1[Trade Facts]
+        E2[Performance Metrics]
+        E3[Price Context]
+        E4[Benchmark Context]
+        E5[External Events]
+    end
+
+    subgraph "Context Budget"
+        CB[Apply Budget Limits]
+    end
+
+    Q1 --> E1
+    Q2 --> E1
+    Q3 --> E1
+    Q4 --> E2
+    E1 --> CB
+    E2 --> CB
+    E3 --> CB
+    E4 --> CB
+    E5 --> CB
+    CB --> LLM[LLM Prompt]
 ```
 
 ## Review Types
@@ -69,6 +99,20 @@ For positions that are still open (no SELL trades), `exit_quality_score` is mark
 
 For BUY-only open positions, the system enforces minimum scores on `entry_quality_score` (5.0), `position_sizing_score` (3.0), `holding_period_score` (1.0), and `risk_control_score` (1.0) to avoid zero-score outputs.
 
+### Scoring Breakdown Diagram
+
+```mermaid
+pie title Trade Review Score Composition (100 points)
+    "return_result_score (20)" : 20
+    "relative_performance_score (15)" : 15
+    "entry_quality_score (15)" : 15
+    "exit_quality_score (15)" : 15
+    "position_sizing_score (15)" : 15
+    "holding_period_score (5)" : 5
+    "risk_control_score (10)" : 10
+    "decision_attribution_score (5)" : 5
+```
+
 ## Rating Derivation
 
 The overall score is calculated as `(raw_score / applicable_max_score) * 100`, then mapped to a rating:
@@ -84,28 +128,46 @@ The overall score is calculated as `(raw_score / applicable_max_score) * 100`, t
 
 The agent can tag common trading mistakes from this allowed set:
 
-| Tag | Meaning |
-|---|---|
-| `CHASE_HIGH` | Bought after a significant run-up |
-| `SELL_TOO_EARLY` | Exited before the move played out |
-| `SELL_TOO_LATE` | Held too long and gave back gains |
-| `PANIC_SELL` | Sold during a panic/crash |
-| `POSITION_TOO_SMALL` | Position was too small to matter |
-| `POSITION_TOO_LARGE` | Position was too large for the account |
-| `MISSED_OPPORTUNITY` | Identified the trade but didn't execute |
-| `NO_CLEAR_PLAN` | No defined entry/exit criteria |
-| `WEAK_RELATIVE_PERFORMANCE` | Underperformed the benchmark |
-| `GOOD_ENTRY` | Well-timed entry (positive tag) |
-| `GOOD_EXIT` | Well-timed exit (positive tag) |
-| `GOOD_POSITION_SIZING` | Appropriate position size (positive tag) |
-| `GOOD_TREND_FOLLOW` | Successfully followed the trend (positive tag) |
-| `GOOD_RISK_CONTROL` | Good risk management (positive tag) |
+### Negative Tags (Behavioral Mistakes)
+
+| Tag | Meaning | Category |
+|---|---|---|
+| `CHASE_HIGH` | Bought after a significant run-up | Entry mistake |
+| `SELL_TOO_EARLY` | Exited before the move played out | Exit mistake |
+| `SELL_TOO_LATE` | Held too long and gave back gains | Exit mistake |
+| `PANIC_SELL` | Sold during a panic/crash | Emotional mistake |
+| `POSITION_TOO_SMALL` | Position was too small to matter | Sizing mistake |
+| `POSITION_TOO_LARGE` | Position was too large for the account | Sizing mistake |
+| `MISSED_OPPORTUNITY` | Identified the trade but didn't execute | Execution mistake |
+| `NO_CLEAR_PLAN` | No defined entry/exit criteria | Planning mistake |
+| `WEAK_RELATIVE_PERFORMANCE` | Underperformed the benchmark | Performance issue |
+
+### Positive Tags (Good Practices)
+
+| Tag | Meaning | Category |
+|---|---|---|
+| `GOOD_ENTRY` | Well-timed entry | Good entry |
+| `GOOD_EXIT` | Well-timed exit | Good exit |
+| `GOOD_POSITION_SIZING` | Appropriate position size | Good sizing |
+| `GOOD_TREND_FOLLOW` | Successfully followed the trend | Good strategy |
+| `GOOD_RISK_CONTROL` | Good risk management | Good risk |
 
 Unknown tags from the LLM are filtered out and added to `data_limitations`.
 
 ## Anti-Hindsight Bias
 
 The evaluation harness includes checks to prevent **hindsight bias** -- the tendency to judge past decisions based on outcomes that weren't known at the time:
+
+```mermaid
+flowchart TD
+    A[Trade Review Output] --> B{Contains result-only reasoning?}
+    B -->|"Yes: '赚钱就是好交易'"| C[Flag: hindsight_bias_result_only]
+    B -->|No| D{Denies valid sell decision?}
+    D -->|"Yes: '完全否定当时卖出'"| E[Flag: hindsight_bias_sell_denial]
+    D -->|No| F{BUY-only scored as zero?}
+    F -->|Yes| G[Flag: buy_only_zero_score]
+    F -->|No| H[Pass: No hindsight bias detected]
+```
 
 - "赚钱就是好交易" (making money means good trade) is flagged as result-only thinking
 - "完全否定当时卖出" (completely denying the sell decision) is flagged when reviewing hindsight scenarios
@@ -114,6 +176,7 @@ The evaluation harness includes checks to prevent **hindsight bias** -- the tend
 ## Output Schema
 
 ```python
+# app/agents/trade_review/output_schema.py
 class TradeReviewOutput(FlexibleModel):
     symbol: str | None = None
     review_type: str | None = None

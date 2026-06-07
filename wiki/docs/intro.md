@@ -27,6 +27,22 @@ IBKR Dash solves these problems:
 
 ---
 
+## Feature Comparison: IBKR Dash vs. Alternatives
+
+| Feature | IBKR Dash | IBKR Web Portal | Bloomberg Terminal | Yahoo Finance |
+|---------|-----------|----------------|-------------------|---------------|
+| **Cost** | Free (open source) | Free (built-in) | $24,000/yr | Free tier available |
+| **AI Analysis** | 5 specialized agents | None | Limited | None |
+| **Natural Language Chat** | Yes (Copilot) | No | No | No |
+| **Historical Tracking** | Daily snapshots stored locally | Limited (90 days) | Yes | Limited |
+| **Data Ownership** | Full (local SQLite) | IBKR servers | Bloomberg servers | Yahoo servers |
+| **Customization** | Full source code | None | Limited | None |
+| **Deployment** | Local / Docker | N/A | Desktop app | Web |
+| **Offline Access** | Yes | No | Partial | No |
+| **Portfolio Privacy** | Complete | IBKR has access | Bloomberg has access | Yahoo has access |
+
+---
+
 ## Feature Overview
 
 ### Data Dashboard
@@ -58,6 +74,10 @@ IBKR Dash includes five AI agents, each specialized for a different analysis tas
 
 All agents use a **structured output pipeline** that ensures reliable JSON output. If the LLM produces malformed JSON, the system automatically attempts repair before returning a result.
 
+:::tip
+The structured output pipeline (defined in `app/agents/structured_output/runtime.py`) uses a four-stage process: parse, validate, repair, fallback. This ensures that even if the LLM produces slightly malformed JSON, the system can still extract a valid result.
+:::
+
 ### Admin Panel
 
 The admin panel gives you control over the system configuration:
@@ -72,18 +92,23 @@ The admin panel gives you control over the system configuration:
 
 ---
 
-## Architecture at a Glance
+## System Architecture
 
 IBKR Dash consists of three independent modules that communicate through a shared SQLite database. This separation means each module can be developed, tested, and deployed independently.
 
 ```mermaid
-graph LR
+graph TB
+    subgraph User ["User's Browser"]
+        Browser["Web Browser"]
+    end
+
     subgraph Frontend ["Frontend (React + TypeScript)"]
         UI["Dashboard UI<br/>19 Views<br/>ECharts Visualizations"]
     end
 
     subgraph Backend ["Backend (FastAPI + Python)"]
         API["REST API<br/>20+ Routes"]
+        Services["Service Layer<br/>Business Logic"]
         Agents["AI Agents<br/>5 Agent Types<br/>ReAct Runtime"]
         LLMClient["LLM Client<br/>httpx"]
     end
@@ -95,7 +120,7 @@ graph LR
     end
 
     subgraph Storage ["SQLite Database"]
-        DB["ibkr_dash.db<br/>13 Tables<br/>WAL Mode"]
+        DB["ibkr_dash.db<br/>16 Tables<br/>WAL Mode"]
     end
 
     subgraph External ["External Services"]
@@ -103,15 +128,44 @@ graph LR
         LLM["LLM Provider<br/>(OpenAI / DeepSeek / MiMo)"]
     end
 
-    UI -- "HTTP REST API" --> API
-    API -- "SQL Queries" --> DB
-    ETL -- "Bulk Upsert" --> DB
-    Scheduler -- "Triggers" --> ETL
-    FlexClient -- "Flex Query API" --> IBKR
-    ETL --> FlexClient
+    Browser -- "HTTP" --> UI
+    UI -- "REST API" --> API
+    API --> Services
+    API --> Agents
+    Services --> DB
+    Agents --> DB
     Agents -- "Chat Completions" --> LLM
-    Agents -- "Read/Write" --> DB
     LLMClient --> Agents
+    Scheduler -- "Triggers" --> ETL
+    ETL --> FlexClient
+    FlexClient -- "Flex Query API" --> IBKR
+    ETL -- "Bulk Upsert" --> DB
+```
+
+### Request Lifecycle
+
+Here is how a typical API request flows through the system, from the moment a user clicks a link to the data appearing on screen:
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant Frontend as Frontend (React)
+    participant FastAPI as FastAPI Router
+    participant Deps as Dependency Injection
+    participant Service as Service Layer
+    participant DB as SQLite (WAL Mode)
+
+    Browser->>Frontend: User clicks "Positions"
+    Frontend->>FastAPI: GET /api/positions
+    FastAPI->>Deps: Resolve dependencies
+    Deps->>DB: get_database() singleton
+    Deps->>FastAPI: PositionService(db)
+    FastAPI->>Service: service.list_positions()
+    Service->>DB: SELECT * FROM position_snapshots
+    DB-->>Service: Row data
+    Service-->>FastAPI: Pydantic model
+    FastAPI-->>Frontend: JSON response
+    Frontend-->>Browser: Render position table
 ```
 
 ### Module Responsibilities
@@ -129,6 +183,10 @@ graph LR
 3. **OpenAI-compatible AI** -- The LLM client works with any OpenAI-compatible provider. Switch models by changing environment variables.
 4. **Structured output** -- All AI agent outputs are validated against Pydantic schemas with automatic repair and fallback.
 5. **Local-first** -- Designed to run on your machine. No cloud services required (except the LLM API if you enable AI features).
+
+:::warning
+SQLite with WAL mode handles concurrent reads and a single writer well, but it is not designed for high-concurrency write workloads. For a personal investment dashboard, this is more than sufficient. If you need multi-user concurrent writes, consider migrating to PostgreSQL.
+:::
 
 ---
 
@@ -152,7 +210,7 @@ This documentation is organized to take you from zero to a running dashboard. He
 **[Architecture Overview](./architecture/overview.md)** -- Understand the big picture:
 
 - How the three modules (backend, frontend, worker) fit together
-- The full database schema with 13 tables and their relationships
+- The full database schema with 16 tables and their relationships
 - Directory structure of each module
 - Design decisions (why SQLite, why no LangGraph, why React)
 - Security model and authentication

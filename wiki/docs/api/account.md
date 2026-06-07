@@ -97,6 +97,20 @@ Each delta field contains:
 | `amount_change` | float | Absolute change from previous day |
 | `percent_change` | float | Percentage change from previous day |
 
+### Asset Breakdown
+
+The response separates your portfolio by asset class:
+
+| Field | Asset Class | Example Value |
+|-------|-------------|---------------|
+| `stock_value` | Individual stocks (STK) | `95000.00` |
+| `options_value` | Options contracts (OPT) | `8000.00` |
+| `funds_value` | ETFs and mutual funds (FUND) | `5000.00` |
+| `crypto_value` | Cryptocurrency (CRYPTO) | `2000.25` |
+| `cash` | Cash and money market | `15000.25` |
+
+The sum of all asset values equals `total_equity`.
+
 ### Error Response (404)
 
 ```json
@@ -111,6 +125,17 @@ This happens when no data has been imported yet.
 
 ```bash
 curl -b cookies.txt http://localhost:8000/api/account/overview
+```
+
+### Example: Rendering in React
+
+```typescript
+// Fetch and display account overview
+const response = await fetch('/api/account/overview', { credentials: 'include' });
+const overview = await response.json();
+
+console.log(`Total Equity: $${overview.total_equity.toLocaleString()}`);
+console.log(`Day Change: ${overview.total_equity_delta.percent_change > 0 ? '+' : ''}${(overview.total_equity_delta.percent_change * 100).toFixed(2)}%`);
 ```
 
 ---
@@ -190,6 +215,22 @@ curl -b cookies.txt "http://localhost:8000/api/account/snapshots?limit=10"
 
 # Get last 90 days
 curl -b cookies.txt "http://localhost:8000/api/account/snapshots?limit=90"
+```
+
+### Example: Building an Equity Chart
+
+```typescript
+// Fetch snapshots and render a line chart
+const res = await fetch('/api/account/snapshots?limit=90', { credentials: 'include' });
+const { items } = await res.json();
+
+const chartData = items.map(s => ({
+  date: s.report_date,
+  equity: s.total_equity,
+}));
+
+// chartData is ready for ECharts, Recharts, etc.
+// [{ date: "2025-06-01", equity: 125000.50 }, ...]
 ```
 
 ---

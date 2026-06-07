@@ -9,6 +9,46 @@ This guide covers debugging techniques for the backend, frontend, and worker mod
 
 ---
 
+## Debugging Workflow
+
+```mermaid
+flowchart TD
+    A[Issue Detected] --> B{Which module?}
+    B -->|Backend| C[Check uvicorn logs]
+    B -->|Frontend| D[Check browser console]
+    B -->|Worker| E[Check worker stdout]
+    B -->|Docker| F[docker compose logs]
+
+    C --> G{Error type?}
+    G -->|500 Internal| H[Check traceback in logs]
+    G -->|401/403| I[Check auth config]
+    G -->|422 Validation| J[Check request body]
+    G -->|DB Error| K[Check SQLite state]
+
+    D --> L{Error type?}
+    L -->|Network Error| M[Check backend is running]
+    L -->|Blank Page| N[Check build errors]
+    L -->|Component Error| O[Check React DevTools]
+
+    E --> P{Error type?}
+    P -->|Import Error| Q[Check CSV format]
+    P -->|API Error| R[Check Flex credentials]
+    P -->|Scheduler| S[Check cron config]
+
+    H --> T[Fix code or config]
+    I --> T
+    J --> T
+    K --> T
+    M --> T
+    N --> T
+    O --> T
+    Q --> T
+    R --> T
+    S --> T
+```
+
+---
+
 ## Backend Debugging
 
 ### Enable Debug Mode
@@ -151,6 +191,7 @@ The Vite dev server provides:
 The Vite dev server proxies `/api` requests to the backend. This is configured in `vite.config.ts`:
 
 ```typescript
+// vite.config.ts
 server: {
   proxy: {
     '/api': {

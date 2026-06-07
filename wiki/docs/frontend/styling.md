@@ -21,17 +21,81 @@ The styling is organized into three files:
 Both `theme.css` and `base.css` are imported in `main.tsx`:
 
 ```tsx
+// ibkr_dash_frontend/src/main.tsx
 import './styles/theme.css'
 import './styles/base.css'
+```
+
+## Design Token Architecture
+
+```mermaid
+graph TB
+    subgraph theme.css["theme.css (Design Tokens)"]
+        Colors["Color Palette"]
+        Shadows["Shadows"]
+        Radius["Border Radius"]
+        Spacing["Spacing Scale"]
+        Typography["Typography"]
+        Grain["Grain Texture"]
+    end
+
+    subgraph base.css["base.css (Component Styles)"]
+        Shell[".app-shell"]
+        Panel[".surface-panel"]
+        Buttons[".btn variants"]
+        Tags[".tag variants"]
+        Table[".data-table"]
+        Input[".input / .select"]
+        Animations["@keyframes"]
+    end
+
+    subgraph Components["React Components"]
+        AppHeader
+        StatCard
+        Tables["PositionTable, TradeTable"]
+        Charts["EquityCurve, Calendar"]
+    end
+
+    theme.css -->|"CSS variables"| base.css
+    theme.css -->|"CSS variables"| Components
+    base.css -->|"class names"| Components
 ```
 
 ## Design Tokens (CSS Variables)
 
 All visual properties are defined as CSS custom properties in `theme.css`. This makes it easy to maintain consistency and adjust the theme.
 
-### Color Palette
+### Color Palette Reference
+
+| Variable | Value | Usage |
+|---|---|---|
+| `--color-bg` | `#080b12` | Page background |
+| `--color-bg-elevated` | `rgba(12, 16, 28, 0.96)` | Elevated surfaces |
+| `--color-bg-panel` | `rgba(14, 18, 32, 0.92)` | Panel backgrounds |
+| `--color-bg-panel-strong` | `rgba(18, 24, 42, 0.96)` | Stronger panel backgrounds |
+| `--color-bg-muted` | `rgba(20, 26, 44, 0.72)` | Muted backgrounds |
+| `--color-bg-glass` | `rgba(18, 24, 42, 0.56)` | Glass effect backgrounds |
+| `--color-border` | `rgba(255, 191, 80, 0.08)` | Default borders |
+| `--color-border-strong` | `rgba(255, 191, 80, 0.18)` | Emphasized borders |
+| `--color-border-subtle` | `rgba(255, 255, 255, 0.04)` | Subtle borders |
+| `--color-text-primary` | `#e8e4dc` | Primary text |
+| `--color-text-secondary` | `#8a8d9e` | Secondary text |
+| `--color-text-muted` | `#5a5d6e` | Muted text |
+| `--color-text-bright` | `#fff8ef` | Bright/highlighted text |
+| `--color-accent` | `#d4a843` | Primary accent (amber/gold) |
+| `--color-accent-soft` | `rgba(212, 168, 67, 0.12)` | Soft accent backgrounds |
+| `--color-accent-strong` | `#f0c55e` | Strong accent |
+| `--color-accent-glow` | `rgba(212, 168, 67, 0.06)` | Accent glow effects |
+| `--color-positive` | `#3dd68c` | Gains, success |
+| `--color-positive-soft` | `rgba(61, 214, 140, 0.10)` | Positive backgrounds |
+| `--color-negative` | `#f25c5c` | Losses, errors |
+| `--color-negative-soft` | `rgba(242, 92, 92, 0.10)` | Negative backgrounds |
+| `--color-warning` | `#f0a030` | Warnings |
+
+### Color Palette CSS
 
 ```css
+/* ibkr_dash_frontend/src/styles/theme.css */
 :root {
   /* Surface palette */
   --color-bg:              #080b12;     /* Page background */
@@ -91,17 +155,15 @@ All visual properties are defined as CSS custom properties in `theme.css`. This 
 
 ### Spacing Scale
 
-```css
-:root {
-  --space-1: 0.25rem;   /* 4px */
-  --space-2: 0.5rem;    /* 8px */
-  --space-3: 0.75rem;   /* 12px */
-  --space-4: 1rem;      /* 16px */
-  --space-5: 1.5rem;    /* 24px */
-  --space-6: 2rem;      /* 32px */
-  --space-7: 3rem;      /* 48px */
-}
-```
+| Variable | Value | Pixels |
+|---|---|---|
+| `--space-1` | `0.25rem` | 4px |
+| `--space-2` | `0.5rem` | 8px |
+| `--space-3` | `0.75rem` | 12px |
+| `--space-4` | `1rem` | 16px |
+| `--space-5` | `1.5rem` | 24px |
+| `--space-6` | `2rem` | 32px |
+| `--space-7` | `3rem` | 48px |
 
 ### Typography
 
@@ -122,6 +184,7 @@ All visual properties are defined as CSS custom properties in `theme.css`. This 
 The `.app-shell` class centers content and constrains width:
 
 ```css
+/* ibkr_dash_frontend/src/styles/base.css */
 .app-shell {
   width: min(1520px, calc(100% - 48px));
   margin: 0 auto;
@@ -203,6 +266,35 @@ Styled tables for data display:
   <span className="field-stack__label">USERNAME</span>
   <input className="input" />
 </label>
+```
+
+## Theme Switching Example
+
+While the current app uses a fixed dark theme, the CSS variable architecture makes it straightforward to add theme switching. Here is an example of how you could implement a light theme toggle:
+
+```typescript
+// Example: Theme switching utility
+const themes = {
+  dark: {
+    '--color-bg': '#080b12',
+    '--color-text-primary': '#e8e4dc',
+    '--color-accent': '#d4a843',
+  },
+  light: {
+    '--color-bg': '#f5f3ee',
+    '--color-text-primary': '#1a1a2e',
+    '--color-accent': '#b8860b',
+  },
+}
+
+function applyTheme(themeName: 'dark' | 'light') {
+  const root = document.documentElement
+  const vars = themes[themeName]
+  for (const [key, value] of Object.entries(vars)) {
+    root.style.setProperty(key, value)
+  }
+  localStorage.setItem('theme', themeName)
+}
 ```
 
 ## Component Styling Patterns

@@ -21,28 +21,134 @@ The IBKR Dashboard frontend is a single-page application built with **React 18**
 | react-markdown | 10.1 | Markdown rendering (Copilot) |
 | Vitest | 4.1 | Unit testing |
 
+## Application Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph Browser
+        User["User"]
+    end
+
+    subgraph Frontend["React SPA (Vite)"]
+        Router["React Router v6"]
+        Views["Views (Lazy Loaded)"]
+        Components["Reusable Components"]
+        Hooks["Custom Hooks"]
+        API["API Client Layer"]
+        I18N["react-i18next"]
+        Charts["ECharts"]
+    end
+
+    subgraph Backend["FastAPI Backend"]
+        REST["REST API"]
+        Auth["Auth Service"]
+        Agents["AI Agents"]
+    end
+
+    subgraph Data["SQLite Database"]
+        DB[(ibkr_dash.db)]
+    end
+
+    User -->|"interacts with"| Router
+    Router -->|"renders"| Views
+    Views -->|"compose"| Components
+    Views -->|"use"| Hooks
+    Components -->|"fetch data via"| API
+    API -->|"HTTP + JWT"| REST
+    REST -->|"reads/writes"| DB
+    Agents -->|"reads"| DB
+    Views -->|"translate text"| I18N
+    Views -->|"render charts"| Charts
+```
+
 ## Module Structure
 
 The source code lives in `ibkr_dash_frontend/src/` and is organized by concern:
 
 ```
-src/
+ibkr_dash_frontend/src/
 ├── api/              # API client functions (one file per domain)
-├── auth/             # Authentication utilities
-├── components/       # Reusable UI components
+│   ├── http.ts       # Shared Axios instance with JWT interceptor
+│   ├── account.ts    # Account overview & snapshots
+│   ├── positions.ts  # Position data
+│   ├── trades.ts     # Trade records
+│   ├── charts.ts     # Equity curve, calendar data
+│   ├── auth.ts       # Login / logout
+│   └── ...           # 18 more domain-specific files
+├── auth/             # Authentication utilities (token storage, refresh)
+├── components/       # Reusable UI components (StatCard, tables, charts, etc.)
+│   ├── AppHeader.tsx
+│   ├── StatCard.tsx
+│   ├── PositionTable.tsx
+│   ├── ErrorBoundary.tsx
+│   └── ...
 ├── composables/      # Shared composition logic
 ├── hooks/            # Custom React hooks
+│   ├── useAuth.ts         # Authentication state management
+│   ├── useAccountOverview.ts  # Account metrics fetching
+│   └── ...
 ├── i18n/             # Internationalization setup and locale files
+│   ├── index.ts      # i18next initialization
 │   └── locales/      # en.json, zh-CN.json
 ├── router/           # React Router configuration
-├── styles/           # CSS files (theme, base, overrides)
+│   └── index.tsx     # All route definitions with lazy loading
+├── styles/           # CSS files
+│   ├── theme.css     # Design tokens (CSS variables)
+│   ├── base.css      # Base styles and component classes
+│   └── primevue-overrides.css
 ├── test/             # Test utilities
-├── types/            # TypeScript type definitions
+├── types/            # TypeScript type definitions (one file per domain)
+│   ├── account.ts    # AccountOverview, AccountSnapshot
+│   ├── positions.ts  # PositionItem, PositionDetail
+│   ├── common.ts     # PaginatedResponse, ApiResponse
+│   └── ...
 ├── utils/            # Utility functions (format, metrics)
 ├── views/            # Page-level components (one per route)
-├── App.tsx           # Root component
-├── main.tsx          # Entry point
+│   ├── DashboardView.tsx
+│   ├── PositionsView.tsx
+│   ├── TradesView.tsx
+│   ├── AccountCopilotView.tsx
+│   ├── TradeDecisionAgentView.tsx
+│   └── ...
+├── App.tsx           # Root component (layout + header + outlet)
+├── main.tsx          # Entry point (renders App, imports styles)
 └── vite-env.d.ts     # Vite type declarations
+```
+
+## Component Hierarchy
+
+```mermaid
+graph TB
+    Main["main.tsx"] --> App["App.tsx"]
+    App --> AppHeader["AppHeader"]
+    App --> ErrorBoundary["ErrorBoundary"]
+    App --> Outlet["Route Outlet"]
+
+    Outlet --> Dashboard["DashboardView"]
+    Outlet --> Positions["PositionsView"]
+    Outlet --> Trades["TradesView"]
+    Outlet --> Copilot["AccountCopilotView"]
+    Outlet --> Decision["TradeDecisionAgentView"]
+    Outlet --> Review["TradeReviewAgentView"]
+    Outlet --> Daily["DailyPositionReviewView"]
+    Outlet --> Admin["Admin Views"]
+    Outlet --> Bootstrap["BootstrapView"]
+    Outlet --> Research["StockResearchView"]
+
+    Dashboard --> StatCard["StatCard"]
+    Dashboard --> EquityCurve["EquityCurveSimple"]
+    Dashboard --> Calendar["PerformanceCalendar"]
+    Dashboard --> Pie["PieDistributionCard"]
+
+    Positions --> PosTable["PositionTable"]
+    Positions --> Pie
+
+    Trades --> TradeTable["TradeTable"]
+
+    Copilot --> Markdown["react-markdown"]
+    Copilot --> JsonBlock["JsonBlock"]
+    Decision --> AgentPanel["AgentEvidencePanel"]
+    Decision --> AgentGraph["AgentTaskGraph"]
 ```
 
 ## Key Dependencies
@@ -77,6 +183,43 @@ The Vite config (`vite.config.ts`) sets up:
 - Path alias `@` pointing to `src/`
 - Dev server with API proxy to the backend
 - Production build with code splitting
+
+### vite.config.ts
+
+```typescript
+// ibkr_dash_frontend/vite.config.ts
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'path'
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, 'src'),
+    },
+  },
+  server: {
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          charts: ['echarts'],
+        },
+      },
+    },
+  },
+})
+```
 
 ### Development
 
@@ -126,7 +269,55 @@ Each backend domain has a corresponding API client file in `src/api/`:
 | `adminLongbridgeMcp.ts` | Longbridge MCP settings |
 | `agentTasks.ts` | Agent task history |
 
-All API calls go through a shared HTTP client (`api/http.ts`) that handles authentication headers, error responses, and base URL configuration.
+### HTTP Client
+
+All API calls go through a shared HTTP client (`src/api/http.ts`) that handles authentication headers, error responses, and base URL configuration.
+
+```typescript
+// ibkr_dash_frontend/src/api/http.ts
+import axios from 'axios'
+
+const http = axios.create({
+  baseURL: '/api',
+  headers: { 'Content-Type': 'application/json' },
+})
+
+// Attach JWT token from localStorage
+http.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+// Handle 401 errors (redirect to login)
+http.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token')
+      window.location.href = '/'
+    }
+    return Promise.reject(error)
+  },
+)
+
+export default http
+```
+
+### Example API Call
+
+```typescript
+// ibkr_dash_frontend/src/api/account.ts
+import http from './http'
+import type { AccountOverview } from '@/types/account'
+
+export async function fetchAccountOverview(): Promise<AccountOverview> {
+  const { data } = await http.get('/account/overview')
+  return data
+}
+```
 
 ## Type Definitions
 
@@ -147,6 +338,32 @@ TypeScript types are defined in `src/types/`, one file per domain:
 | `agentTasks.ts` | AgentTask, AgentTaskStatus |
 | `common.ts` | PaginatedResponse, ApiResponse |
 | `auth.ts` | AuthState, LoginCredentials |
+
+## Data Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant View as DashboardView
+    participant Hook as useAccountOverview
+    participant API as api/account.ts
+    participant HTTP as api/http.ts
+    participant Backend as FastAPI Backend
+    participant DB as SQLite
+
+    User->>View: Navigate to /
+    View->>Hook: useAccountOverview()
+    Hook->>API: fetchAccountOverview()
+    API->>HTTP: http.get('/account/overview')
+    HTTP->>Backend: GET /api/account/overview (JWT)
+    Backend->>DB: SELECT * FROM account_snapshots
+    DB-->>Backend: Rows
+    Backend-->>HTTP: JSON response
+    HTTP-->>API: AxiosResponse
+    API-->>Hook: AccountOverview
+    Hook-->>View: { data, loading, error }
+    View->>User: Render StatCards + Charts
+```
 
 ## Design Philosophy
 

@@ -21,6 +21,47 @@ Before deploying, make sure you have:
 
 ---
 
+## Deployment Architecture
+
+```mermaid
+graph TB
+    subgraph Internet
+        USER[Browser]
+    end
+
+    subgraph Server["Production Server"]
+        subgraph UFW["Firewall (UFW)"]
+            P22["SSH :22"]
+            P80["HTTP :80"]
+            P443["HTTPS :443"]
+        end
+
+        subgraph Nginx["Nginx (Host)"]
+            SSL["SSL/TLS Termination"]
+            REDIRECT["HTTP -> HTTPS Redirect"]
+        end
+
+        subgraph Docker["Docker Compose"]
+            FRONTEND["Frontend (Nginx) :80"]
+            BACKEND["Backend (uvicorn) :8000"]
+            WORKER["Worker (APScheduler)"]
+            DB[("SQLite (volume)")]
+        end
+    end
+
+    USER -->|HTTPS| P443
+    P80 -->|Redirect| P443
+    P443 --> SSL
+    SSL --> FRONTEND
+    SSL -->|"/api/*"| BACKEND
+    FRONTEND -->|"/api/*"| BACKEND
+    BACKEND --> DB
+    WORKER --> DB
+    WORKER -->|Flex API| IBKR["IBKR Flex Web Service"]
+```
+
+---
+
 ## Step 1: Server Setup
 
 ### Install Docker
@@ -140,6 +181,9 @@ sudo nano /etc/nginx/sites-available/ibkr-dash
 Add this configuration:
 
 ```nginx
+# /etc/nginx/sites-available/ibkr-dash
+
+# HTTP -> HTTPS redirect
 server {
     listen 80;
     server_name dash.example.com;
@@ -148,6 +192,7 @@ server {
     return 301 https://$host$request_uri;
 }
 
+# HTTPS server
 server {
     listen 443 ssl http2;
     server_name dash.example.com;
@@ -156,11 +201,17 @@ server {
     ssl_certificate /etc/letsencrypt/live/dash.example.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/dash.example.com/privkey.pem;
 
+    # Modern SSL settings
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers off;
+
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
     # Proxy to Docker frontend (Nginx inside the container)
     location / {
@@ -172,6 +223,7 @@ server {
     }
 
     # Direct proxy to backend API (optional, for better performance)
+    # Bypasses the container Nginx for API requests
     location /api/ {
         proxy_pass http://127.0.0.1:8000/api/;
         proxy_set_header Host $host;

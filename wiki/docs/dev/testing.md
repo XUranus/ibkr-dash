@@ -24,6 +24,44 @@ cd ibkr_dash_frontend && npm test
 
 ---
 
+## Test File Structure
+
+```mermaid
+graph TD
+    subgraph Backend["ibkr_dash_backend/tests/"]
+        B1["conftest.py -- fixtures & setup"]
+        B2["test_health.py"]
+        B3["test_position_service.py"]
+        B4["test_trade_service.py"]
+        B5["test_chart_service.py"]
+        B6["test_account_service.py"]
+        B7["test_copilot_api.py"]
+        B8["test_agent_tasks_api.py"]
+        B9["test_admin_api.py"]
+        B10["test_llm_service.py"]
+        B11["test_structured_output.py"]
+    end
+
+    subgraph Worker["ibkr_dash_worker/tests/"]
+        W1["conftest.py -- fixtures & setup"]
+        W2["test_config.py"]
+        W3["test_flex_csv_parser.py"]
+        W4["test_transformers.py"]
+        W5["test_sqlite_writer.py"]
+        W6["test_import_daily_snapshot.py"]
+    end
+
+    subgraph Frontend["ibkr_dash_frontend/src/"]
+        F1["api/__tests__/http.test.ts"]
+        F2["components/__tests__/*.test.tsx"]
+        F3["hooks/__tests__/useAuth.test.tsx"]
+        F4["utils/__tests__/format.test.ts"]
+        F5["views/__tests__/*.test.tsx"]
+    end
+```
+
+---
+
 ## Backend Tests (pytest)
 
 ### Running Tests
@@ -87,6 +125,7 @@ def _reset_singletons(monkeypatch):
 Service tests create an in-memory database, insert test data, and call the service directly:
 
 ```python
+# tests/test_position_service.py
 from app.core.database import Database
 from app.services.position_service import PositionService
 
@@ -121,6 +160,24 @@ def test_list_positions_with_data():
     assert len(result.items) == 1
     assert result.items[0].symbol == "AAPL"
     assert result.items[0].position_value == 15000.0
+
+def test_list_positions_empty():
+    db = Database(":memory:")
+    db.init_schema()
+
+    service = PositionService(db)
+    result = service.list_positions(
+        report_date="2024-01-15",
+        symbol=None,
+        asset_class=None,
+        sort_by="position_value",
+        sort_order="desc",
+        page=1,
+        page_size=20,
+    )
+
+    assert len(result.items) == 0
+    assert result.pagination.total == 0
 ```
 
 ### Writing API Tests
@@ -128,6 +185,7 @@ def test_list_positions_with_data():
 API tests use FastAPI's `TestClient` to make HTTP requests:
 
 ```python
+# tests/test_health.py
 from fastapi.testclient import TestClient
 from app.main import app
 
@@ -136,6 +194,14 @@ def test_health_endpoint():
     response = client.get("/api/health")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+
+def test_positions_endpoint():
+    client = TestClient(app)
+    response = client.get("/api/positions")
+    assert response.status_code == 200
+    data = response.json()
+    assert "items" in data
+    assert "pagination" in data
 ```
 
 ### Available Test Files
@@ -194,6 +260,7 @@ def db(settings: Settings) -> Database:
 ### Writing Worker Tests
 
 ```python
+# tests/test_flex_csv_parser.py
 from worker.parsers.flex_csv_parser import parse_flex_csv
 
 def test_parse_flex_csv(tmp_path):
@@ -207,6 +274,13 @@ def test_parse_flex_csv(tmp_path):
     # Assert
     assert len(result.positions) == 1
     assert result.positions[0]["symbol"] == "AAPL"
+
+def test_parse_empty_csv(tmp_path):
+    csv_file = tmp_path / "empty.csv"
+    csv_file.write_text("AccountID,Symbol\n")
+
+    result = parse_flex_csv(csv_file)
+    assert len(result.positions) == 0
 ```
 
 ### Available Test Files
@@ -255,6 +329,7 @@ import '@testing-library/jest-dom/vitest'
 ### Writing Component Tests
 
 ```typescript
+// src/components/__tests__/StatCard.test.tsx
 import { render, screen } from '@testing-library/react'
 import { StatCard } from '../StatCard'
 
@@ -269,12 +344,18 @@ describe('StatCard', () => {
     render(<StatCard title="Total Equity" loading={true} />)
     expect(screen.getByTestId('loading')).toBeInTheDocument()
   })
+
+  it('renders delta with positive change', () => {
+    render(<StatCard title="P&L" value="$5,000" delta={2.5} />)
+    expect(screen.getByText('+2.5%')).toBeInTheDocument()
+  })
 })
 ```
 
 ### Writing Hook Tests
 
 ```typescript
+// src/hooks/__tests__/useAuth.test.tsx
 import { renderHook, waitFor } from '@testing-library/react'
 import { useAuth } from '../useAuth'
 
@@ -283,12 +364,18 @@ describe('useAuth', () => {
     const { result } = renderHook(() => useAuth())
     expect(result.current.isAuthenticated).toBe(false)
   })
+
+  it('sets loading to true initially', () => {
+    const { result } = renderHook(() => useAuth())
+    expect(result.current.loading).toBe(true)
+  })
 })
 ```
 
 ### Writing Utility Tests
 
 ```typescript
+// src/utils/__tests__/format.test.ts
 import { formatCurrency, formatPercent } from '../format'
 
 describe('formatCurrency', () => {
@@ -302,6 +389,16 @@ describe('formatCurrency', () => {
 
   it('handles negative values', () => {
     expect(formatCurrency(-1500)).toBe('-$1,500.00')
+  })
+})
+
+describe('formatPercent', () => {
+  it('formats positive percentages', () => {
+    expect(formatPercent(0.05)).toBe('+5.00%')
+  })
+
+  it('formats negative percentages', () => {
+    expect(formatPercent(-0.025)).toBe('-2.50%')
   })
 })
 ```

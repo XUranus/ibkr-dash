@@ -11,6 +11,7 @@ The backend uses **pydantic-settings** to load configuration from environment va
 ## How pydantic-settings Works
 
 ```python
+# From app/core/config.py
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
@@ -35,12 +36,13 @@ Pydantic-settings automatically:
 The settings instance is a **cached singleton**:
 
 ```python
+# From app/core/config.py
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
 ```
 
-## Environment Variables
+## Complete Environment Variables Reference
 
 ### Application
 
@@ -96,6 +98,25 @@ Any OpenAI-compatible API works. Set `LLM_BASE_URL` and `LLM_API_KEY` to use pro
 | `LONGBRIDGE_APP_SECRET` | `""` | Longbridge API app secret. |
 | `LONGBRIDGE_ACCESS_TOKEN` | `""` | Longbridge access token. |
 
+### Worker-Specific Variables
+
+The worker has its own `Settings` dataclass (not pydantic-based) with additional variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATA_DIR` | `data/flex_exports` | Directory for Flex CSV/XML files. |
+| `SCHEDULER_ENABLED` | `true` | Enable the background scheduler. |
+| `SCHEDULER_HOUR` | `12` | Hour to run the daily job. |
+| `SCHEDULER_MINUTE` | `30` | Minute to run the daily job. |
+| `SCHEDULER_TIMEZONE` | `Asia/Shanghai` | Timezone for the scheduler. |
+| `FLEX_TOKEN` | `""` | IBKR Flex Web Service token. |
+| `FLEX_QUERY_ID_DAILY` | `""` | Daily snapshot query ID. |
+| `FLEX_BASE_URL` | `https://www.interactivebrokers.com/AccountManagement/FlexWebService` | Flex API base URL. |
+| `FLEX_POLL_INTERVAL_SECONDS` | `10` | Seconds between poll retries. |
+| `FLEX_MAX_POLL_RETRIES` | `60` | Maximum poll attempts. |
+| `BACKEND_BASE_URL` | `http://localhost:8000` | Backend URL for worker-to-backend calls. |
+| `LOG_LEVEL` | `INFO` | Logging level. |
+
 ## .env File Structure
 
 Copy `.env.example` to `.env` and fill in your values:
@@ -134,9 +155,9 @@ Settings flow through the application via FastAPI's dependency injection:
 ```mermaid
 flowchart TD
     ENV[".env / Environment Variables"]
-    Settings["Settings (pydantic-settings)"]
-    get_settings["get_settings() singleton"]
-    deps["deps.py providers"]
+    Settings["Settings<br/>(pydantic-settings)"]
+    get_settings["get_settings()<br/>singleton"]
+    deps["deps.py<br/>providers"]
     Services["Service classes"]
     Routes["Route handlers"]
 
@@ -150,6 +171,7 @@ flowchart TD
 **Direct usage in DI:**
 
 ```python
+# From app/api/deps.py
 def get_app_settings() -> Settings:
     return get_settings()
 
@@ -160,6 +182,7 @@ def get_llm_service(settings: Settings = Depends(get_app_settings)) -> LLMServic
 **Indirect usage via Database:**
 
 ```python
+# From app/api/deps.py
 def get_database(settings: Settings | None = None) -> Database:
     s = settings or get_settings()
     return Database(s.sqlite_path)
@@ -174,24 +197,6 @@ def system_status(
 ) -> dict:
     return {"model": settings.llm_default_model}
 ```
-
-## Worker Configuration
-
-The worker has its own `Settings` dataclass (not pydantic-based) with additional variables:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATA_DIR` | `data/flex_exports` | Directory for Flex CSV/XML files. |
-| `SCHEDULER_ENABLED` | `true` | Enable the background scheduler. |
-| `SCHEDULER_HOUR` | `12` | Hour to run the daily job. |
-| `SCHEDULER_MINUTE` | `30` | Minute to run the daily job. |
-| `SCHEDULER_TIMEZONE` | `Asia/Shanghai` | Timezone for the scheduler. |
-| `FLEX_TOKEN` | `""` | IBKR Flex Web Service token. |
-| `FLEX_BASE_URL` | `https://www.interactivebrokers.com/AccountManagement/FlexWebService` | Flex API base URL. |
-| `FLEX_POLL_INTERVAL_SECONDS` | `10` | Seconds between poll retries. |
-| `FLEX_MAX_POLL_RETRIES` | `60` | Maximum poll attempts. |
-| `BACKEND_BASE_URL` | `http://localhost:8000` | Backend URL for worker-to-backend calls. |
-| `LOG_LEVEL` | `INFO` | Logging level. |
 
 ## Configuration Best Practices
 

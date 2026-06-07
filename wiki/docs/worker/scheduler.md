@@ -8,11 +8,66 @@ description: APScheduler setup, daily incremental job, auto-pull, and file track
 
 The worker uses **APScheduler** (Advanced Python Scheduler) to run the daily incremental import job automatically. The scheduler runs as a background daemon thread.
 
+## Scheduler Lifecycle Diagram
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle : create_scheduler()
+    Idle --> Running : scheduler.start()
+    Running --> JobExec : cron trigger (12:30 daily)
+    JobExec --> PullIBKR : FLEX_TOKEN configured?
+    PullIBKR --> ParseXML : XML downloaded
+    PullIBKR --> ScanCSV : pull failed / not configured
+    ParseXML --> ScanCSV : XML imported
+    ScanCSV --> ImportCSV : new CSV found
+    ScanCSV --> Idle : no new files
+    ImportCSV --> Idle : import complete
+    Running --> Stopped : KeyboardInterrupt
+    Stopped --> [*]
+```
+
+## Daily Job Execution Flow
+
+```mermaid
+flowchart TD
+    CronTrigger["Cron Trigger (12:30 daily)"] --> Job["run_daily_incremental_job()"]
+
+    Job --> TokenCheck{"FLEX_TOKEN\nconfigured?"}
+    TokenCheck -->|Yes| Pull["Pull from IBKR"]
+    TokenCheck -->|No| SkipPull["Skip auto-pull"]
+
+    Pull --> FlexClient["Create FlexClient"]
+    FlexClient --> LoopQ["For each query_id"]
+    LoopQ --> Download["download_flex_statement()"]
+    Download --> SaveXML["Save XML to data_dir"]
+    SaveXML --> ParseXML["Parse XML -> FlexXmlResult"]
+    ParseXML --> WriteXML["Upsert to SQLite"]
+    WriteXML --> LoopQ
+
+    LoopQ -->|All done| Scan["Scan data_dir for CSV"]
+    SkipPull --> Scan
+
+    Scan --> ReadTrack["Read imported_files.txt"]
+    ReadTrack --> FindCSV["Find *.csv files"]
+    FindCSV --> FilterNew["Filter out imported"]
+    FilterNew --> AnyNew{"New files?"}
+    AnyNew -->|No| Done["Job complete"]
+    AnyNew -->|Yes| ImportEach["Import each new CSV"]
+    ImportEach --> ParseCSV["Parse CSV -> FlexStatement"]
+    ParseCSV --> Transform["Transform -> TransformResult"]
+    Transform --> WriteCSV["Upsert to SQLite"]
+    WriteCSV --> Mark["Append to imported_files.txt"]
+    Mark --> ImportEach
+
+    ImportEach -->|All done| Done
+```
+
 ## APScheduler Setup
 
 **File:** `worker/core/scheduler.py`
 
 ```python
+# ibkr_dash_worker/worker/core/scheduler.py
 from apscheduler.schedulers.background import BackgroundScheduler
 from worker.core.config import get_settings
 from worker.jobs.daily_incremental_job import run_daily_incremental_job
@@ -46,6 +101,7 @@ python -m worker.main run-scheduler
 This starts the scheduler and keeps the main thread alive:
 
 ```python
+# ibkr_dash_worker/worker/main.py (simplified)
 scheduler.start()
 try:
     while True:
@@ -71,6 +127,7 @@ If `FLEX_TOKEN` is configured, the job:
 5. Parses the XML and imports into SQLite.
 
 ```python
+# ibkr_dash_worker/worker/jobs/daily_incremental_job.py
 def _pull_from_ibkr(flex_client: FlexClient, data_dir: Path) -> list[Path]:
     settings = get_settings()
     query_ids = DEFAULT_QUERY_IDS
@@ -156,22 +213,34 @@ XML files pulled from IBKR are overwritten on each run (same filename: `ibkr_fle
 | `SCHEDULER_TIMEZONE` | `Asia/Shanghai` | Timezone for the cron schedule. |
 | `DATA_DIR` | `data/flex_exports` | Directory for Flex CSV/XML files and tracking. |
 
-## Scheduler Lifecycle
+### Environment File Example
 
-```mermaid
-stateDiagram-v2
-    [*] --> Idle : create_scheduler()
-    Idle --> Running : scheduler.start()
-    Running --> JobExec : cron trigger (12:30 daily)
-    JobExec --> PullIBKR : FLEX_TOKEN configured?
-    PullIBKR --> ParseXML : XML downloaded
-    PullIBKR --> ScanCSV : pull failed / not configured
-    ParseXML --> ScanCSV : XML imported
-    ScanCSV --> ImportCSV : new CSV found
-    ScanCSV --> Idle : no new files
-    ImportCSV --> Idle : import complete
-    Running --> Stopped : KeyboardInterrupt
-    Stopped --> [*]
+```bash
+# .env file
+SCHEDULER_ENABLED=true
+SCHEDULER_HOUR=12
+SCHEDULER_MINUTE=30
+SCHEDULER_TIMEZONE=Asia/Shanghai
+DATA_DIR=data/flex_exports
+```
+
+### Different Schedule Examples
+
+```bash
+# Run at 9:00 AM US Eastern (market open)
+SCHEDULER_HOUR=9
+SCHEDULER_MINUTE=0
+SCHEDULER_TIMEZONE=America/New_York
+
+# Run at 6:00 PM Hong Kong (after HK market close)
+SCHEDULER_HOUR=18
+SCHEDULER_MINUTE=0
+SCHEDULER_TIMEZONE=Asia/Hong_Kong
+
+# Run at midnight UTC
+SCHEDULER_HOUR=0
+SCHEDULER_MINUTE=0
+SCHEDULER_TIMEZONE=UTC
 ```
 
 ## Manual Operations

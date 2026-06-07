@@ -67,6 +67,10 @@ graph TB
 
 The key insight is that the **backend** and **worker** are completely decoupled. They share no code at runtime. They communicate only through the SQLite database file. This means you can run them independently, restart one without affecting the other, and even run them on different machines (as long as they can access the same SQLite file).
 
+:::tip
+This decoupled architecture means you can develop and test each module in isolation. The worker can be tested by importing CSV files and checking the database. The backend can be tested with a pre-populated database. The frontend can be tested with mock API responses.
+:::
+
 ---
 
 ## Module Breakdown
@@ -265,7 +269,7 @@ python -m worker.main init-db
 
 ## Database Schema
 
-The SQLite database is the central data store shared between the backend and worker. It contains **13 tables** organized into three groups:
+The SQLite database is the central data store shared between the backend and worker. It contains **16 tables** organized into four groups:
 
 ```mermaid
 erDiagram

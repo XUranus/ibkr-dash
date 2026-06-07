@@ -19,6 +19,38 @@ IBKR Dash uses HMAC-signed session tokens stored in `httpOnly` cookies for authe
 
 ---
 
+## Login Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant FastAPI as FastAPI Server
+    participant Auth as Auth Module
+    participant HMAC as HMAC-SHA256
+
+    Browser->>FastAPI: POST /api/auth/login<br/>{username, password}
+
+    alt AUTH_PASSWORD is empty
+        FastAPI->>Auth: Skip validation
+        Auth-->>FastAPI: Accept any credentials
+    else AUTH_PASSWORD is set
+        FastAPI->>Auth: Verify credentials
+        Auth->>Auth: secrets.compare_digest(password, AUTH_PASSWORD)
+        alt Invalid password
+            Auth-->>FastAPI: Authentication failed
+            FastAPI-->>Browser: 401 {"detail": "Invalid username or password"}
+        end
+    end
+
+    FastAPI->>HMAC: Generate token
+    HMAC->>HMAC: payload = base64({username, expires_at})
+    HMAC->>HMAC: signature = HMAC-SHA256(payload, secret)
+    HMAC-->>FastAPI: token = payload + "." + signature
+    FastAPI-->>Browser: 200 OK<br/>Set-Cookie: ibkr_dash_session=token; HttpOnly; SameSite=Lax; Max-Age=604800
+```
+
+---
+
 ## POST /api/auth/login
 
 Authenticate with username and password. On success, the server sets a session cookie.
@@ -150,6 +182,21 @@ curl -b cookies.txt http://localhost:8000/api/auth/session
 
 ---
 
+## Cookie Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> NoSession: Initial state
+    NoSession --> Authenticated: POST /api/auth/login (200 OK)
+    Authenticated --> Authenticated: Requests with valid cookie
+    Authenticated --> NoSession: POST /api/auth/logout
+    Authenticated --> NoSession: Token expires (7 days)
+    Authenticated --> NoSession: Password changed (secret rotated)
+    NoSession --> NoSession: 401 on protected endpoints
+```
+
+---
+
 ## How Sessions Work
 
 ### Token Format
@@ -162,6 +209,14 @@ The session token is a string with two parts separated by a dot:
 
 - **Payload**: Base64-encoded JSON containing the username and expiration timestamp
 - **Signature**: HMAC-SHA256 of the payload, using a secret derived from `AUTH_PASSWORD`
+
+**Example token structure:**
+
+```
+eyJ1c2VybmFtZSI6ImFkbWluIiwiZXhwaXJlc19hdCI6MTcwNzk4NDgwMH0=.a1b2c3d4e5f6...
+\________________________________________________________/   \______________/
+                    base64(JSON payload)                        hex(HMAC signature)
+```
 
 ### Token Verification
 
@@ -190,6 +245,21 @@ Most API endpoints require authentication. They use the `get_current_user` depen
 3. If `AUTH_PASSWORD` is empty, allows anonymous access.
 4. Returns `401 Unauthorized` if auth is required but no valid credential is provided.
 
+```mermaid
+flowchart TD
+    A[Incoming Request] --> B{Cookie present?}
+    B -->|Yes| C{Token valid & not expired?}
+    C -->|Yes| D[Authenticated as user]
+    C -->|No| E{Basic Auth header?}
+    B -->|No| E
+    E -->|Yes| F{Credentials valid?}
+    F -->|Yes| D
+    F -->|No| G[401 Unauthorized]
+    E -->|No| H{AUTH_PASSWORD empty?}
+    H -->|Yes| I[Anonymous access allowed]
+    H -->|No| G
+```
+
 ### HTTP Basic Auth Example
 
 ```bash
@@ -207,6 +277,30 @@ curl -X POST http://localhost:8000/api/auth/login \
 
 # Then use the cookie for subsequent requests
 curl -b cookies.txt http://localhost:8000/api/account/overview
+```
+
+### Frontend Auth Hook
+
+```typescript
+// Example React hook using the session endpoint
+import { useState, useEffect } from 'react';
+
+export function useAuth() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/auth/session', { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        setIsAuthenticated(data.authenticated);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  return { isAuthenticated, loading };
+}
 ```
 
 ---

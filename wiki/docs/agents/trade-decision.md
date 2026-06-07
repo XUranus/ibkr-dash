@@ -32,6 +32,58 @@ flowchart TD
 
 The entry point is `analyze_trade()` in `app/agents/trade_decision/agent.py`. It is an async function that uses `asyncio.gather` with a `ThreadPoolExecutor` to run the four sub-analyses concurrently.
 
+```python
+# app/agents/trade_decision/agent.py
+async def analyze_trade(symbol: str, decision_type: str) -> TradeDecisionOutput:
+    # Build deterministic account facts
+    account_facts = build_account_facts(symbol, decision_type)
+
+    # Run 4 sub-analyses in parallel
+    account_fit, market_trend, fundamental, catalyst = await asyncio.gather(
+        run_account_fit_analysis(account_facts),
+        run_market_trend_analysis(symbol),
+        run_fundamental_analysis(symbol),
+        run_event_catalyst_analysis(symbol),
+    )
+
+    # Compose final decision from all 4 cards
+    cards = {
+        "account_fit": account_fit,
+        "market_trend": market_trend,
+        "fundamental_valuation": fundamental,
+        "event_catalyst": catalyst,
+    }
+    decision = await compose_final_decision(cards, account_facts)
+    return normalize_trade_decision_output(decision)
+```
+
+### 4-Subagent Parallel Execution
+
+```mermaid
+sequenceDiagram
+    participant Agent as Trade Decision Agent
+    participant AF as Account Fit Sub-agent
+    participant MT as Market Trend Sub-agent
+    participant FV as Fundamental Valuation Sub-agent
+    participant EC as Event Catalyst Sub-agent
+    participant Compose as Compose LLM
+
+    Agent->>AF: analyze_account_fit(facts)
+    Agent->>MT: analyze_market_trend(symbol)
+    Agent->>FV: analyze_fundamental(symbol)
+    Agent->>EC: analyze_catalyst(symbol)
+
+    par Parallel Execution
+        AF-->>Agent: AccountFitCard (score 0-20)
+        MT-->>Agent: MarketTrendCard (score 0-15)
+        FV-->>Agent: FundamentalCard (score 0-35)
+        EC-->>Agent: CatalystCard (score 0-5)
+    end
+
+    Agent->>Compose: compose_decision(cards, facts)
+    Compose-->>Agent: TradeDecisionOutput
+```
+
 ## Decision Types
 
 | Type | Description |
@@ -95,21 +147,22 @@ Analyzes upcoming events and news catalysts. Uses MCP tools for news and events 
 
 The final decision uses 7 score dimensions totaling 100 points:
 
-| Dimension | Max Score | Source |
-|---|---|---|
-| `fundamental_quality_score` | 20 | Fundamental card |
-| `valuation_score` | 15 | Fundamental card |
-| `trend_score` | 15 | Market trend card |
-| `account_fit_score` | 20 | Account fit card |
-| `risk_reward_score` | 15 | Synthesized |
-| `review_constraint_score` | 10 | Synthesized from review history |
-| `event_catalyst_score` | 5 | Event catalyst card |
+| Dimension | Max Score | Source | What It Measures |
+|---|---|---|---|
+| `fundamental_quality_score` | 20 | Fundamental card | Revenue growth, profitability, business quality |
+| `valuation_score` | 15 | Fundamental card | PE, PB, peer comparison, valuation attractiveness |
+| `trend_score` | 15 | Market trend card | Price trend, momentum, volume signals |
+| `account_fit_score` | 20 | Account fit card | Portfolio fit, position sizing, liquidity |
+| `risk_reward_score` | 15 | Synthesized | Risk-reward ratio across all signals |
+| `review_constraint_score` | 10 | Synthesized from review history | Penalty from historical poor trades in this symbol |
+| `event_catalyst_score` | 5 | Event catalyst card | Upcoming events, news catalysts |
 
 ## Decision Output Schema
 
 The `TradeDecisionOutput` Pydantic model defines the output structure:
 
 ```python
+# app/agents/trade_decision/output_schema.py
 class TradeDecisionOutput(FlexibleModel):
     symbol: str | None = None
     decision_type: str = ""          # "entry_decision" or "holding_decision"

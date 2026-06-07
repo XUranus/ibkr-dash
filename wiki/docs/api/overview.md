@@ -38,9 +38,34 @@ Open `http://localhost:8000/docs` in your browser to explore all endpoints inter
 
 ---
 
-## Authentication
+## Authentication Flow
 
 IBKR Dash supports two authentication methods. When `AUTH_PASSWORD` is empty in your `.env` file, authentication is disabled and all endpoints are publicly accessible.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Server
+    participant Database
+
+    alt Cookie-Based Session
+        Client->>Server: POST /api/auth/login {username, password}
+        Server->>Server: Verify credentials against AUTH_PASSWORD
+        Server->>Server: Generate HMAC-SHA256 signed token
+        Server-->>Client: 200 OK + Set-Cookie: ibkr_dash_session
+        Client->>Server: GET /api/positions (with cookie)
+        Server->>Server: Verify token signature & expiry
+        Server->>Database: Query data
+        Database-->>Server: Results
+        Server-->>Client: 200 OK + JSON data
+    else HTTP Basic Auth
+        Client->>Server: GET /api/positions (Authorization: Basic ...)
+        Server->>Server: Decode and verify credentials
+        Server->>Database: Query data
+        Database-->>Server: Results
+        Server-->>Client: 200 OK + JSON data
+    end
+```
 
 ### Cookie-Based Session
 
@@ -59,6 +84,25 @@ curl -u admin:your-password http://localhost:8000/api/account/overview
 ```
 
 This is useful for scripts, CLI tools, and programmatic access.
+
+---
+
+## Request/Response Flow
+
+```mermaid
+graph LR
+    A[Client] -->|HTTP Request| B[FastAPI Router]
+    B -->|Auth Check| C{Valid Session?}
+    C -->|No| D[401 Unauthorized]
+    C -->|Yes| E[Route Handler]
+    E -->|Pydantic Validation| F{Valid Input?}
+    F -->|No| G[422 Validation Error]
+    F -->|Yes| H[Service Layer]
+    H -->|SQL Query| I[SQLite Database]
+    I -->|Results| H
+    H -->|Response Model| J[JSON Response]
+    J -->|GZip if > 1KB| A
+```
 
 ---
 
@@ -86,7 +130,7 @@ DELETE endpoints return HTTP `204 No Content` with no body.
 
 ---
 
-## HTTP Status Codes
+## Error Code Table
 
 The API uses standard HTTP status codes:
 
@@ -124,6 +168,29 @@ For validation errors (422), `detail` is an array:
       "type": "value_error.missing"
     }
   ]
+}
+```
+
+### Error Handling in Client Code
+
+```typescript
+// Recommended error handling pattern
+async function fetchPositions() {
+  try {
+    const response = await fetch('/api/positions', { credentials: 'include' });
+    if (!response.ok) {
+      const error = await response.json();
+      if (response.status === 401) {
+        // Redirect to login
+        window.location.href = '/login';
+        return;
+      }
+      throw new Error(error.detail || 'Request failed');
+    }
+    return await response.json();
+  } catch (err) {
+    console.error('Failed to fetch positions:', err);
+  }
 }
 ```
 

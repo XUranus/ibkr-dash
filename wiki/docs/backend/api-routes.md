@@ -8,11 +8,20 @@ description: Complete list of all backend REST endpoints.
 
 All routes are prefixed with `/api` and return JSON. Most endpoints require authentication (unless `AUTH_PASSWORD` is empty).
 
+:::tip
+The easiest way to explore all endpoints is the interactive Swagger UI at `http://localhost:8000/docs`. You can test every endpoint directly from the browser without writing any code.
+:::
+
 ## Health
 
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/api/health` | Health check. Returns `{ "status": "ok" }`. |
+
+```bash
+# Example: Check backend health
+curl http://localhost:8000/api/health
+```
 
 ## Authentication
 
@@ -43,6 +52,20 @@ POST /api/auth/login
 
 The response sets an `ibkr_dash_session` httpOnly cookie containing an HMAC-signed token.
 
+```bash
+# Example: Login via curl
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "your-password"}' \
+  -c cookies.txt
+
+# Example: Check session
+curl http://localhost:8000/api/auth/session -b cookies.txt
+
+# Example: Logout
+curl -X POST http://localhost:8000/api/auth/logout -b cookies.txt
+```
+
 ## Account
 
 | Method | Path | Description |
@@ -70,6 +93,14 @@ The response sets an `ibkr_dash_session` httpOnly cookie containing an HMAC-sign
 }
 ```
 
+```bash
+# Example: Get account overview
+curl -u admin:password http://localhost:8000/api/account/overview
+
+# Example: Get last 50 snapshots
+curl -u admin:password "http://localhost:8000/api/account/snapshots?limit=50"
+```
+
 ## Positions
 
 | Method | Path | Description |
@@ -87,6 +118,20 @@ The response sets an `ibkr_dash_session` httpOnly cookie containing an HMAC-sign
 - `page` / `page_size` -- Pagination (default: 1/20, max page_size: 200)
 - `include_summary` -- Include aggregated summary (default: `false`)
 
+```bash
+# Example: List all positions for latest date
+curl -u admin:password http://localhost:8000/api/positions
+
+# Example: Filter by symbol, sorted by P&L
+curl -u admin:password "http://localhost:8000/api/positions?symbol=AAPL&sort_by=total_unrealized_pnl"
+
+# Example: Get position detail for AAPL
+curl -u admin:password http://localhost:8000/api/positions/AAPL
+
+# Example: Paginated positions (page 2, 10 per page)
+curl -u admin:password "http://localhost:8000/api/positions?page=2&page_size=10"
+```
+
 ## Trades
 
 | Method | Path | Description |
@@ -102,6 +147,17 @@ The response sets an `ibkr_dash_session` httpOnly cookie containing an HMAC-sign
 - `sort_by` / `sort_order` -- Sorting
 - `page` / `page_size` -- Pagination
 
+```bash
+# Example: List all trades
+curl -u admin:password http://localhost:8000/api/trades
+
+# Example: Filter trades by date range and symbol
+curl -u admin:password "http://localhost:8000/api/trades?start_date=2025-01-01&end_date=2025-06-01&symbol=MSFT"
+
+# Example: Get trade summary
+curl -u admin:password http://localhost:8000/api/trades/summary
+```
+
 ## Cash Flows
 
 | Method | Path | Description |
@@ -110,6 +166,14 @@ The response sets an `ibkr_dash_session` httpOnly cookie containing an HMAC-sign
 
 **Query parameters:** `start_date`, `end_date`, `currency`, `flow_direction`, `sort_by`, `sort_order`, `page`, `page_size`.
 
+```bash
+# Example: List all cash flows
+curl -u admin:password http://localhost:8000/api/cash-flows
+
+# Example: Filter by currency and date range
+curl -u admin:password "http://localhost:8000/api/cash-flows?currency=USD&start_date=2025-01-01"
+```
+
 ## Dividends
 
 | Method | Path | Description |
@@ -117,6 +181,14 @@ The response sets an `ibkr_dash_session` httpOnly cookie containing an HMAC-sign
 | `GET` | `/api/dividends` | List dividend payments. |
 
 **Query parameters:** `start_date`, `end_date`, `currency`, `symbol`, `sort_by`, `sort_order`, `page`, `page_size`.
+
+```bash
+# Example: List all dividends
+curl -u admin:password http://localhost:8000/api/dividends
+
+# Example: Filter dividends by symbol
+curl -u admin:password "http://localhost:8000/api/dividends?symbol=AAPL"
+```
 
 ## Charts
 
@@ -129,6 +201,14 @@ The response sets an `ibkr_dash_session` httpOnly cookie containing an HMAC-sign
 
 **Query parameters for performance calendar:** `view` (`month` / `year` / `all-years`), `anchor` (e.g., `2025-06` for month view).
 
+```bash
+# Example: Get equity curve for 2025
+curl -u admin:password "http://localhost:8000/api/charts/equity-curve?start_date=2025-01-01&end_date=2025-12-31"
+
+# Example: Get performance calendar for June 2025
+curl -u admin:password "http://localhost:8000/api/charts/performance-calendar?view=month&anchor=2025-06"
+```
+
 ## Symbols
 
 | Method | Path | Description |
@@ -136,6 +216,11 @@ The response sets an `ibkr_dash_session` httpOnly cookie containing an HMAC-sign
 | `GET` | `/api/symbols/suggest` | Autocomplete symbol suggestions. |
 
 **Query parameters:** `q` (required, min 1 char), `limit` (1-50, default 10).
+
+```bash
+# Example: Search for symbols starting with "AAP"
+curl -u admin:password "http://localhost:8000/api/symbols/suggest?q=AAP&limit=5"
+```
 
 ## Copilot (AI Chat)
 
@@ -170,6 +255,20 @@ POST /api/copilot/chat
 }
 ```
 
+```bash
+# Example: Ask the copilot a question
+curl -X POST http://localhost:8000/api/copilot/chat \
+  -u admin:password \
+  -H "Content-Type: application/json" \
+  -d '{"session_id": null, "message": "What is my largest position?"}'
+
+# Example: Continue an existing session
+curl -X POST http://localhost:8000/api/copilot/chat \
+  -u admin:password \
+  -H "Content-Type: application/json" \
+  -d '{"session_id": "550e8400-e29b-41d4-a716-446655440000", "message": "What about MSFT?"}'
+```
+
 ## Agent Tasks (Background)
 
 | Method | Path | Description |
@@ -181,6 +280,20 @@ POST /api/copilot/chat
 
 **Supported agents:** `daily_review`, `trade_decision`, `trade_review`, `risk_assessment`.
 
+```bash
+# Example: Run daily review in background
+curl -X POST http://localhost:8000/api/agent/run \
+  -u admin:password \
+  -H "Content-Type: application/json" \
+  -d '{"agent_name": "daily_review", "params": {"report_date": "2025-06-01"}}'
+
+# Example: Check task status
+curl -u admin:password http://localhost:8000/api/agent/tasks/abc-123
+
+# Example: List all completed tasks
+curl -u admin:password "http://localhost:8000/api/agent/tasks?status=completed&limit=10"
+```
+
 ## Daily Position Review Agent
 
 | Method | Path | Description |
@@ -189,6 +302,17 @@ POST /api/copilot/chat
 | `GET` | `/api/daily-position-review/dates` | List dates with reviews. |
 | `GET` | `/api/daily-position-review/reviews/{date}` | Get review for a specific date. |
 | `GET` | `/api/daily-position-review/health` | Agent health check. |
+
+```bash
+# Example: Generate a daily review
+curl -X POST http://localhost:8000/api/daily-position-review/generate \
+  -u admin:password \
+  -H "Content-Type: application/json" \
+  -d '{"report_date": "2025-06-01"}'
+
+# Example: Get review for a specific date
+curl -u admin:password http://localhost:8000/api/daily-position-review/reviews/2025-06-01
+```
 
 ## Trade Decision Agent
 
@@ -199,6 +323,14 @@ POST /api/copilot/chat
 | `GET` | `/api/trade-decision/decisions/{id}` | Get decision by ID. |
 | `GET` | `/api/trade-decision/health` | Agent health check. |
 
+```bash
+# Example: Analyze a trade decision for AAPL
+curl -X POST http://localhost:8000/api/trade-decision/analyze \
+  -u admin:password \
+  -H "Content-Type: application/json" \
+  -d '{"symbol": "AAPL", "decision_type": "new_entry"}'
+```
+
 ## Trade Review Agent
 
 | Method | Path | Description |
@@ -207,6 +339,14 @@ POST /api/copilot/chat
 | `GET` | `/api/trade-review/reviews` | List recent reviews. Query: `symbol`, `review_type`. |
 | `GET` | `/api/trade-review/reviews/{id}` | Get review by ID. |
 | `GET` | `/api/trade-review/health` | Agent health check. |
+
+```bash
+# Example: Review a trade for MSFT
+curl -X POST http://localhost:8000/api/trade-review/review \
+  -u admin:password \
+  -H "Content-Type: application/json" \
+  -d '{"symbol": "MSFT", "review_type": "post_trade"}'
+```
 
 ## Risk Assessment Agent
 
@@ -217,6 +357,14 @@ POST /api/copilot/chat
 | `GET` | `/api/risk-assessment/assessments/{id}` | Get assessment by ID. |
 | `GET` | `/api/risk-assessment/health` | Agent health check. |
 
+```bash
+# Example: Run risk assessment
+curl -X POST http://localhost:8000/api/risk-assessment/assess \
+  -u admin:password \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
 ## Admin
 
 ### System Status
@@ -224,6 +372,11 @@ POST /api/copilot/chat
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/api/admin/system/status` | System health, DB status, record counts, runtime info. |
+
+```bash
+# Example: Check system status
+curl -u admin:password http://localhost:8000/api/admin/system/status
+```
 
 ### Prompt Management
 
@@ -233,6 +386,14 @@ POST /api/copilot/chat
 | `POST` | `/api/admin/prompts` | Create a new prompt version. |
 | `GET` | `/api/admin/prompts/{key}/active` | Get the active version of a prompt. |
 
+```bash
+# Example: List all prompts
+curl -u admin:password http://localhost:8000/api/admin/prompts
+
+# Example: Get active prompt for daily review
+curl -u admin:password http://localhost:8000/api/admin/prompts/daily_review/active
+```
+
 ### LLM Management
 
 | Method | Path | Description |
@@ -241,6 +402,14 @@ POST /api/copilot/chat
 | `POST` | `/api/admin/llm/providers` | Register a new LLM provider (no-op in current backend). |
 | `POST` | `/api/admin/llm/test` | Test LLM connection with a simple prompt. |
 | `GET` | `/api/admin/llm/health` | Check LLM configuration health. |
+
+```bash
+# Example: Test LLM connection
+curl -X POST http://localhost:8000/api/admin/llm/test \
+  -u admin:password \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Say hello"}'
+```
 
 ### IBKR Settings
 
@@ -271,4 +440,8 @@ LLM-calling endpoints also include `_rate: None = Depends(check_llm_rate_limit)`
 
 :::info
 Admin endpoints are not separately protected. They share the same `get_current_user` dependency. If `AUTH_PASSWORD` is empty, all endpoints are publicly accessible.
+:::
+
+:::warning
+When using curl with authentication, you can either use HTTP Basic auth (`-u admin:password`) or include the session cookie (`-b cookies.txt`). Basic auth is simpler for testing but less secure for production use.
 :::

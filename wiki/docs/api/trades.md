@@ -44,7 +44,7 @@ GET /api/trades
 | `page` | int | `1` | Page number (starts at 1) |
 | `page_size` | int | `20` | Items per page (1-200) |
 
-### Examples
+### Filter Examples
 
 ```bash
 # Get recent trades
@@ -55,6 +55,15 @@ curl "http://localhost:8000/api/trades?start_date=2024-01-01&end_date=2024-01-31
 
 # Filter by symbol and direction
 curl "http://localhost:8000/api/trades?symbol=AAPL&buy_sell=BUY"
+
+# Only sell trades for options
+curl "http://localhost:8000/api/trades?asset_class=OPT&buy_sell=SELL"
+
+# Sort by realized P&L (most profitable first)
+curl "http://localhost:8000/api/trades?sort_by=fifo_pnl_realized&sort_order=desc"
+
+# Trades for a specific symbol in a date range
+curl "http://localhost:8000/api/trades?symbol=MSFT&start_date=2024-01-01&end_date=2024-03-31&sort_by=date_time&sort_order=asc"
 ```
 
 ### Response
@@ -91,7 +100,7 @@ curl "http://localhost:8000/api/trades?symbol=AAPL&buy_sell=BUY"
 }
 ```
 
-### Response Fields
+### Response Schema
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -112,6 +121,16 @@ curl "http://localhost:8000/api/trades?symbol=AAPL&buy_sell=BUY"
 | `fifo_pnl_realized` | float | FIFO realized P&L (null for buys) |
 | `exchange` | string | Exchange where the trade executed |
 | `order_type` | string | Order type (`LMT`, `MKT`, `STP`, etc.) |
+
+### Order Types
+
+| Code | Description |
+|------|-------------|
+| `LMT` | Limit order |
+| `MKT` | Market order |
+| `STP` | Stop order |
+| `STP LMT` | Stop-limit order |
+| `TRAIL` | Trailing stop |
 
 ---
 
@@ -143,6 +162,9 @@ curl "http://localhost:8000/api/trades/summary?start_date=2024-01-01&end_date=20
 
 # Summary for a specific symbol
 curl "http://localhost:8000/api/trades/summary?symbol=AAPL"
+
+# Summary of only sell trades
+curl "http://localhost:8000/api/trades/summary?buy_sell=SELL"
 ```
 
 ### Response

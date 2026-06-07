@@ -61,12 +61,35 @@ On the last round, the runtime forces `tool_choice="none"`, blocking the LLM fro
 
 You can pass `initial_tool_calls` to pre-execute read-only data loading before the first LLM round. The results are injected as synthetic user messages, giving the LLM immediate data without needing a round-trip.
 
+```python
+# app/agents/runtime.py
+# Pre-executing data loading before the LLM sees the conversation
+initial_tool_calls = [
+    InitialToolCall(
+        tool_name="ibkr_get_account_overview",
+        arguments={},
+        inject_as="user",       # Result becomes a synthetic user message
+    ),
+    InitialToolCall(
+        tool_name="ibkr_get_current_positions",
+        arguments={},
+        inject_as="user",
+    ),
+]
+
+result = await runtime.run(
+    messages=messages,
+    tools=tool_registry.get_tools(),
+    initial_tool_calls=initial_tool_calls,
+)
+```
+
 ## Structured Output Pipeline
 
 Every agent that produces a fixed-schema output uses the **StructuredOutputRuntime** in `app/agents/structured_output/runtime.py`. This pipeline has four stages:
 
 ```mermaid
-flowchart LR
+flowchart TD
     A[Raw LLM Text] --> B[Parse JSON]
     B --> C{Valid JSON?}
     C -->|No| D[Repair: ask LLM to fix]
@@ -89,6 +112,29 @@ The JSON parser in `app/agents/structured_output/json_parser.py` handles common 
 - **raw_decode fallback**: Scans for the first `{` character and parses from there
 - **Empty output detection**: Raises a specific error code
 
+```python
+# app/agents/structured_output/json_parser.py
+def extract_json_object(text: str) -> dict:
+    """Extract a JSON object from raw LLM text."""
+    # 1. Strip markdown fences
+    text = _strip_markdown_fences(text)
+
+    # 2. Try direct parse
+    try:
+        return json.loads(text)
+    except JSONDecodeError:
+        pass
+
+    # 3. raw_decode fallback: find first '{' and parse from there
+    for i, ch in enumerate(text):
+        if ch == '{':
+            obj, _ = json.JSONDecoder().raw_decode(text, i)
+            if isinstance(obj, dict):
+                return obj
+
+    raise StructuredOutputError(ErrorCode.LLM_JSON_PARSE_FAILED)
+```
+
 ### Stage 2: Validate
 
 Parsed JSON is validated against a Pydantic model (e.g., `TradeDecisionOutput`, `TradeReviewOutput`). The `FlexibleModel` base class uses `extra="allow"` for forward compatibility -- unexpected fields are preserved rather than rejected.
@@ -106,6 +152,7 @@ If repair fails, the system calls a `fallback_builder` function that returns a s
 Each agent defines a `StructuredOutputContract` that configures the pipeline:
 
 ```python
+# app/agents/trade_decision/contracts.py
 contract = StructuredOutputContract(
     name="trade_decision",
     agent_name="trade_decision",
@@ -117,6 +164,48 @@ contract = StructuredOutputContract(
     fallback_enabled=True,
     fallback_builder=lambda ctx, err, raw: _build_fallback_decision(...),
 )
+```
+
+## Evidence Flow Diagram
+
+```mermaid
+flowchart LR
+    subgraph "Data Sources"
+        DB[(SQLite)]
+        MCP[Longbridge MCP]
+    end
+
+    subgraph "Evidence Builder"
+        EB[evidence.py]
+        AS[Account Section]
+        PS[Position Section]
+        TS[Trade Section]
+        MS[Market Section]
+    end
+
+    subgraph "Context Budget"
+        CB[context_budget.py]
+        SEC1[account_context: 3000 chars]
+        SEC2[position_context: 3000 chars]
+        SEC3[trade_history_context: 5000 chars]
+        SEC4[market_context: 5000 chars]
+    end
+
+    subgraph "Output"
+        EP[Evidence Pack]
+        DL[data_limitations]
+        DS[data_sources]
+    end
+
+    DB --> EB
+    MCP --> EB
+    EB --> AS --> CB
+    EB --> PS --> CB
+    EB --> TS --> CB
+    EB --> MS --> CB
+    CB --> EP
+    CB --> DL
+    EB --> DS
 ```
 
 ## Evidence Builder
@@ -133,6 +222,7 @@ The evidence builder in `app/agents/evidence.py` transforms raw database data in
 Every evidence pack records its data sources:
 
 ```python
+# app/agents/evidence.py
 DATA_SOURCES = {
     "account_data": "IBKR_ONLY",
     "position_data": "IBKR_ONLY",

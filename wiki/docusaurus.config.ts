@@ -22,8 +22,18 @@ const config: Config = {
 
   i18n: {
     defaultLocale: 'en',
-    locales: ['en'],
+    locales: ['en', 'zh-CN'],
+    localeConfigs: {
+      en: { label: 'English' },
+      'zh-CN': { label: '中文' },
+    },
   },
+
+  markdown: {
+    mermaid: true,
+  },
+
+  themes: ['@docusaurus/theme-mermaid'],
 
   presets: [
     [
@@ -53,7 +63,11 @@ const config: Config = {
           type: 'docSidebar',
           sidebarId: 'tutorialSidebar',
           position: 'left',
-          label: 'Documentation',
+          label: 'Docs',
+        },
+        {
+          type: 'localeDropdown',
+          position: 'right',
         },
         {
           href: 'https://github.com/your-org/ibkr-dash',
@@ -86,6 +100,9 @@ const config: Config = {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
       additionalLanguages: ['python', 'typescript', 'bash', 'json', 'sql'],
+    },
+    mermaid: {
+      theme: {dark: 'dark', light: 'default'},
     },
   } satisfies Preset.ThemeConfig,
 };

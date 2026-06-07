@@ -8,6 +8,30 @@ description: How to test and evaluate agent outputs
 
 The eval harness provides a framework for testing agent outputs against expected behaviors. It defines data structures for test cases, check results, and evaluation runs, plus a library of generic and domain-specific checks.
 
+## Eval Case Lifecycle
+
+```mermaid
+flowchart TD
+    A[Define EvalCase] --> B[Register in EvalStore]
+    B --> C[Trigger EvalRun]
+    C --> D[Execute Agent with Mock Data]
+    D --> E[Collect Raw Output]
+    E --> F[Run All Checks]
+    F --> G[Aggregate CheckResults]
+    G --> H[Compute EvalCaseResult]
+    H --> I[Aggregate into EvalRun Summary]
+
+    subgraph "Check Execution"
+        F --> F1[JSON Schema Check]
+        F --> F2[Required Fields Check]
+        F --> F3[Forbidden Phrases Check]
+        F --> F4[Data Limitations Check]
+        F --> F5[Tool Usage Check]
+        F --> F6[Investment Safety Check]
+        F --> F7[Domain-Specific Checks]
+    end
+```
+
 ## Core Data Structures
 
 ### EvalCase
@@ -15,6 +39,7 @@ The eval harness provides a framework for testing agent outputs against expected
 An `EvalCase` defines a single test scenario:
 
 ```python
+# app/agents/eval_harness.py
 @dataclass
 class EvalCase:
     case_id: str                       # Unique identifier
@@ -37,6 +62,7 @@ class EvalCase:
 A `CheckResult` is the outcome of a single check:
 
 ```python
+# app/agents/eval_harness.py
 @dataclass
 class CheckResult:
     check_name: str      # Name of the check
@@ -83,6 +109,17 @@ class EvalRun:
 ## Generic Checks
 
 The generic checks in `app/agents/eval_checks.py` apply to all agents:
+
+### Check Types Table
+
+| Check | Severity | Score | What It Tests | Negation Aware |
+|---|---|---|---|---|
+| `check_json_schema_like` | fatal | 15 | Output is a JSON object | N/A |
+| `check_required_fields` | fatal | 20 | All expected fields present | N/A |
+| `check_forbidden_phrases` | fatal | 20 | No unsafe trade language or prompt leakage | Yes |
+| `check_data_limitations` | warning | 10 | Data limitations acknowledged when missing | N/A |
+| `check_tool_usage` | warning | 10 | Expected tools were called | N/A |
+| `check_investment_safety` | fatal/warning | 20 | No unsafe language + has risk framing | Yes |
 
 ### 1. JSON Schema Check
 
@@ -191,6 +228,7 @@ The domain checks in `app/agents/eval_domain_checks.py` are agent-specific:
 You can automatically generate eval cases from production replay snapshots:
 
 ```python
+# app/agents/eval_harness.py
 from app.agents.eval_harness import build_eval_case_from_replay
 
 snapshot = load_replay_snapshot(run_id)
@@ -225,6 +263,16 @@ The admin harness view (`AdminHarnessView.tsx`) provides a UI for:
 - Comparing scores across runs
 
 The API endpoint `GET /api/admin/harness/cases` returns all registered eval cases, and `POST /api/admin/harness/run` triggers an evaluation run.
+
+```mermaid
+flowchart LR
+    A[AdminHarnessView.tsx] -->|GET /api/admin/harness/cases| B[Eval Store]
+    A -->|POST /api/admin/harness/run| C[Eval Runner]
+    C --> D[Execute Cases]
+    D --> E[Run Checks]
+    E --> F[Return Results]
+    F --> A
+```
 
 ## Scoring Rubric
 

@@ -45,6 +45,32 @@ sequenceDiagram
     end
 ```
 
+### Conversation Flow Detail
+
+```mermaid
+flowchart TD
+    A[User Message] --> B[Initialize CopilotState]
+    B --> C[Build Memory Snapshot]
+    C --> D[Loop: Build Planner Messages]
+    D --> E[LLM: CopilotPlannerAction]
+    E --> F{action_type?}
+
+    F -->|call_tool| G[Dispatch to Tool Handler]
+    G --> H[Truncate to 12k chars]
+    H --> I[Append Observation to State]
+    I --> D
+
+    F -->|request_skill_approval| J[Break Loop]
+    J --> K[Return pending_approval to Frontend]
+    K --> L{User Confirms?}
+    L -->|Yes| M[Execute Skill Agent]
+    M --> N[Append Skill Result]
+    N --> D
+    L -->|No| O[Cancel]
+
+    F -->|final_answer| P[Return Answer with Evidence]
+```
+
 ## Planner Schema
 
 Each planner round produces a `CopilotPlannerAction` with these fields:
@@ -62,9 +88,47 @@ Each planner round produces a `CopilotPlannerAction` with these fields:
 
 The planner uses `StructuredOutputContract` with `CopilotPlannerAction` as the Pydantic model, so every planner output is schema-validated.
 
+```python
+# app/agents/account_copilot/planner_schema.py
+class CopilotPlannerAction(FlexibleModel):
+    action_type: str                    # "call_tool" | "final_answer" | "request_skill_approval"
+    thought_summary: str = ""           # LLM reasoning trace
+    tool_name: str | None = None
+    tool_arguments: dict[str, Any] = {}
+    skill_name: str | None = None
+    skill_arguments: dict[str, Any] = {}
+    final_answer: str | None = None
+    evidence_sufficiency: dict[str, Any] = {}
+```
+
 ## Tool Registry
 
 The Copilot registers IBKR data tools via `AccountCopilotToolRegistry` (`app/agents/account_copilot/tool_registry.py`). Each tool has a handler function, a JSON schema, and metadata:
+
+```python
+# app/agents/account_copilot/tool_registry.py
+class AccountCopilotToolRegistry:
+    """Registers all IBKR read-only data tools for the Copilot."""
+
+    def __init__(self, db_session):
+        self._tools: dict[str, ToolRegistration] = {}
+        self._register_all(db_session)
+
+    def _register_all(self, db_session):
+        self.register(ToolRegistration(
+            name="ibkr_get_account_overview",
+            description="Account equity, cash, margin info",
+            parameters_schema={},                  # No parameters needed
+            handler=lambda **kw: get_account_overview(db_session),
+        ))
+        self.register(ToolRegistration(
+            name="ibkr_get_current_positions",
+            description="All current positions with weights",
+            parameters_schema={},
+            handler=lambda **kw: get_current_positions(db_session),
+        ))
+        # ... 7 more tools
+```
 
 | Tool | Description |
 |---|---|
@@ -83,6 +147,19 @@ All tools are **read-only** and have a 12,000-character output budget. The runti
 ## Skill Registry
 
 Skills are higher-level operations that require **user approval** before execution. They are registered via `AccountCopilotSkillRegistry` (`app/agents/account_copilot/skill_registry.py`).
+
+```mermaid
+flowchart TD
+    A[Copilot Decides Skill Needed] --> B[action_type = request_skill_approval]
+    B --> C[Break ReAct Loop]
+    C --> D[Return approval_request to Frontend]
+    D --> E[User Sees Confirmation Dialog]
+    E --> F{User Approves?}
+    F -->|Yes| G[Execute Skill Agent]
+    G --> H[Skill Result Returned to Copilot]
+    H --> I[Copilot Continues with Result]
+    F -->|No| J[Copilot Informs User]
+```
 
 | Skill | Description | Risk Level |
 |---|---|---|
@@ -104,12 +181,54 @@ When the Copilot decides a skill would help answer the user's question, it:
 
 The Copilot maintains conversation memory across rounds via `memory_manager.py` and `memory_schema.py`:
 
+```mermaid
+flowchart LR
+    subgraph "Memory Manager"
+        SE[Symbol Extractor]
+        TE[Topic Extractor]
+        RS[Rolling Summary]
+        PF[Pinned Facts]
+    end
+
+    subgraph "Memory Snapshot"
+        MS[memory_schema.Snapshot]
+    end
+
+    UM[User Message] --> SE
+    UM --> TE
+    SE --> MS
+    TE --> MS
+    RS --> MS
+    PF --> MS
+    MS --> PL[Planner Messages]
+```
+
 - **Symbol extraction**: Regex-based extraction of stock symbols from user messages (e.g., "AAPL", "NVDA.US")
 - **Topic extraction**: Keyword-based topic detection (risk, trade_review, valuation, etc.)
 - **Rolling summary**: A compressed summary of the conversation so far
 - **Pinned facts**: Key facts the user has mentioned that should persist across rounds
 
 The memory snapshot is passed to the planner each round so it can reference previous context without re-reading the full conversation.
+
+```python
+# app/agents/account_copilot/memory_manager.py
+class MemoryManager:
+    def extract_symbols(self, text: str) -> list[str]:
+        """Extract stock symbols from user text using regex."""
+        # Matches patterns like AAPL, NVDA.US, 9988.HK
+        pattern = r'\b([A-Z]{1,5}(?:\.[A-Z]{1,3})?)\b'
+        return list(set(re.findall(pattern, text.upper())))
+
+    def extract_topics(self, text: str) -> list[str]:
+        """Detect conversation topics via keyword matching."""
+        topic_keywords = {
+            "risk": ["risk", "concentration", "exposure", "风险", "集中度"],
+            "trade_review": ["review", "mistake", "performance", "回顾", "复盘"],
+            "valuation": ["valuation", "PE", "overvalued", "估值"],
+        }
+        return [t for t, kw in topic_keywords.items()
+                if any(k in text.lower() for k in kw)]
+```
 
 ## Safety Features
 

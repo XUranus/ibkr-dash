@@ -44,7 +44,7 @@ GET /api/positions
 | `page` | int | `1` | Page number (starts at 1) |
 | `page_size` | int | `20` | Items per page (1-200) |
 
-### Example
+### Filter Examples
 
 ```bash
 # Get the first 10 positions sorted by value
@@ -52,6 +52,18 @@ curl "http://localhost:8000/api/positions?page=1&page_size=10&sort_by=position_v
 
 # Filter by symbol
 curl "http://localhost:8000/api/positions?symbol=AAPL"
+
+# Filter by asset class (stocks only)
+curl "http://localhost:8000/api/positions?asset_class=STK"
+
+# Filter options positions sorted by quantity
+curl "http://localhost:8000/api/positions?asset_class=OPT&sort_by=quantity&sort_order=desc"
+
+# Get positions for a specific date
+curl "http://localhost:8000/api/positions?report_date=2024-01-15&page_size=50"
+
+# Combine multiple filters
+curl "http://localhost:8000/api/positions?asset_class=STK&sort_by=symbol&sort_order=asc&page=1&page_size=100"
 ```
 
 ### Response
@@ -106,6 +118,17 @@ curl "http://localhost:8000/api/positions?symbol=AAPL"
 | `total_realized_pnl` | float | Realized profit/loss |
 | `total_unrealized_pnl` | float | Unrealized profit/loss |
 | `previous_day_change_percent` | float | Daily change percentage |
+
+### Asset Class Codes
+
+| Code | Description |
+|------|-------------|
+| `STK` | Stocks / ETFs |
+| `OPT` | Options |
+| `FUND` | Mutual funds |
+| `CRYPTO` | Cryptocurrency |
+| `BOND` | Bonds |
+| `WAR` | Warrants |
 
 ---
 

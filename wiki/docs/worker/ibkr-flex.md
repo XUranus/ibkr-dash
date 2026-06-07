@@ -56,8 +56,10 @@ sequenceDiagram
 ### Step 1: Send Request
 
 ```python
+# ibkr_dash_worker/worker/clients/flex_client.py
 def send_request(self, query_id: str) -> str:
     """Submit a flex query and return the reference code."""
+    token = self._require_token()
     response = self.session.get(
         f"{self.settings.flex_base_url}/SendRequest",
         params={"t": token, "q": query_id, "v": "3"},
@@ -82,12 +84,22 @@ The response is XML:
 ```python
 def get_statement(self, reference_code: str) -> str:
     """Poll for a statement result using the reference code."""
+    token = self._require_token()
     response = self.session.get(
         f"{self.settings.flex_base_url}/GetStatement",
         params={"t": token, "q": reference_code, "v": "3"},
         timeout=60,
     )
-    # Returns XML with either the data or an error code
+    root = self._parse_xml(response.text)
+
+    # Check for error codes
+    error_code = self._extract_text(root, ("ErrorCode",))
+    if error_code in ("1018", "1019"):
+        raise FlexStatementNotReady(f"Statement not ready: error {error_code}")
+    if error_code:
+        raise FlexClientError(f"IBKR returned error code: {error_code}")
+
+    return response.text
 ```
 
 ### Step 3: Download with Retry
@@ -95,6 +107,7 @@ def get_statement(self, reference_code: str) -> str:
 ```python
 def download_flex_statement(self, query_id: str, save_path: str | Path) -> Path:
     """Download a flex statement with retry logic."""
+    save_target = Path(save_path)
     reference_code = self.send_request(query_id)
 
     for attempt in range(1, self.settings.flex_max_poll_retries + 1):
@@ -104,11 +117,36 @@ def download_flex_statement(self, query_id: str, save_path: str | Path) -> Path:
             return save_target
         except FlexStatementNotReady:
             if attempt == self.settings.flex_max_poll_retries:
-                raise FlexClientError("Statement was not ready before retry limit.")
+                raise FlexClientError(
+                    f"Statement not ready after {self.settings.flex_max_poll_retries} retries."
+                )
             time.sleep(self.settings.flex_poll_interval_seconds)
 ```
 
 ## Error Handling
+
+### Error Handling Flowchart
+
+```mermaid
+flowchart TD
+    Start["download_flex_statement()"] --> Send["send_request(query_id)"]
+    Send --> Ref{"ReferenceCode\nreturned?"}
+    Ref -->|No| Err1["Raise FlexClientError"]
+    Ref -->|Yes| Poll["get_statement(ref_code)"]
+    Poll --> Check{"Response\nstatus?"}
+
+    Check -->|"Success"| Save["Save XML to file"]
+    Save --> Done["Return file path"]
+
+    Check -->|"ErrorCode 1018/1019"| Retry{"Max retries\nreached?"}
+    Retry -->|No| Wait["sleep(10s)"]
+    Wait --> Poll
+    Retry -->|Yes| Err2["Raise FlexClientError:\nStatement not ready"]
+
+    Check -->|"Other error"| Err3["Raise FlexClientError:\nIBKR error code"]
+
+    Check -->|"Invalid XML"| Err4["Raise FlexClientError:\nNot valid XML"]
+```
 
 ### Error Codes
 
@@ -197,6 +235,17 @@ The Flex Web Service has rate limits. Do not poll more frequently than every 10 
 | `FLEX_QUERY_ID_DAILY` | `""` | Flex Query ID for daily data import. |
 | `FLEX_POLL_INTERVAL_SECONDS` | `10` | Seconds between poll retries. |
 | `FLEX_MAX_POLL_RETRIES` | `60` | Maximum number of poll attempts. |
+
+### Environment File Example
+
+```bash
+# .env file
+FLEX_TOKEN=your-flex-token-here
+FLEX_QUERY_ID_DAILY=1532356
+FLEX_BASE_URL=https://www.interactivebrokers.com/AccountManagement/FlexWebService
+FLEX_POLL_INTERVAL_SECONDS=10
+FLEX_MAX_POLL_RETRIES=60
+```
 
 :::info
 The worker's default `daily_incremental_job.py` uses a hardcoded list of query IDs (`DEFAULT_QUERY_IDS = ["1532356", "1532359"]`). Update this list to match your Flex Query IDs.

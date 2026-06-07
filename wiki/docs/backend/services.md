@@ -31,6 +31,43 @@ def get_some_service(db: Database = Depends(get_db)) -> SomeService:
 
 FastAPI creates a new service instance per request. The `Database` singleton is shared across all requests.
 
+## Service Dependency Graph
+
+This diagram shows how all services are wired together through dependency injection:
+
+```mermaid
+flowchart TD
+    Routes["Route Handlers<br/>(api/routes/)"]
+    DI["deps.py<br/>(DI Providers)"]
+    DB["Database<br/>(Singleton)"]
+
+    Routes --> DI
+
+    DI --> AS["AccountService"]
+    DI --> PS["PositionService"]
+    DI --> TS["TradeService"]
+    DI --> CFS["CashFlowService"]
+    DI --> DS["DividendService"]
+    DI --> CS["ChartService"]
+    DI --> LLM["LLMService<br/>(Singleton)"]
+    DI --> ATS["AgentTaskService"]
+    DI --> IBKR["IbkrToolService"]
+
+    AS --> DB
+    PS --> DB
+    TS --> DB
+    CFS --> DB
+    DS --> DB
+    CS --> DB
+    ATS --> DB
+    IBKR --> DB
+    LLM -.->|"httpx"| EXT["External LLM API"]
+```
+
+:::tip
+The `LLMService` is a process-wide singleton (cached via `lru_cache` in `deps.py`). This means the `httpx.Client` connection pool is shared across all requests, which is efficient for high-throughput scenarios.
+:::
+
 ## Key Services
 
 ### AccountService
@@ -120,6 +157,7 @@ A lightweight HTTP client for any OpenAI-compatible chat completions endpoint.
 - **Metadata tracking**: `chat_with_metadata()` returns content, token usage, and latency.
 
 ```python
+# From app/services/llm_service.py
 class LLMService:
     def __init__(self, settings: Settings) -> None:
         self._client = httpx.Client(
@@ -143,10 +181,6 @@ result = llm_service.chat_with_metadata([
 ], response_format={"type": "json_object"})
 ```
 
-:::tip
-The LLMService is a process-wide singleton (cached via `lru_cache` in `deps.py`). This means the `httpx.Client` connection pool is shared across all requests, which is efficient for high-throughput scenarios.
-:::
-
 ### AgentTaskService
 
 **File:** `app/services/agent_services.py`
@@ -161,7 +195,7 @@ Manages background agent tasks with status tracking.
 - `cancel_task(task_id)` -- Cancels a pending or running task.
 - `update_progress(task_id, progress)` -- Updates the progress field of a running task.
 
-**Task lifecycle:** `pending` -> `running` -> `completed` / `failed` / `cancelled`
+**Task lifecycle:**
 
 ```mermaid
 stateDiagram-v2
@@ -189,39 +223,26 @@ All services interact with the database through the `Database` class methods:
 Services never manage connections directly. The `Database` class handles connection lifecycle, commit/rollback, and closing.
 :::
 
-## Service Dependency Graph
-
-```mermaid
-flowchart TD
-    Routes["Route Handlers"]
-    DI["deps.py (DI Providers)"]
-    DB["Database (Singleton)"]
-
-    Routes --> DI
-    DI --> AS["AccountService"]
-    DI --> PS["PositionService"]
-    DI --> TS["TradeService"]
-    DI --> CFS["CashFlowService"]
-    DI --> DS["DividendService"]
-    DI --> CS["ChartService"]
-    DI --> LLM["LLMService (Singleton)"]
-    DI --> ATS["AgentTaskService"]
-
-    AS --> DB
-    PS --> DB
-    TS --> DB
-    CFS --> DB
-    DS --> DB
-    CS --> DB
-    ATS --> DB
-    LLM -.->|"httpx"| EXT["External LLM API"]
-```
-
 ## Adding a New Service
 
 To add a new service:
 
 1. Create `app/services/my_service.py` with a class that takes `db: Database` in `__init__`.
+
+```python
+# app/services/my_service.py
+from app.core.database import Database
+from app.schemas.my_schema import MyResponse
+
+class MyService:
+    def __init__(self, db: Database) -> None:
+        self.db = db
+
+    def my_method(self) -> MyResponse:
+        rows = self.db.execute("SELECT * FROM my_table")
+        return MyResponse(items=rows)
+```
+
 2. Add a provider function in `app/api/deps.py`:
 
 ```python

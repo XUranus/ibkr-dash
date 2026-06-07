@@ -13,6 +13,43 @@ You can run agents in two ways:
 
 ---
 
+## Agent Task Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Pending: POST /api/agent/run
+    Pending --> Running: Worker picks up task
+    Running --> Completed: Agent finishes successfully
+    Running --> Failed: Agent encounters error
+    Running --> Cancelled: User cancels task
+    Completed --> [*]
+    Failed --> [*]
+    Cancelled --> [*]
+```
+
+---
+
+## Agent Architecture
+
+```mermaid
+graph TD
+    A[Client Request] --> B{Direct or Background?}
+    B -->|Direct| C[Agent Endpoint]
+    B -->|Background| D[POST /api/agent/run]
+    D --> E[Task Queue]
+    E --> F[Background Worker]
+    C --> G[Agent Service]
+    F --> G
+    G --> H[Fetch Context from DB]
+    H --> I[Build Prompt]
+    I --> J[Call LLM]
+    J --> K[Parse Structured Output]
+    K --> L[Save Result to DB]
+    L --> M[Return Response]
+```
+
+---
+
 ## Agent Overview
 
 | Agent | Prefix | Purpose |
@@ -100,6 +137,25 @@ curl "http://localhost:8000/api/trade-decision/decisions?limit=10&symbol=AAPL"
 | `symbol` | string | - | Filter by symbol |
 | `decision_type` | string | - | Filter by type |
 
+### Get Specific Decision
+
+```bash
+curl "http://localhost:8000/api/trade-decision/decisions/td-abc-123"
+```
+
+### Health Check
+
+```bash
+curl "http://localhost:8000/api/trade-decision/health"
+```
+
+```json
+{
+  "status": "ok",
+  "agent": "trade_decision"
+}
+```
+
 ---
 
 ## Trade Review Agent
@@ -147,6 +203,18 @@ curl -X POST "http://localhost:8000/api/trade-review/review" \
 
 ```bash
 curl "http://localhost:8000/api/trade-review/reviews?limit=10&symbol=AAPL"
+```
+
+### Get Specific Review
+
+```bash
+curl "http://localhost:8000/api/trade-review/reviews/review-abc-123"
+```
+
+### Health Check
+
+```bash
+curl "http://localhost:8000/api/trade-review/health"
 ```
 
 ---
@@ -233,6 +301,18 @@ curl -X POST "http://localhost:8000/api/risk-assessment/assess" \
 curl "http://localhost:8000/api/risk-assessment/assessments?limit=10"
 ```
 
+### Get Specific Assessment
+
+```bash
+curl "http://localhost:8000/api/risk-assessment/assessments/assess-abc-123"
+```
+
+### Health Check
+
+```bash
+curl "http://localhost:8000/api/risk-assessment/health"
+```
+
 ---
 
 ## Background Task Runner
@@ -278,6 +358,26 @@ curl -X POST "http://localhost:8000/api/agent/run" \
 
 ```bash
 curl "http://localhost:8000/api/agent/tasks/task-abc-123"
+```
+
+**Completed response:**
+
+```json
+{
+  "id": "task-abc-123",
+  "agent_name": "daily_review",
+  "status": "completed",
+  "progress": 100,
+  "result": {
+    "review_date": "2024-01-15",
+    "summary": "Portfolio is well-diversified...",
+    "cards": [...]
+  },
+  "error": null,
+  "created_at": "2024-01-15T10:30:00",
+  "started_at": "2024-01-15T10:30:01",
+  "finished_at": "2024-01-15T10:30:45"
+}
 ```
 
 Status values: `pending`, `running`, `completed`, `failed`, `cancelled`.

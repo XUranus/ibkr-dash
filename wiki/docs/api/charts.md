@@ -45,6 +45,9 @@ curl "http://localhost:8000/api/charts/equity-curve"
 
 # Last 30 days
 curl "http://localhost:8000/api/charts/equity-curve?start_date=2024-01-01&end_date=2024-01-31"
+
+# Year to date
+curl "http://localhost:8000/api/charts/equity-curve?start_date=2024-01-01"
 ```
 
 ### Response
@@ -86,6 +89,32 @@ curl "http://localhost:8000/api/charts/equity-curve?start_date=2024-01-01&end_da
 | `daily_mtm` | float | Daily mark-to-market change |
 | `daily_twr` | float | Daily time-weighted return (percentage) |
 
+### Chart Data Format
+
+The equity curve response is structured for direct use in charting libraries:
+
+```typescript
+// ECharts line chart example
+const res = await fetch('/api/charts/equity-curve');
+const { items } = await res.json();
+
+const option = {
+  xAxis: {
+    type: 'category',
+    data: items.map(i => i.report_date),  // ["2024-01-15", "2024-01-16", ...]
+  },
+  yAxis: {
+    type: 'value',
+    name: 'Equity ($)',
+  },
+  series: [{
+    type: 'line',
+    data: items.map(i => i.total_equity),  // [250000, 252500, ...]
+    smooth: true,
+  }],
+};
+```
+
 :::tip
 The equity curve is ideal for rendering a line chart on the dashboard. Use `total_equity` for the Y-axis and `report_date` for the X-axis.
 :::
@@ -109,6 +138,14 @@ GET /api/charts/performance-calendar
 | `view` | string | `month` | Period granularity: `month`, `quarter`, or `year` |
 | `anchor` | string | latest | Center the view on this period key (e.g. `2024-01` for month view) |
 
+### Anchor Format by View
+
+| View | Anchor Format | Example |
+|------|---------------|---------|
+| `month` | `YYYY-MM` | `2024-01` |
+| `quarter` | `YYYY-QN` | `2024-Q1` |
+| `year` | `YYYY` | `2024` |
+
 ### Examples
 
 ```bash
@@ -117,6 +154,9 @@ curl "http://localhost:8000/api/charts/performance-calendar?view=month"
 
 # Quarterly view centered on Q1 2024
 curl "http://localhost:8000/api/charts/performance-calendar?view=quarter&anchor=2024-Q1"
+
+# Yearly view
+curl "http://localhost:8000/api/charts/performance-calendar?view=year"
 ```
 
 ### Response
@@ -191,6 +231,23 @@ curl "http://localhost:8000/api/charts/performance-calendar?view=quarter&anchor=
 | `negative_periods` | int | Count of loss periods |
 | `total_pnl` | float | Total P&L across all periods |
 | `periods_with_data` | int | Number of periods with data |
+
+### Calendar Heatmap Example
+
+```typescript
+// Build a heatmap data array from the calendar response
+const res = await fetch('/api/charts/performance-calendar?view=month');
+const { items } = await res.json();
+
+const heatmapData = items.map(item => ({
+  date: item.period_key,       // "2024-01"
+  value: item.pnl,             // 5000.00 or -1200.00
+  label: item.label,           // "Jan 2024"
+}));
+
+// Color mapping: green for positive, red for negative
+const getColor = (pnl: number) => pnl >= 0 ? '#22c55e' : '#ef4444';
+```
 
 :::tip
 Use the `previous_anchor` and `next_anchor` fields to implement pagination in the calendar view. Pass the anchor value back to the API to navigate between pages.
