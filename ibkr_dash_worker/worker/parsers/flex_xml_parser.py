@@ -80,6 +80,20 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexXmlResult]:
             symbol = pos.get("symbol", "")
             if not symbol:
                 continue
+            currency = pos.get("currency", "USD")
+            fx_rate = _safe_float(pos.get("fxRateToBase"), 1.0)
+            # Convert to USD if foreign currency
+            mark_price = _safe_float(pos.get("markPrice"))
+            position_value = _safe_float(pos.get("positionValue"))
+            avg_cost = _safe_float(pos.get("averageCost"))
+            cost_basis = _safe_float(pos.get("costBasis"))
+            pnl_unrealized = _safe_float(pos.get("fifoPnlUnrealized"))
+            if currency != "USD" and fx_rate > 0:
+                mark_price = mark_price * fx_rate
+                position_value = position_value * fx_rate
+                avg_cost = avg_cost * fx_rate
+                cost_basis = cost_basis * fx_rate
+                pnl_unrealized = pnl_unrealized * fx_rate
             result.positions.append({
                 "account_id": account_id,
                 "report_date": report_date,
@@ -89,14 +103,16 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexXmlResult]:
                 "conid": pos.get("conid", ""),
                 "isin": pos.get("isin", ""),
                 "listing_exchange": pos.get("listingExchange", ""),
+                "currency": currency,
+                "fx_rate_to_base": fx_rate,
                 "quantity": _safe_float(pos.get("position")),
-                "mark_price": _safe_float(pos.get("markPrice")),
-                "position_value": _safe_float(pos.get("positionValue")),
-                "average_cost_price": _safe_float(pos.get("averageCost")),
-                "cost_basis_money": _safe_float(pos.get("costBasis")),
+                "mark_price": mark_price,
+                "position_value": position_value,
+                "average_cost_price": avg_cost,
+                "cost_basis_money": cost_basis,
                 "percent_of_nav": _safe_float(pos.get("percentOfNAV")),
-                "fifo_pnl_unrealized": _safe_float(pos.get("fifoPnlUnrealized")),
-                "total_unrealized_pnl": _safe_float(pos.get("fifoPnlUnrealized")),
+                "fifo_pnl_unrealized": pnl_unrealized,
+                "total_unrealized_pnl": pnl_unrealized,
             })
 
         # Parse Trades
@@ -104,6 +120,21 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexXmlResult]:
             symbol = trade.get("symbol", "")
             if not symbol:
                 continue
+            currency = trade.get("currency", "USD")
+            fx_rate = _safe_float(trade.get("fxRateToBase"), 1.0)
+            trade_price = _safe_float(trade.get("tradePrice"))
+            trade_money = _safe_float(trade.get("tradeMoney"))
+            proceeds = _safe_float(trade.get("proceeds"))
+            commission = _safe_float(trade.get("ibCommission"))
+            net_cash = _safe_float(trade.get("netCash"))
+            pnl_realized = _safe_float(trade.get("fifoPnlRealized"))
+            if currency != "USD" and fx_rate > 0:
+                trade_price = trade_price * fx_rate
+                trade_money = trade_money * fx_rate
+                proceeds = proceeds * fx_rate
+                commission = commission * fx_rate
+                net_cash = net_cash * fx_rate
+                pnl_realized = pnl_realized * fx_rate
             result.trades.append({
                 "account_id": account_id,
                 "symbol": symbol,
@@ -115,14 +146,16 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexXmlResult]:
                 "settle_date": _format_date(trade.get("settleDate")),
                 "transaction_type": trade.get("transactionType", ""),
                 "exchange": trade.get("exchange", ""),
+                "currency": currency,
+                "fx_rate_to_base": fx_rate,
                 "quantity": _safe_float(trade.get("quantity")),
-                "trade_price": _safe_float(trade.get("tradePrice")),
-                "trade_money": _safe_float(trade.get("tradeMoney")),
-                "proceeds": _safe_float(trade.get("proceeds")),
+                "trade_price": trade_price,
+                "trade_money": trade_money,
+                "proceeds": proceeds,
                 "taxes": _safe_float(trade.get("taxes")),
-                "ib_commission": _safe_float(trade.get("ibCommission")),
-                "net_cash": _safe_float(trade.get("netCash")),
-                "fifo_pnl_realized": _safe_float(trade.get("fifoPnlRealized")),
+                "ib_commission": commission,
+                "net_cash": net_cash,
+                "fifo_pnl_realized": pnl_realized,
                 "buy_sell": trade.get("buySell", ""),
                 "order_type": trade.get("orderType", ""),
             })

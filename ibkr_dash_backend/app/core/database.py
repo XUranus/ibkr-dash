@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS position_snapshots (
     conid           TEXT,
     isin            TEXT,
     listing_exchange TEXT,
+    currency        TEXT DEFAULT 'USD',
+    fx_rate_to_base REAL DEFAULT 1.0,
     quantity        REAL,
     mark_price      REAL,
     position_value  REAL,
@@ -83,6 +85,8 @@ CREATE TABLE IF NOT EXISTS trade_records (
     settle_date     TEXT,
     transaction_type TEXT,
     exchange        TEXT,
+    currency        TEXT DEFAULT 'USD',
+    fx_rate_to_base REAL DEFAULT 1.0,
     quantity        REAL,
     trade_price     REAL,
     trade_money     REAL,
@@ -248,6 +252,10 @@ _MIGRATIONS = [
     "ALTER TABLE trade_records ADD COLUMN trade_id TEXT",
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_trade_records_unique ON trade_records(account_id, trade_date, symbol, trade_id)",
     "ALTER TABLE cash_flows ADD COLUMN flow_direction TEXT",
+    "ALTER TABLE position_snapshots ADD COLUMN currency TEXT DEFAULT 'USD'",
+    "ALTER TABLE position_snapshots ADD COLUMN fx_rate_to_base REAL DEFAULT 1.0",
+    "ALTER TABLE trade_records ADD COLUMN currency TEXT DEFAULT 'USD'",
+    "ALTER TABLE trade_records ADD COLUMN fx_rate_to_base REAL DEFAULT 1.0",
 ]
 
 
