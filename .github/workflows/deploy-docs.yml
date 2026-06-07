@@ -33,13 +33,9 @@ jobs:
         working-directory: docs
         run: npm ci
 
-      - name: Build English
+      - name: Build all locales
         working-directory: docs
-        run: npx docusaurus build --locale en
-
-      - name: Build Chinese
-        working-directory: docs
-        run: npx docusaurus build --locale zh-CN
+        run: npx docusaurus build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
