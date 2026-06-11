@@ -122,7 +122,7 @@ def get_current_user(
     When ``auth_password`` is not configured, anonymous access is allowed.
     Otherwise, the dependency first checks for a session cookie
     (``ibkr_dash_session``) and then falls back to HTTP Basic auth.
-    Raises 401 when auth is required but no valid credential is provided.
+    Returns 401 WITHOUT ``WWW-Authenticate`` header to avoid browser dialog.
     """
     if not settings.auth_password:
         # Auth is not configured -- allow anonymous access.
@@ -136,15 +136,15 @@ def get_current_user(
         if session:
             return session.username
 
-    # Fall back to HTTP Basic
+    # Fall back to HTTP Basic (for API clients like curl)
     if credentials:
         correct_username = secrets.compare_digest(credentials.username, settings.auth_username)
         correct_password = secrets.compare_digest(credentials.password, settings.auth_password)
         if correct_username and correct_password:
             return credentials.username
 
+    # Return 401 WITHOUT WWW-Authenticate header to avoid browser dialog
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Authentication required",
-        headers={"WWW-Authenticate": "Basic"},
     )
