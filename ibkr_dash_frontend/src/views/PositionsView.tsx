@@ -17,21 +17,14 @@ import { formatNumber } from '@/utils/format'
 echarts.use([TreemapChart, CanvasRenderer, TooltipComponent])
 
 function changeColor(pct: number | null | undefined): string {
-  if (pct == null || pct === 0) return 'rgba(120,130,150,0.5)'
-  const intensity = Math.min(Math.abs(pct) / 5, 1) // 5% change = full intensity
-  if (pct > 0) {
-    // Green shades: muted for small, vivid for large
-    const r = Math.round(20 + (1 - intensity) * 40)
-    const g = Math.round(120 + intensity * 100)
-    const b = Math.round(60 + (1 - intensity) * 30)
-    return `rgb(${r},${g},${b})`
-  } else {
-    // Red shades: muted for small, vivid for large
-    const r = Math.round(160 + intensity * 80)
-    const g = Math.round(40 + (1 - intensity) * 40)
-    const b = Math.round(40 + (1 - intensity) * 30)
-    return `rgb(${r},${g},${b})`
-  }
+  if (pct == null) return 'rgba(60,70,85,0.7)'
+  const clamped = Math.max(-8, Math.min(8, pct)) // Clamp to [-8, 8] for color range
+  const t = (clamped + 8) / 16 // 0 = deep red, 0.5 = neutral, 1 = deep green
+  // Red → Dark neutral → Green
+  const r = Math.round(180 - t * 120) // 180 → 60
+  const g = Math.round(50 + t * 130)  // 50 → 180
+  const b = Math.round(45 + t * 30)   // 45 → 75
+  return `rgb(${r},${g},${b})`
 }
 
 export default function PositionsView() {
@@ -98,11 +91,17 @@ export default function PositionsView() {
           const changeSign = d.changePct >= 0 ? '+' : ''
           const changeColor = d.changePct >= 0 ? '#3dd68c' : '#f25c5c'
           return [
-            `<div style="font-family: 'JetBrains Mono', monospace; min-width: 180px;">`,
-            `<div style="font-weight:700; font-size:14px; margin-bottom:4px;">${d.name}</div>`,
+            `<div style="font-family: 'JetBrains Mono', monospace; min-width: 200px;">`,
+            `<div style="font-weight:700; font-size:14px; margin-bottom:2px;">${d.name}</div>`,
             `<div style="color:#8a8d9e; font-size:11px; margin-bottom:8px;">${d.description}</div>`,
-            `<div style="font-size:13px;">$${d.value.toLocaleString()}</div>`,
-            `<div style="color:${changeColor}; font-size:12px; margin-top:2px;">${changeSign}${d.changePct.toFixed(2)}%</div>`,
+            `<div style="display:flex; justify-content:space-between; font-size:13px;">`,
+            `<span style="color:#8a8d9e">Market Value</span>`,
+            `<span>$${d.value.toLocaleString()}</span>`,
+            `</div>`,
+            `<div style="display:flex; justify-content:space-between; font-size:13px; margin-top:2px;">`,
+            `<span style="color:#8a8d9e">Daily Change</span>`,
+            `<span style="color:${changeColor}">${changeSign}${d.changePct.toFixed(2)}%</span>`,
+            `</div>`,
             `</div>`,
           ].join('')
         },
@@ -117,11 +116,14 @@ export default function PositionsView() {
         breadcrumb: { show: false },
         label: {
           show: true,
+          position: 'inside',
+          align: 'center',
+          verticalAlign: 'middle',
           formatter: (params: { data: { name: string; value: number; changePct: number } }) => {
             const d = params.data
-            if (d.value < 100) return '' // Hide tiny positions
+            if (d.value < 100) return ''
             const changeStr = d.changePct >= 0 ? `+${d.changePct.toFixed(1)}%` : `${d.changePct.toFixed(1)}%`
-            return `{name|${d.name}}\n{value|$${d.value >= 1000 ? (d.value / 1000).toFixed(1) + 'k' : d.value.toFixed(0)}}\n{change|${changeStr}}`
+            return `{name|${d.name}}\n{change|${changeStr}}`
           },
           rich: {
             name: {
@@ -130,18 +132,14 @@ export default function PositionsView() {
               fontFamily: 'JetBrains Mono, monospace',
               color: '#fff',
               lineHeight: 18,
-            },
-            value: {
-              fontSize: 11,
-              fontFamily: 'JetBrains Mono, monospace',
-              color: 'rgba(255,255,255,0.7)',
-              lineHeight: 15,
+              align: 'center',
             },
             change: {
-              fontSize: 10,
+              fontSize: 11,
               fontFamily: 'JetBrains Mono, monospace',
               color: 'rgba(255,255,255,0.85)',
-              lineHeight: 14,
+              lineHeight: 16,
+              align: 'center',
             },
           },
         },
@@ -272,12 +270,10 @@ export default function PositionsView() {
               <div className="surface-panel__content">
                 <p className="eyebrow">{t('positions.portfolioOverview')}</p>
                 <div ref={chartRef} style={{ width: '100%', height: 400, borderRadius: 'var(--radius-md)', overflow: 'hidden' }} />
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 8, fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
-                  <span>← <span style={{ color: '#f25c5c' }}>▼</span> Down</span>
-                  <span style={{ color: 'var(--color-text-muted)', opacity: 0.5 }}>|</span>
-                  <span>Flat</span>
-                  <span style={{ color: 'var(--color-text-muted)', opacity: 0.5 }}>|</span>
-                  <span>Up <span style={{ color: '#3dd68c' }}>▲</span> →</span>
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 8, fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
+                  <span style={{ color: '#b43232' }}>▼ Down</span>
+                  <div style={{ width: 120, height: 8, borderRadius: 4, background: 'linear-gradient(90deg, #b43232, #3c6e3c)' }} />
+                  <span style={{ color: '#3c6e3c' }}>Up ▲</span>
                 </div>
               </div>
             </section>
