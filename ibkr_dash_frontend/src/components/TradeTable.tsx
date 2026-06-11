@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { TradeItem } from '@/types/trades'
 import { formatNumber, pnlClass } from '@/utils/format'
 
@@ -6,12 +7,6 @@ interface Props {
   sortKey: 'proceeds' | 'fifo_pnl_realized' | null
   sortOrder: 'asc' | 'desc'
   onSort: (key: 'proceeds' | 'fifo_pnl_realized') => void
-}
-
-function formatSide(value: string | null): string {
-  if (value === 'BUY') return 'Buy'
-  if (value === 'SELL') return 'Sell'
-  return value ?? '--'
 }
 
 function sideTagClass(value: string | null): string {
@@ -26,36 +21,44 @@ function sortIndicator(activeKey: string | null, activeOrder: string, key: strin
 }
 
 export default function TradeTable({ items, sortKey, sortOrder, onSort }: Props) {
+  const { t } = useTranslation()
+
+  function formatSide(value: string | null): string {
+    if (value === 'BUY') return t('trades.buy')
+    if (value === 'SELL') return t('trades.sell')
+    return value ?? '--'
+  }
+
   return (
     <div className="table-shell">
       <table className="data-table" style={{ minWidth: 1400 }}>
         <thead>
           <tr>
-            <th style={{ width: '14%' }}>Date/Time</th>
-            <th style={{ width: '23%' }}>Symbol</th>
-            <th style={{ width: '8%', textAlign: 'center' }}>Asset</th>
-            <th style={{ width: '6%', textAlign: 'center' }}>Side</th>
-            <th style={{ width: '8%', textAlign: 'right' }}>Qty</th>
-            <th style={{ width: '8%', textAlign: 'right' }}>Price</th>
+            <th style={{ width: '14%' }}>{t('trades.dateTime')}</th>
+            <th style={{ width: '23%' }}>{t('trades.symbol')}</th>
+            <th style={{ width: '8%', textAlign: 'center' }}>{t('trades.asset')}</th>
+            <th style={{ width: '6%', textAlign: 'center' }}>{t('trades.side')}</th>
+            <th style={{ width: '8%', textAlign: 'right' }}>{t('trades.quantity')}</th>
+            <th style={{ width: '8%', textAlign: 'right' }}>{t('trades.price')}</th>
             <th style={{ width: '11%', textAlign: 'right' }}>
               <button className="sort-button" onClick={() => onSort('proceeds')}>
-                <span>Proceeds</span>
+                <span>{t('trades.proceeds')}</span>
                 <span className="sort-button__indicator">{sortIndicator(sortKey, sortOrder, 'proceeds')}</span>
               </button>
             </th>
-            <th style={{ width: '7%', textAlign: 'right' }}>Commission</th>
+            <th style={{ width: '7%', textAlign: 'right' }}>{t('trades.commission')}</th>
             <th style={{ width: '9%', textAlign: 'right' }}>
               <button className="sort-button" onClick={() => onSort('fifo_pnl_realized')}>
-                <span>Realized P&L</span>
+                <span>{t('trades.realizedPnl')}</span>
                 <span className="sort-button__indicator">{sortIndicator(sortKey, sortOrder, 'fifo_pnl_realized')}</span>
               </button>
             </th>
-            <th style={{ width: '6%' }}>Exchange</th>
+            <th style={{ width: '6%' }}>{t('trades.exchange')}</th>
           </tr>
         </thead>
         <tbody>
           {items.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', padding: '2rem' }}>No trade data</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', padding: '2rem' }}>{t('trades.noTradeData')}</td></tr>
           ) : items.map((item) => (
             <tr key={item.trade_id || item.transaction_id || `${item.date_time}-${item.symbol}`}>
               <td style={{ whiteSpace: 'normal' }}>
@@ -67,7 +70,7 @@ export default function TradeTable({ items, sortKey, sortOrder, onSort }: Props)
               <td style={{ whiteSpace: 'normal' }}>
                 <div className="table-symbol">
                   <span className="table-symbol__code">{item.symbol ?? '--'}</span>
-                  <span className="table-symbol__desc">{item.description ?? 'No name'}</span>
+                  <span className="table-symbol__desc">{item.description ?? t('positions.noName')}</span>
                 </div>
               </td>
               <td style={{ textAlign: 'center' }}><span className={`tag tag--accent`}>{item.asset_class ?? '--'}</span></td>

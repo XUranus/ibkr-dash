@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import i18n from '@/i18n'
 
 interface Props {
   children: ReactNode
@@ -60,7 +61,7 @@ export default class ErrorBoundary extends Component<Props, State> {
               color: 'var(--color-text-bright)',
               letterSpacing: '-0.02em',
             }}>
-              Something went wrong
+              {i18n.t('errors.somethingWentWrong')}
             </h2>
             <p style={{
               color: 'var(--color-text-muted)',
@@ -69,14 +70,14 @@ export default class ErrorBoundary extends Component<Props, State> {
               lineHeight: 1.6,
               marginBottom: '1.5rem',
             }}>
-              {this.state.error?.message || 'An unexpected error occurred while rendering this page.'}
+              {this.state.error?.message || i18n.t('errors.unexpectedError')}
             </p>
             <button
               className="btn btn--accent"
               onClick={this.handleReload}
               style={{ padding: '0.6rem 1.6rem' }}
             >
-              Reload Page
+              {i18n.t('errors.reloadPage')}
             </button>
           </div>
         </div>

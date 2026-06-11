@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { DividendItem } from '@/types/dividends'
 import { formatNumber, pnlClass } from '@/utils/format'
 
@@ -28,6 +29,8 @@ function sortIndicator(activeKey: string | null, activeOrder: string, key: strin
 }
 
 export default function DividendTable({ items, sortKey, sortOrder, onSort }: Props) {
+  const { t } = useTranslation()
+
   return (
     <div className="table-shell">
       <table className="data-table">
@@ -35,22 +38,22 @@ export default function DividendTable({ items, sortKey, sortOrder, onSort }: Pro
           <tr>
             <th style={{ width: '17%' }}>
               <button className="sort-button" style={{ justifyContent: 'flex-start' }} onClick={() => onSort('date_time')}>
-                <span>Settlement Date</span>
+                <span>{t('dividends.settlementDate')}</span>
                 <span className="sort-button__indicator">{sortIndicator(sortKey, sortOrder, 'date_time')}</span>
               </button>
             </th>
             <th style={{ width: '10%' }}>
               <button className="sort-button" style={{ justifyContent: 'flex-start' }} onClick={() => onSort('ex_date')}>
-                <span>Ex-Date</span>
+                <span>{t('dividends.exDate')}</span>
                 <span className="sort-button__indicator">{sortIndicator(sortKey, sortOrder, 'ex_date')}</span>
               </button>
             </th>
-            <th style={{ width: '20%' }}>Symbol</th>
-            <th style={{ width: '9%', textAlign: 'center' }}>Type</th>
-            <th style={{ width: '7%', textAlign: 'center' }}>Currency</th>
+            <th style={{ width: '20%' }}>{t('dividends.symbol')}</th>
+            <th style={{ width: '9%', textAlign: 'center' }}>{t('dividends.type')}</th>
+            <th style={{ width: '7%', textAlign: 'center' }}>{t('dividends.currency')}</th>
             <th style={{ width: '12%', textAlign: 'right' }}>
               <button className="sort-button" onClick={() => onSort('amount')}>
-                <span>Amount</span>
+                <span>{t('dividends.amount')}</span>
                 <span className="sort-button__indicator">{sortIndicator(sortKey, sortOrder, 'amount')}</span>
               </button>
             </th>
@@ -58,7 +61,7 @@ export default function DividendTable({ items, sortKey, sortOrder, onSort }: Pro
         </thead>
         <tbody>
           {items.length === 0 ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>No dividend records</td></tr>
+            <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>{t('dividends.noDividendRecords')}</td></tr>
           ) : items.map((item) => (
             <tr key={item.transaction_id || `${item.date_time}-${item.symbol}-${item.amount}`}>
               <td style={{ whiteSpace: 'normal' }}>

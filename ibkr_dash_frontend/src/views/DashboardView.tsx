@@ -135,7 +135,7 @@ export default function DashboardView() {
                 <section className="summary-layout" style={{ animation: 'slideUp 0.45s ease 0.1s both' }}>
                   <section className="surface-panel">
                     <div className="surface-panel__content">
-                      <p className="eyebrow">TOP {TOP_N} CONCENTRATION</p>
+                      <p className="eyebrow">{t('dashboard.topNConcentration', { n: TOP_N })}</p>
                       <div className="summary-list" style={{ marginTop: 8 }}>
                         {topPositions.map((item, i) => (
                           <div key={item.symbol} className="summary-list__row">
@@ -159,8 +159,8 @@ export default function DashboardView() {
 
                   {concentrationPie && (
                     <PieDistributionCard
-                      title="Position Distribution"
-                      subtitle={`Top ${TOP_N} holdings by market value`}
+                      title={t('dashboard.positionDistribution')}
+                      subtitle={t('dashboard.topNHoldingsDesc', { n: TOP_N })}
                       items={concentrationPie}
                     />
                   )}

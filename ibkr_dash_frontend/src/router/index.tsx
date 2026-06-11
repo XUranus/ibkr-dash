@@ -1,12 +1,13 @@
 import React, { lazy, Suspense } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
+import i18n from '@/i18n'
 import App from '@/App'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { useAuth } from '@/hooks/useAuth'
 
 const LoadingFallback = () => (
   <div style={{ display: 'grid', placeItems: 'center', minHeight: '40vh', color: '#adc0df' }}>
-    Loading...
+    {i18n.t('common.loading')}
   </div>
 )
 
@@ -18,10 +19,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return (
       <div style={{ textAlign: 'center', padding: '60px 20px' }}>
         <p style={{ color: 'var(--color-text-muted)', marginBottom: 16 }}>
-          Please log in to access this page.
+          {i18n.t('errors.pleaseLogin')}
         </p>
         <button className="btn btn--accent" onClick={() => window.location.href = '/'}>
-          Go to Login
+          {i18n.t('auth.goToLogin')}
         </button>
       </div>
     )

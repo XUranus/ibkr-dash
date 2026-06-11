@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { PositionItem } from '@/types/positions'
 import { formatNumber, formatSignedPercent, pnlClass } from '@/utils/format'
 
@@ -9,16 +10,17 @@ interface Props {
 
 type SortKey = 'previous_day_change_percent' | 'total_realized_pnl' | 'total_unrealized_pnl' | 'cost_basis_money' | 'position_value' | 'percent_of_nav'
 
-const sortableLabels: Record<SortKey, string> = {
-  previous_day_change_percent: 'Daily Chg',
-  total_realized_pnl: 'Realized P&L',
-  total_unrealized_pnl: 'Unrealized P&L',
-  cost_basis_money: 'Cost',
-  position_value: 'Market Value',
-  percent_of_nav: '% NAV',
-}
-
 export default function PositionTable({ items, onSelect }: Props) {
+  const { t } = useTranslation()
+
+  const sortableLabels: Record<SortKey, string> = {
+    previous_day_change_percent: t('positions.dailyChg'),
+    total_realized_pnl: t('positions.realizedPnl'),
+    total_unrealized_pnl: t('positions.unrealizedPnl'),
+    cost_basis_money: t('positions.cost'),
+    position_value: t('positions.marketValue'),
+    percent_of_nav: t('positions.percentNav'),
+  }
   const [sortKey, setSortKey] = useState<SortKey>('position_value')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
@@ -58,9 +60,9 @@ export default function PositionTable({ items, onSelect }: Props) {
         <table className="data-table">
           <thead>
             <tr>
-              <th style={{ width: '23%' }}>Symbol</th>
-              <th style={{ width: '7%', textAlign: 'right' }}>Qty</th>
-              <th style={{ width: '7.5%', textAlign: 'right' }}>Avg Cost</th>
+              <th style={{ width: '23%' }}>{t('positions.symbol')}</th>
+              <th style={{ width: '7%', textAlign: 'right' }}>{t('positions.quantity')}</th>
+              <th style={{ width: '7.5%', textAlign: 'right' }}>{t('positions.avgCost')}</th>
               <th style={{ width: '7%', textAlign: 'right' }}>
                 <button className="sort-button" onClick={() => handleSort('previous_day_change_percent')}>
                   <span>{sortableLabels.previous_day_change_percent}</span>
@@ -85,7 +87,7 @@ export default function PositionTable({ items, onSelect }: Props) {
                   <span className="sort-button__indicator">{sortIndicator('cost_basis_money')}</span>
                 </button>
               </th>
-              <th style={{ width: '7.5%', textAlign: 'right' }}>Mark Price</th>
+              <th style={{ width: '7.5%', textAlign: 'right' }}>{t('positions.markPrice')}</th>
               <th style={{ width: '10%', textAlign: 'right' }}>
                 <button className="sort-button" onClick={() => handleSort('position_value')}>
                   <span>{sortableLabels.position_value}</span>
@@ -102,13 +104,13 @@ export default function PositionTable({ items, onSelect }: Props) {
           </thead>
           <tbody>
             {sortedItems.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', padding: '2rem' }}>No positions found</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', padding: '2rem' }}>{t('positions.noData')}</td></tr>
             ) : sortedItems.map((item) => (
               <tr key={`${item.account_id}-${item.symbol}-${item.asset_class}`} style={{ cursor: 'pointer' }} onClick={() => onSelect(item)}>
                 <td style={{ whiteSpace: 'normal' }}>
                   <div className="table-symbol">
                     <span className="table-symbol__code">{item.symbol ?? '--'}</span>
-                    <span className="table-symbol__desc">{item.description ?? 'No name'}</span>
+                    <span className="table-symbol__desc">{item.description ?? t('positions.noName')}</span>
                   </div>
                 </td>
                 <td className="table-number"><span className="cell-number">{formatNumber(item.quantity, 4)}</span></td>

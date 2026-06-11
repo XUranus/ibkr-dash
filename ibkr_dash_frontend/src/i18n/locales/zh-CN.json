@@ -27,7 +27,8 @@
     "loginTitle": "登录",
     "loginDesc": "请输入凭据以访问仪表盘。",
     "loggedIn": "已登录",
-    "loginFailed": "登录失败"
+    "loginFailed": "登录失败",
+    "goToLogin": "前往登录"
   },
   "header": {
     "date": "日期",
@@ -87,6 +88,9 @@
     "sat": "周六",
     "sun": "周日",
     "curves": "曲线",
+    "topNConcentration": "前 {{n}} 集中度",
+    "positionDistribution": "持仓分布",
+    "topNHoldingsDesc": "按市值排名前 {{n}} 大持仓",
     "curvesTitle": "权益 / 盈亏 / 成本 / 已实现盈亏",
     "curvesSubtitle": "净盈亏为总权益减去累计净入金。已实现盈亏来自历史交易记录。",
     "dailyPoints": "{{count}} 个日数据点",
@@ -119,7 +123,37 @@
     "noDetailAvailable": "暂无详情",
     "close": "关闭",
     "failedToLoadPositions": "加载持仓失败",
-    "failedToLoadDetail": "加载详情失败"
+    "failedToLoadDetail": "加载详情失败",
+    "dailyChg": "日涨跌",
+    "unrealizedPnl": "未实现盈亏",
+    "realizedPnl": "已实现盈亏",
+    "cost": "成本",
+    "marketValue": "市值",
+    "avgCost": "均价",
+    "markPrice": "标记价格",
+    "percentNav": "% 净值占比",
+    "portfolioOverview": "投资组合概览",
+    "stocks": "股票",
+    "fixedIncome": "固收",
+    "cash": "现金",
+    "semiconductor": "半导体",
+    "softwarePlatform": "软件/平台",
+    "eCommerce": "电商",
+    "evMobility": "电动车/出行",
+    "other": "其他",
+    "others": "其他",
+    "stockAdrHoldings": "股票和ADR持仓",
+    "treasuryBondEtfs": "国债/债券ETF",
+    "accountCashBalance": "账户现金余额",
+    "accountCash": "账户现金",
+    "usdCash": "美元现金",
+    "chipsProcessors": "芯片/处理器",
+    "platformSocialFintech": "平台/社交/金融科技",
+    "onlineRetailCloud": "在线零售/云计算",
+    "electricVehicles": "电动汽车",
+    "otherHoldings": "其他持仓",
+    "dailyBarsAndTradeMarkers": "{{bars}} 根日K线, {{trades}} 个交易标记",
+    "chartPlaceholder": "带有K线和交易标记的持仓详情图表将在此处渲染。"
   },
   "trades": {
     "title": "交易",
@@ -152,7 +186,12 @@
     "prev": "上一页",
     "next": "下一页",
     "noTradeData": "暂无交易数据",
-    "failedToLoadTrades": "加载交易失败"
+    "failedToLoadTrades": "加载交易失败",
+    "proceeds": "收入",
+    "dateTime": "日期/时间",
+    "asset": "资产",
+    "commission": "手续费",
+    "exchange": "交易所"
   },
   "cashFlows": {
     "title": "现金流",
@@ -211,7 +250,11 @@
     "prev": "上一页",
     "next": "下一页",
     "noDividendRecords": "暂无分红记录",
-    "failedToLoadDividends": "加载分红失败"
+    "failedToLoadDividends": "加载分红失败",
+    "settlementDate": "结算日期",
+    "exDate": "除息日",
+    "amount": "金额",
+    "type": "类型"
   },
   "copilot": {
     "title": "智能助手",
@@ -549,6 +592,26 @@
     "networkError": "网络错误，请检查连接。",
     "serverError": "服务器错误，请稍后重试。",
     "notFound": "未找到。",
-    "unauthorized": "未授权，请先登录。"
+    "unauthorized": "未授权，请先登录。",
+    "pleaseLogin": "请先登录以访问此页面。"
+  },
+  "agentTask": {
+    "langGraphExecution": "LangGraph 执行",
+    "status": "状态",
+    "time": "时间",
+    "tools": "工具",
+    "pending": "待处理",
+    "running": "运行中",
+    "success": "成功",
+    "failed": "失败",
+    "fallback": "回退",
+    "skipped": "跳过",
+    "elapsed": "耗时",
+    "llmRounds": "LLM 轮次",
+    "limitations": "数据限制",
+    "nodeExecution": "节点执行",
+    "empty": "空",
+    "ok": "成功",
+    "noGraphSnapshot": "该任务暂无 LangGraph 进度快照。"
   }
 }

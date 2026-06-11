@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import i18n from '@/i18n'
 import * as echarts from 'echarts/core'
 import { GraphChart } from 'echarts/charts'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -57,8 +58,9 @@ export default function AgentTaskGraph({ task, expanded, onSnapshot }: AgentTask
   }
 
   function statusLabel(status: string): string {
-    const labels: Record<string, string> = { pending: 'Pending', running: 'Running', success: 'Success', failed: 'Failed', fallback: 'Fallback', skipped: 'Skipped' }
-    return labels[status] || status
+    const key = `agentTask.${status}` as string
+    const translated = i18n.t(key)
+    return translated !== key ? translated : status
   }
 
   function closeLiveUpdates(): void {
@@ -137,7 +139,7 @@ export default function AgentTaskGraph({ task, expanded, onSnapshot }: AgentTask
         formatter: (params: { dataType?: string; data?: unknown }) => {
           if (params.dataType !== 'node') return ''
           const data = params.data as AgentGraphNode & { nodeLabel?: string }
-          return `${data.nodeLabel || data.id}<br/>Status: ${statusLabel(data.status)}<br/>Time: ${data.elapsed_ms || 0}ms<br/>Tools: ${data.tool_call_count || 0}`
+          return `${data.nodeLabel || data.id}<br/>${i18n.t('agentTask.status')}: ${statusLabel(data.status)}<br/>${i18n.t('agentTask.time')}: ${data.elapsed_ms || 0}ms<br/>${i18n.t('agentTask.tools')}: ${data.tool_call_count || 0}`
         },
       },
       series: [series],
@@ -235,7 +237,7 @@ export default function AgentTaskGraph({ task, expanded, onSnapshot }: AgentTask
   return (
     <div style={{ marginTop: 12, border: '1px solid rgba(148, 163, 184, 0.18)', borderRadius: 8, background: 'rgba(15, 23, 42, 0.42)', padding: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, color: '#e2e8f0', fontWeight: 700 }}>
-        <span>LangGraph Execution</span>
+        <span>{i18n.t('agentTask.langGraphExecution')}</span>
         <small style={{ color: '#94a3b8', fontWeight: 500 }}>{progressLabel} {'·'} {connectionStatus}</small>
       </div>
       {snapshot ? (
@@ -249,23 +251,23 @@ export default function AgentTaskGraph({ task, expanded, onSnapshot }: AgentTask
                   {statusLabel(selectedNode.status)}
                 </span>
                 <dl style={{ display: 'grid', gridTemplateColumns: '72px 1fr', gap: '8px 10px', margin: '12px 0' }}>
-                  <dt style={{ color: '#94a3b8' }}>Elapsed</dt>
+                  <dt style={{ color: '#94a3b8' }}>{i18n.t('agentTask.elapsed')}</dt>
                   <dd>{selectedNode.elapsed_ms || 0}ms</dd>
-                  <dt style={{ color: '#94a3b8' }}>LLM Rounds</dt>
+                  <dt style={{ color: '#94a3b8' }}>{i18n.t('agentTask.llmRounds')}</dt>
                   <dd>{selectedNode.rounds_used || 0}</dd>
-                  <dt style={{ color: '#94a3b8' }}>Tools</dt>
+                  <dt style={{ color: '#94a3b8' }}>{i18n.t('agentTask.tools')}</dt>
                   <dd>{selectedNode.tool_call_count || 0}</dd>
-                  <dt style={{ color: '#94a3b8' }}>Limitations</dt>
+                  <dt style={{ color: '#94a3b8' }}>{i18n.t('agentTask.limitations')}</dt>
                   <dd>{selectedNode.data_limitations_count || 0}</dd>
                 </dl>
                 {selectedNodeToolSteps.length > 0 && (
                   <div style={{ display: 'grid', gap: 7, marginTop: 12 }}>
-                    <span style={{ color: '#94a3b8', fontSize: '0.78rem' }}>Node Execution</span>
+                    <span style={{ color: '#94a3b8', fontSize: '0.78rem' }}>{i18n.t('agentTask.nodeExecution')}</span>
                     {selectedNodeToolSteps.map((tool, index) => (
                       <div key={`${tool.tool_name}-${index}`} style={{ display: 'grid', gridTemplateColumns: '8px minmax(0, 1fr) auto', gap: 8, alignItems: 'center', minHeight: 28, padding: '6px 8px', borderRadius: 6, background: 'rgba(15, 23, 42, 0.58)', color: '#dbeafe', fontSize: '0.8rem' }}>
                         <span style={{ width: 7, height: 7, borderRadius: 999, background: tool.success === false ? '#fb7185' : tool.empty_result ? '#f59e0b' : '#34d399' }} />
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tool.tool_name}</span>
-                        <small style={{ color: '#94a3b8' }}>{tool.empty_result ? 'empty' : tool.success === false ? (tool.error_type || 'failed') : 'ok'}</small>
+                        <small style={{ color: '#94a3b8' }}>{tool.empty_result ? i18n.t('agentTask.empty') : tool.success === false ? (tool.error_type || i18n.t('agentTask.failed')) : i18n.t('agentTask.ok')}</small>
                       </div>
                     ))}
                   </div>
@@ -277,7 +279,7 @@ export default function AgentTaskGraph({ task, expanded, onSnapshot }: AgentTask
           </aside>
         </div>
       ) : (
-        <div style={{ padding: '16px 0 4px', color: '#94a3b8' }}>No LangGraph progress snapshot for this task.</div>
+        <div style={{ padding: '16px 0 4px', color: '#94a3b8' }}>{i18n.t('agentTask.noGraphSnapshot')}</div>
       )}
     </div>
   )

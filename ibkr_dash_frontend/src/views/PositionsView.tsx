@@ -73,7 +73,7 @@ export default function PositionsView() {
 
     if (othersValue > 0) {
       data.push({
-        name: 'Others',
+        name: t('positions.others'),
         value: othersValue,
         itemStyle: { color: '#4a5568' },
       })
@@ -141,7 +141,7 @@ export default function PositionsView() {
     const buckets = new Map<string, { value: number; members: string[] }>([
       ['Stocks', { value: 0, members: [] }],
       ['Fixed Income', { value: 0, members: [] }],
-      ['Cash', { value: Math.max(overview?.cash ?? 0, 0), members: ['Account Cash'] }],
+      ['Cash', { value: Math.max(overview?.cash ?? 0, 0), members: [t('positions.accountCash')] }],
     ])
     response?.items.forEach((item) => {
       const bucket = classifyAssetBucket(item)
@@ -151,11 +151,11 @@ export default function PositionsView() {
       buckets.set(bucket, cur)
     })
     return [
-      { label: 'Stocks', value: buckets.get('Stocks')?.value ?? 0, color: '#56d5ff', note: 'Stock & ADR holdings', members: buckets.get('Stocks')?.members },
-      { label: 'Fixed Income', value: buckets.get('Fixed Income')?.value ?? 0, color: '#6ee7b7', note: 'Treasury / Bond ETFs', members: buckets.get('Fixed Income')?.members },
-      { label: 'Cash', value: buckets.get('Cash')?.value ?? 0, color: '#8b7cff', note: 'Account cash balance', members: ['USD Cash'] },
+      { label: t('positions.stocks'), value: buckets.get('Stocks')?.value ?? 0, color: '#56d5ff', note: t('positions.stockAdrHoldings'), members: buckets.get('Stocks')?.members },
+      { label: t('positions.fixedIncome'), value: buckets.get('Fixed Income')?.value ?? 0, color: '#6ee7b7', note: t('positions.treasuryBondEtfs'), members: buckets.get('Fixed Income')?.members },
+      { label: t('positions.cash'), value: buckets.get('Cash')?.value ?? 0, color: '#8b7cff', note: t('positions.accountCashBalance'), members: [t('positions.usdCash')] },
     ].filter((item) => item.value > 0)
-  }, [response, overview])
+  }, [response, overview, t])
 
   const industryPieItems = useMemo<PieSegmentItem[]>(() => {
     const palette = ['#56d5ff', '#6ee7b7', '#8b7cff', '#ffb454', '#ff7b98', '#7dd3fc', '#c084fc']
@@ -167,14 +167,30 @@ export default function PositionsView() {
       cur.members.push(item.symbol ?? item.description ?? '--')
       buckets.set(industry, cur)
     })
+    const industryLabelMap: Record<string, string> = {
+      'Semiconductor': t('positions.semiiconductor'),
+      'Software/Platform': t('positions.softwarePlatform'),
+      'E-Commerce': t('positions.eCommerce'),
+      'EV/Mobility': t('positions.evMobility'),
+      'Other': t('positions.other'),
+    }
+    const industryNoteMap: Record<string, string> = {
+      'Semiconductor': t('positions.chipsProcessors'),
+      'Software/Platform': t('positions.platformSocialFintech'),
+      'E-Commerce': t('positions.onlineRetailCloud'),
+      'EV/Mobility': t('positions.electricVehicles'),
+      'Other': t('positions.otherHoldings'),
+    }
     return Array.from(buckets.entries())
       .sort((a, b) => b[1].value - a[1].value)
       .map(([label, data], i) => ({
-        label, value: data.value, color: palette[i % palette.length],
-        note: label === 'Semiconductor' ? 'Chips / Processors' : label === 'Software/Platform' ? 'Platform / Social / Fintech' : label === 'E-Commerce' ? 'Online Retail / Cloud' : label === 'EV/Mobility' ? 'Electric Vehicles' : 'Other holdings',
+        label: industryLabelMap[label] ?? label,
+        value: data.value,
+        color: palette[i % palette.length],
+        note: industryNoteMap[label] ?? t('positions.otherHoldings'),
         members: [...new Set(data.members)],
       }))
-  }, [response])
+  }, [response, t])
 
   const summary = response?.summary ?? null
 
@@ -204,7 +220,7 @@ export default function PositionsView() {
           {response?.items && response.items.length > 0 && (
             <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease' }}>
               <div className="surface-panel__content">
-                <p className="eyebrow">PORTFOLIO OVERVIEW</p>
+                <p className="eyebrow">{t('positions.portfolioOverview')}</p>
                 <div ref={chartRef} style={{ width: '100%', height: 360 }} />
               </div>
             </section>
@@ -267,8 +283,8 @@ export default function PositionsView() {
                 {activeDetail?.detail ? (
                   <div>
                     <p><strong>{activeDetail.detail.symbol}</strong> - {activeDetail.detail.description}</p>
-                    <p>{activeDetail.detail.bars.length} daily bars, {activeDetail.detail.trades.length} trade markers</p>
-                    <p style={{ fontSize: '0.85rem', marginTop: 8 }}>Position detail chart with candlestick and trade markers will render here.</p>
+                    <p>{t('positions.dailyBarsAndTradeMarkers', { bars: activeDetail.detail.bars.length, trades: activeDetail.detail.trades.length })}</p>
+                    <p style={{ fontSize: '0.85rem', marginTop: 8 }}>{t('positions.chartPlaceholder')}</p>
                   </div>
                 ) : (
                   <div className="empty-state">{t('positions.noDetailAvailable')}</div>

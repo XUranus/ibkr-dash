@@ -27,7 +27,8 @@
     "loginTitle": "Login",
     "loginDesc": "Enter your credentials to access the dashboard.",
     "loggedIn": "Logged in",
-    "loginFailed": "Login failed"
+    "loginFailed": "Login failed",
+    "goToLogin": "Go to Login"
   },
   "header": {
     "date": "Date",
@@ -87,6 +88,9 @@
     "sat": "Sat",
     "sun": "Sun",
     "curves": "Curves",
+    "topNConcentration": "TOP {{n}} CONCENTRATION",
+    "positionDistribution": "Position Distribution",
+    "topNHoldingsDesc": "Top {{n}} holdings by market value",
     "curvesTitle": "Equity / P&L / Cost / Realized P&L",
     "curvesSubtitle": "Net P&L is calculated as total equity minus cumulative net contributions. Realized P&L is derived from historical trade records.",
     "dailyPoints": "{{count}} daily points",
@@ -119,7 +123,37 @@
     "noDetailAvailable": "No detail available",
     "close": "Close",
     "failedToLoadPositions": "Failed to load positions",
-    "failedToLoadDetail": "Failed to load detail"
+    "failedToLoadDetail": "Failed to load detail",
+    "dailyChg": "Daily Chg",
+    "unrealizedPnl": "Unrealized P&L",
+    "realizedPnl": "Realized P&L",
+    "cost": "Cost",
+    "marketValue": "Market Value",
+    "avgCost": "Avg Cost",
+    "markPrice": "Mark Price",
+    "percentNav": "% NAV",
+    "portfolioOverview": "PORTFOLIO OVERVIEW",
+    "stocks": "Stocks",
+    "fixedIncome": "Fixed Income",
+    "cash": "Cash",
+    "semiconductor": "Semiconductor",
+    "softwarePlatform": "Software/Platform",
+    "eCommerce": "E-Commerce",
+    "evMobility": "EV/Mobility",
+    "other": "Other",
+    "others": "Others",
+    "stockAdrHoldings": "Stock & ADR holdings",
+    "treasuryBondEtfs": "Treasury / Bond ETFs",
+    "accountCashBalance": "Account cash balance",
+    "accountCash": "Account Cash",
+    "usdCash": "USD Cash",
+    "chipsProcessors": "Chips / Processors",
+    "platformSocialFintech": "Platform / Social / Fintech",
+    "onlineRetailCloud": "Online Retail / Cloud",
+    "electricVehicles": "Electric Vehicles",
+    "otherHoldings": "Other holdings",
+    "dailyBarsAndTradeMarkers": "{{bars}} daily bars, {{trades}} trade markers",
+    "chartPlaceholder": "Position detail chart with candlestick and trade markers will render here."
   },
   "trades": {
     "title": "Trades",
@@ -152,7 +186,12 @@
     "prev": "Prev",
     "next": "Next",
     "noTradeData": "No trade data",
-    "failedToLoadTrades": "Failed to load trades"
+    "failedToLoadTrades": "Failed to load trades",
+    "proceeds": "Proceeds",
+    "dateTime": "Date/Time",
+    "asset": "Asset",
+    "commission": "Commission",
+    "exchange": "Exchange"
   },
   "cashFlows": {
     "title": "Cash Flows",
@@ -211,7 +250,11 @@
     "prev": "Prev",
     "next": "Next",
     "noDividendRecords": "No dividend records",
-    "failedToLoadDividends": "Failed to load dividends"
+    "failedToLoadDividends": "Failed to load dividends",
+    "settlementDate": "Settlement Date",
+    "exDate": "Ex-Date",
+    "amount": "Amount",
+    "type": "Type"
   },
   "copilot": {
     "title": "Account Copilot",
@@ -549,6 +592,26 @@
     "networkError": "Network error. Please check your connection.",
     "serverError": "Server error. Please try again later.",
     "notFound": "Not found.",
-    "unauthorized": "Unauthorized. Please log in."
+    "unauthorized": "Unauthorized. Please log in.",
+    "pleaseLogin": "Please log in to access this page."
+  },
+  "agentTask": {
+    "langGraphExecution": "LangGraph Execution",
+    "status": "Status",
+    "time": "Time",
+    "tools": "Tools",
+    "pending": "Pending",
+    "running": "Running",
+    "success": "Success",
+    "failed": "Failed",
+    "fallback": "Fallback",
+    "skipped": "Skipped",
+    "elapsed": "Elapsed",
+    "llmRounds": "LLM Rounds",
+    "limitations": "Limitations",
+    "nodeExecution": "Node Execution",
+    "empty": "empty",
+    "ok": "ok",
+    "noGraphSnapshot": "No LangGraph progress snapshot for this task."
   }
 }
