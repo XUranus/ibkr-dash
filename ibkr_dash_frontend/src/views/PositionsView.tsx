@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import * as echarts from 'echarts/core'
-import { PieChart } from 'echarts/charts'
+import { TreemapChart } from 'echarts/charts'
 import { CanvasRenderer } from 'echarts/renderers'
-import { TooltipComponent, LegendComponent } from 'echarts/components'
+import { TooltipComponent } from 'echarts/components'
 import type { EChartsType } from 'echarts/core'
 import { fetchPositions, fetchPositionDetail } from '@/api/positions'
 import { useAccountOverview } from '@/hooks/useAccountOverview'
@@ -14,9 +14,25 @@ import PositionTable from '@/components/PositionTable'
 import type { PositionDetailResponse, PositionItem, PositionListResponse, PositionSummaryResponse } from '@/types/positions'
 import { formatNumber } from '@/utils/format'
 
-echarts.use([PieChart, CanvasRenderer, TooltipComponent, LegendComponent])
+echarts.use([TreemapChart, CanvasRenderer, TooltipComponent])
 
-const PALETTE = ['#56d5ff', '#6ee7b7', '#8b7cff', '#ffb454', '#ff7b98', '#7dd3fc', '#c084fc', '#fbbf24', '#34d399', '#f87171', '#a78bfa', '#38bdf8', '#4ade80', '#facc15', '#fb923c', '#e879f9', '#22d3ee', '#f472b6', '#34d399', '#fbbf24']
+function changeColor(pct: number | null | undefined): string {
+  if (pct == null || pct === 0) return 'rgba(120,130,150,0.5)'
+  const intensity = Math.min(Math.abs(pct) / 5, 1) // 5% change = full intensity
+  if (pct > 0) {
+    // Green shades: muted for small, vivid for large
+    const r = Math.round(20 + (1 - intensity) * 40)
+    const g = Math.round(120 + intensity * 100)
+    const b = Math.round(60 + (1 - intensity) * 30)
+    return `rgb(${r},${g},${b})`
+  } else {
+    // Red shades: muted for small, vivid for large
+    const r = Math.round(160 + intensity * 80)
+    const g = Math.round(40 + (1 - intensity) * 40)
+    const b = Math.round(40 + (1 - intensity) * 30)
+    return `rgb(${r},${g},${b})`
+  }
+}
 
 export default function PositionsView() {
   const { t } = useTranslation()
@@ -51,7 +67,7 @@ export default function PositionsView() {
 
   useEffect(() => { void loadPositions() }, [])
 
-  // Initialize ECharts pie chart
+  // Initialize ECharts treemap
   useEffect(() => {
     if (!chartRef.current || !response?.items?.length) return
 
@@ -60,56 +76,99 @@ export default function PositionsView() {
     }
 
     const items = response.items
-    const totalValue = items.reduce((sum, p) => sum + (p.position_value ?? 0), 0)
-    const topN = 15
-    const topItems = items.slice(0, topN)
-    const othersValue = items.slice(topN).reduce((sum, p) => sum + (p.position_value ?? 0), 0)
-
-    const data = topItems.map((p, i) => ({
-      name: p.symbol ?? '--',
-      value: p.position_value ?? 0,
-      itemStyle: { color: PALETTE[i % PALETTE.length] },
-    }))
-
-    if (othersValue > 0) {
-      data.push({
-        name: t('positions.others'),
-        value: othersValue,
-        itemStyle: { color: '#4a5568' },
-      })
-    }
+    const data = items.map((p) => {
+      const changePct = p.previous_day_change_percent ?? 0
+      return {
+        name: p.symbol ?? '--',
+        value: p.position_value ?? 0,
+        changePct,
+        description: p.description ?? '',
+        itemStyle: {
+          borderColor: 'rgba(8,11,18,0.8)',
+          borderWidth: 2,
+          gapWidth: 2,
+        },
+      }
+    })
 
     chartInstance.current.setOption({
       tooltip: {
-        trigger: 'item',
-        formatter: (params: { name: string; value: number; percent: number }) => {
-          return `<strong>${params.name}</strong><br/>$${params.value.toLocaleString()}<br/>${params.percent.toFixed(1)}%`
+        formatter: (params: { data: { name: string; value: number; changePct: number; description: string } }) => {
+          const d = params.data
+          const changeSign = d.changePct >= 0 ? '+' : ''
+          const changeColor = d.changePct >= 0 ? '#3dd68c' : '#f25c5c'
+          return [
+            `<div style="font-family: 'JetBrains Mono', monospace; min-width: 180px;">`,
+            `<div style="font-weight:700; font-size:14px; margin-bottom:4px;">${d.name}</div>`,
+            `<div style="color:#8a8d9e; font-size:11px; margin-bottom:8px;">${d.description}</div>`,
+            `<div style="font-size:13px;">$${d.value.toLocaleString()}</div>`,
+            `<div style="color:${changeColor}; font-size:12px; margin-top:2px;">${changeSign}${d.changePct.toFixed(2)}%</div>`,
+            `</div>`,
+          ].join('')
         },
-      },
-      legend: {
-        orient: 'vertical',
-        right: 10,
-        top: 'center',
-        textStyle: { color: '#8a8d9e', fontSize: 11 },
-        itemWidth: 10,
-        itemHeight: 10,
-        itemGap: 6,
       },
       series: [{
-        type: 'pie',
-        radius: ['40%', '70%'],
-        center: ['40%', '50%'],
-        avoidLabelOverlap: false,
-        itemStyle: {
-          borderRadius: 4,
-          borderColor: '#080b12',
-          borderWidth: 2,
-        },
-        label: { show: false },
-        emphasis: {
-          label: { show: true, fontSize: 14, fontWeight: 'bold', color: '#e8e4dc' },
-        },
+        type: 'treemap',
         data,
+        width: '100%',
+        height: '100%',
+        roam: false,
+        nodeClick: false,
+        breadcrumb: { show: false },
+        label: {
+          show: true,
+          formatter: (params: { data: { name: string; value: number; changePct: number } }) => {
+            const d = params.data
+            if (d.value < 100) return '' // Hide tiny positions
+            const changeStr = d.changePct >= 0 ? `+${d.changePct.toFixed(1)}%` : `${d.changePct.toFixed(1)}%`
+            return `{name|${d.name}}\n{value|$${d.value >= 1000 ? (d.value / 1000).toFixed(1) + 'k' : d.value.toFixed(0)}}\n{change|${changeStr}}`
+          },
+          rich: {
+            name: {
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: 'JetBrains Mono, monospace',
+              color: '#fff',
+              lineHeight: 18,
+            },
+            value: {
+              fontSize: 11,
+              fontFamily: 'JetBrains Mono, monospace',
+              color: 'rgba(255,255,255,0.7)',
+              lineHeight: 15,
+            },
+            change: {
+              fontSize: 10,
+              fontFamily: 'JetBrains Mono, monospace',
+              color: 'rgba(255,255,255,0.85)',
+              lineHeight: 14,
+            },
+          },
+        },
+        upperLabel: { show: false },
+        itemStyle: {
+          borderColor: 'rgba(8,11,18,0.8)',
+          borderWidth: 2,
+          gapWidth: 2,
+        },
+        levels: [{
+          itemStyle: {
+            borderColor: '#080b12',
+            borderWidth: 3,
+            gapWidth: 3,
+          },
+        }],
+        visualMin: 100,
+        visualMap: {
+          show: false,
+          type: 'continuous',
+          dimension: 'changePct',
+          min: -10,
+          max: 10,
+          inRange: {
+            color: ['#c0392b', '#e74c3c', '#7f8c8d', '#27ae60', '#1a7a42'],
+          },
+        },
       }],
     })
 
@@ -141,7 +200,7 @@ export default function PositionsView() {
     const buckets = new Map<string, { value: number; members: string[] }>([
       ['Stocks', { value: 0, members: [] }],
       ['Fixed Income', { value: 0, members: [] }],
-      ['Cash', { value: Math.max(overview?.cash ?? 0, 0), members: [t('positions.accountCash')] }],
+      ['Cash', { value: Math.max(overview?.cash ?? 0, 0), members: ['Account Cash'] }],
     ])
     response?.items.forEach((item) => {
       const bucket = classifyAssetBucket(item)
@@ -159,6 +218,13 @@ export default function PositionsView() {
 
   const industryPieItems = useMemo<PieSegmentItem[]>(() => {
     const palette = ['#56d5ff', '#6ee7b7', '#8b7cff', '#ffb454', '#ff7b98', '#7dd3fc', '#c084fc']
+    const noteMap: Record<string, string> = {
+      'Semiconductor': t('positions.chipsProcessors'),
+      'Software/Platform': t('positions.platformSocialFintech'),
+      'E-Commerce': t('positions.onlineRetailCloud'),
+      'EV/Mobility': t('positions.electricVehicles'),
+      'Other': t('positions.otherHoldings'),
+    }
     const buckets = new Map<string, { value: number; members: string[] }>()
     response?.items.forEach((item) => {
       const industry = classifyIndustry(item)
@@ -167,27 +233,11 @@ export default function PositionsView() {
       cur.members.push(item.symbol ?? item.description ?? '--')
       buckets.set(industry, cur)
     })
-    const industryLabelMap: Record<string, string> = {
-      'Semiconductor': t('positions.semiiconductor'),
-      'Software/Platform': t('positions.softwarePlatform'),
-      'E-Commerce': t('positions.eCommerce'),
-      'EV/Mobility': t('positions.evMobility'),
-      'Other': t('positions.other'),
-    }
-    const industryNoteMap: Record<string, string> = {
-      'Semiconductor': t('positions.chipsProcessors'),
-      'Software/Platform': t('positions.platformSocialFintech'),
-      'E-Commerce': t('positions.onlineRetailCloud'),
-      'EV/Mobility': t('positions.electricVehicles'),
-      'Other': t('positions.otherHoldings'),
-    }
     return Array.from(buckets.entries())
       .sort((a, b) => b[1].value - a[1].value)
       .map(([label, data], i) => ({
-        label: industryLabelMap[label] ?? label,
-        value: data.value,
-        color: palette[i % palette.length],
-        note: industryNoteMap[label] ?? t('positions.otherHoldings'),
+        label, value: data.value, color: palette[i % palette.length],
+        note: noteMap[label] ?? label,
         members: [...new Set(data.members)],
       }))
   }, [response, t])
@@ -216,12 +266,19 @@ export default function PositionsView() {
     <section className="page-section">
       {loading ? <LoadingBlock /> : errorMessage ? <ErrorBlock message={errorMessage} /> : (
         <>
-          {/* Portfolio Overview Chart */}
+          {/* Portfolio Treemap */}
           {response?.items && response.items.length > 0 && (
             <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease' }}>
               <div className="surface-panel__content">
                 <p className="eyebrow">{t('positions.portfolioOverview')}</p>
-                <div ref={chartRef} style={{ width: '100%', height: 360 }} />
+                <div ref={chartRef} style={{ width: '100%', height: 400, borderRadius: 'var(--radius-md)', overflow: 'hidden' }} />
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 8, fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
+                  <span>← <span style={{ color: '#f25c5c' }}>▼</span> Down</span>
+                  <span style={{ color: 'var(--color-text-muted)', opacity: 0.5 }}>|</span>
+                  <span>Flat</span>
+                  <span style={{ color: 'var(--color-text-muted)', opacity: 0.5 }}>|</span>
+                  <span>Up <span style={{ color: '#3dd68c' }}>▲</span> →</span>
+                </div>
               </div>
             </section>
           )}
