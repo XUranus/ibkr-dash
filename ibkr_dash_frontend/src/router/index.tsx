@@ -68,10 +68,11 @@ function lazyViewWithErrorBoundary(Component: React.LazyExoticComponent<React.Co
   )
 }
 
-export const router = createBrowserRouter([
-  {
-    path: '/',
-    element: <App />,
+export const router = createBrowserRouter(
+  [
+    {
+      path: '/',
+      element: <App />,
     children: [
       { index: true, element: lazyViewWithErrorBoundary(DashboardView) },
       { path: 'positions', element: lazyViewWithErrorBoundary(PositionsView) },
@@ -95,4 +96,11 @@ export const router = createBrowserRouter([
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },
-])
+  ],
+  {
+    future: {
+      v7_startTransition: true,
+      v7_relativeSplatPath: true,
+    },
+  },
+)
