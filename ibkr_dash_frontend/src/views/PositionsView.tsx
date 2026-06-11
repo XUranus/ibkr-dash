@@ -17,14 +17,18 @@ import { formatNumber } from '@/utils/format'
 echarts.use([TreemapChart, CanvasRenderer, TooltipComponent])
 
 function changeColor(pct: number | null | undefined): string {
-  if (pct == null) return 'rgba(60,70,85,0.7)'
-  const clamped = Math.max(-8, Math.min(8, pct)) // Clamp to [-8, 8] for color range
-  const t = (clamped + 8) / 16 // 0 = deep red, 0.5 = neutral, 1 = deep green
-  // Red → Dark neutral → Green
-  const r = Math.round(180 - t * 120) // 180 → 60
-  const g = Math.round(50 + t * 130)  // 50 → 180
-  const b = Math.round(45 + t * 30)   // 45 → 75
-  return `rgb(${r},${g},${b})`
+  if (pct == null) return '#3a4555'
+  if (pct >= 0) {
+    // Green: intensity scales with magnitude
+    const intensity = Math.min(pct / 5, 1)
+    const g = Math.round(130 + intensity * 70)
+    return `rgb(30,${g},60)`
+  } else {
+    // Red: intensity scales with magnitude
+    const intensity = Math.min(Math.abs(pct) / 5, 1)
+    const r = Math.round(150 + intensity * 70)
+    return `rgb(${r},35,40)`
+  }
 }
 
 export default function PositionsView() {
@@ -120,10 +124,13 @@ export default function PositionsView() {
           position: 'inside',
           align: 'center',
           verticalAlign: 'middle',
-          formatter: (params: { data: { name: string; value: number; changePct: number }; treePathInfo?: { name: string }[] }) => {
+          formatter: (params: { data: { name: string; value: number; changePct: number } }) => {
             const d = params.data
             if (d.value < 100) return ''
             const changeStr = d.changePct >= 0 ? `+${d.changePct.toFixed(1)}%` : `${d.changePct.toFixed(1)}%`
+            // Dynamic font size based on value (log scale)
+            const fontSize = Math.max(9, Math.min(18, 6 + Math.log10(d.value + 1) * 2.5))
+            const changeFontSize = Math.max(8, fontSize - 2)
             return `{name|${d.name}}\n{change|${changeStr}}`
           },
           rich: {
@@ -132,15 +139,20 @@ export default function PositionsView() {
               fontWeight: 700,
               fontFamily: 'JetBrains Mono, monospace',
               color: '#fff',
-              lineHeight: 20,
+              lineHeight: 22,
+              align: 'center',
             },
             change: {
-              fontSize: 12,
+              fontSize: 11,
               fontFamily: 'JetBrains Mono, monospace',
-              color: 'rgba(255,255,255,0.9)',
+              color: 'rgba(255,255,255,0.85)',
               lineHeight: 16,
+              align: 'center',
             },
           },
+          // Force centering
+          distance: 0,
+          padding: 0,
         },
         upperLabel: { show: false },
         itemStyle: {
@@ -258,10 +270,10 @@ export default function PositionsView() {
               <div className="surface-panel__content">
                 <p className="eyebrow">{t('positions.portfolioOverview')}</p>
                 <div ref={chartRef} style={{ width: '100%', height: 400, borderRadius: 'var(--radius-md)', overflow: 'hidden' }} />
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 8, fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
-                  <span style={{ color: '#b43232' }}>▼ Down</span>
-                  <div style={{ width: 120, height: 8, borderRadius: 4, background: 'linear-gradient(90deg, #b43232, #3c6e3c)' }} />
-                  <span style={{ color: '#3c6e3c' }}>Up ▲</span>
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, marginTop: 8, fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
+                  <span style={{ color: '#c83232' }}>▼ Red = Down</span>
+                  <span style={{ color: 'var(--color-text-muted)', opacity: 0.3 }}>|</span>
+                  <span style={{ color: '#2ca850' }}>Green = Up ▲</span>
                 </div>
               </div>
             </section>
