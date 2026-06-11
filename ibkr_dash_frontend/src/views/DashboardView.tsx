@@ -1,10 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
 import { fetchEquityCurve } from '@/api/charts'
 import { fetchPositions } from '@/api/positions'
 import { useAccountOverview } from '@/hooks/useAccountOverview'
-import { useAuth } from '@/hooks/useAuth'
 import EquityCurveSimple from '@/components/EquityCurveSimple'
 import ErrorBlock from '@/components/ErrorBlock'
 import LoadingBlock from '@/components/LoadingBlock'
@@ -21,8 +19,6 @@ const TOP_N = 10
 
 export default function DashboardView() {
   const { t } = useTranslation()
-  const navigate = useNavigate()
-  const { authenticated } = useAuth()
   const { overview, ensureLoaded } = useAccountOverview()
   const [curveItems, setCurveItems] = useState<EquityCurvePoint[]>([])
   const [topPositions, setTopPositions] = useState<PositionItem[]>([])
@@ -70,11 +66,9 @@ export default function DashboardView() {
       setPageError('')
       try {
         await ensureLoaded()
-        if (authenticated) {
-          await loadCurveData(false)
-          const posResponse = await fetchPositions({ sort_by: 'position_value', sort_order: 'desc', page: 1, page_size: TOP_N })
-          setTopPositions(posResponse.items)
-        }
+        await loadCurveData(false)
+        const posResponse = await fetchPositions({ sort_by: 'position_value', sort_order: 'desc', page: 1, page_size: TOP_N })
+        setTopPositions(posResponse.items)
       } catch (err) {
         setPageError(err instanceof Error ? err.message : t('dashboard.error'))
       } finally {
@@ -83,16 +77,14 @@ export default function DashboardView() {
     }
     void load()
 
-    if (authenticated) {
-      refreshTimer.current = setInterval(() => {
-        void loadCurveData(false, true)
-      }, 30000)
-    }
+    refreshTimer.current = setInterval(() => {
+      void loadCurveData(false, true)
+    }, 30000)
 
     return () => {
       if (refreshTimer.current) clearInterval(refreshTimer.current)
     }
-  }, [authenticated])
+  }, [])
 
   function setCurveRange(nextRange: EquityCurveRangeKey) {
     if (selectedRange === nextRange) return
@@ -111,26 +103,7 @@ export default function DashboardView() {
         <ErrorBlock message={pageError} />
       ) : (
         <>
-          {/* Login prompt for unauthenticated users */}
-          {!authenticated && (
-            <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease' }}>
-              <div className="surface-panel__content" style={{ textAlign: 'center', padding: '40px 20px' }}>
-                <p className="eyebrow" style={{ marginBottom: 12 }}>WELCOME</p>
-                <h2 style={{ margin: '0 0 8px', fontSize: '1.4rem', color: 'var(--color-text-bright)' }}>IBKR Dash</h2>
-                <p style={{ color: 'var(--color-text-muted)', marginBottom: 20 }}>
-                  Log in to view your portfolio positions, trades, and AI-powered analysis.
-                </p>
-                <button className="btn btn--accent" onClick={() => navigate('/login')}>
-                  Login
-                </button>
-              </div>
-            </section>
-          )}
-
-          {/* Authenticated content */}
-          {authenticated && (
-            <>
-              {/* Stat cards */}
+          {/* Stat cards */}
               <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease' }}>
                 <div className="surface-panel__content">
                   <section className="stats-grid stagger-reveal">
@@ -206,12 +179,10 @@ export default function DashboardView() {
                 />
               </div>
 
-              {/* Performance calendar */}
-              <div style={{ animation: 'slideUp 0.5s ease 0.3s both' }}>
-                <PerformanceCalendar latestReportDate={overview?.report_date ?? null} />
-              </div>
-            </>
-          )}
+          {/* Performance calendar */}
+          <div style={{ animation: 'slideUp 0.5s ease 0.3s both' }}>
+            <PerformanceCalendar latestReportDate={overview?.report_date ?? null} />
+          </div>
         </>
       )}
     </section>

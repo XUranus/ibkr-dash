@@ -73,7 +73,7 @@ export const router = createBrowserRouter([
     element: <App />,
     children: [
       { index: true, element: lazyViewWithErrorBoundary(DashboardView) },
-      { path: 'positions', element: <ProtectedRoute>{lazyViewWithErrorBoundary(PositionsView)}</ProtectedRoute> },
+      { path: 'positions', element: lazyViewWithErrorBoundary(PositionsView) },
       { path: 'trades', element: <ProtectedRoute>{lazyViewWithErrorBoundary(TradesView)}</ProtectedRoute> },
       { path: 'cash-flows', element: <ProtectedRoute>{lazyViewWithErrorBoundary(CashFlowsView)}</ProtectedRoute> },
       { path: 'dividends', element: <ProtectedRoute>{lazyViewWithErrorBoundary(DividendsView)}</ProtectedRoute> },
