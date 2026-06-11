@@ -134,16 +134,17 @@ export default function PositionsView() {
             return `${d.name}\n${changeStr}`
           },
         },
-        labelLayout: (params: { data: { name: string; value: number; changePct: number }; rect: { x: number; y: number; width: number; height: number } }) => {
-          const d = params.data
-          if (d.value < 100) return { fontSize: 0 }
-          const rect = params.rect
-          const area = rect.width * rect.height
-          // Scale font based on tile area
-          const fontSize = Math.max(8, Math.min(20, Math.sqrt(area) / 12))
-          return {
-            fontSize,
-            moveOverlap: 'shiftY',
+        labelLayout: (params: { data?: { name?: string; value?: number }; rect?: { width?: number; height?: number } }) => {
+          try {
+            const value = params?.data?.value ?? 0
+            if (value < 100) return { fontSize: 0 }
+            const rect = params?.rect
+            if (!rect?.width || !rect?.height) return { fontSize: 12 }
+            const area = rect.width * rect.height
+            const fontSize = Math.max(8, Math.min(20, Math.sqrt(area) / 12))
+            return { fontSize, moveOverlap: 'shiftY' }
+          } catch {
+            return { fontSize: 12 }
           }
         },
         upperLabel: { show: false },
