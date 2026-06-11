@@ -101,106 +101,105 @@ export default function DashboardView() {
       ) : (
         <>
           {/* Stat cards */}
-              <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease' }}>
-                <div className="surface-panel__content">
-                  <section className="stats-grid stagger-reveal">
-                    {statCards.map((card) => {
-                      const translatedHelper = card.helper
-                        ? (card.helper.startsWith('dashboard.') || card.helper.startsWith('common.')
-                          ? t(card.helper, card.helperData)
-                          : card.helper)
-                        : undefined
-                      return (
-                        <StatCard
-                          key={card.title}
-                          title={t(card.title)}
-                          value={card.value}
-                          helper={translatedHelper}
-                          tone={card.tone}
-                          deltaAmount={card.deltaAmount}
-                          deltaPercent={card.deltaPercent}
-                          deltaTone={card.deltaTone}
-                        />
-                      )
-                    })}
-                  </section>
-                </div>
+          <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease' }}>
+            <div className="surface-panel__content">
+              <section className="stats-grid stagger-reveal">
+                {statCards.map((card) => {
+                  const translatedHelper = card.helper
+                    ? (card.helper.startsWith('dashboard.') || card.helper.startsWith('common.')
+                      ? t(card.helper, card.helperData)
+                      : card.helper)
+                    : undefined
+                  return (
+                    <StatCard
+                      key={card.title}
+                      title={t(card.title)}
+                      value={card.value}
+                      helper={translatedHelper}
+                      tone={card.tone}
+                      deltaAmount={card.deltaAmount}
+                      deltaPercent={card.deltaPercent}
+                      deltaTone={card.deltaTone}
+                    />
+                  )
+                })}
               </section>
+            </div>
+          </section>
 
-              {/* Top 10 Concentration — compact bar layout */}
-              {topPositions.length > 0 && (
-                <section className="surface-panel" style={{ animation: 'slideUp 0.45s ease 0.1s both' }}>
-                  <div className="surface-panel__content">
-                    <p className="eyebrow" style={{ marginBottom: 12 }}>{t('dashboard.topNConcentration', { n: TOP_N })}</p>
-                    <div style={{ display: 'grid', gap: 4 }}>
-                      {topPositions.map((item, i) => {
-                        const pct = totalValue > 0 ? ((item.position_value ?? 0) / totalValue) * 100 : 0
-                        const changePct = realtimeData.get(item.symbol ?? '') ?? 0
-                        const isPositive = changePct >= 0
-                        return (
-                          <div key={item.symbol} style={{
-                            display: 'grid',
-                            gridTemplateColumns: '24px 1fr 80px 60px',
-                            alignItems: 'center',
-                            gap: 8,
-                            padding: '6px 10px',
-                            borderRadius: 'var(--radius-sm)',
-                            background: 'rgba(10,14,26,0.4)',
-                          }}>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-text-muted)', textAlign: 'center' }}>
-                              {i + 1}
-                            </span>
-                            <div style={{ minWidth: 0 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <strong style={{ fontFamily: 'var(--font-mono)', fontSize: '0.88rem', color: 'var(--color-text-bright)' }}>
-                                  {item.symbol}
-                                </strong>
-                                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  {item.description}
-                                </span>
-                              </div>
-                              {/* Bar */}
-                              <div style={{ marginTop: 4, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                                <div style={{
-                                  width: `${Math.min(pct, 100)}%`,
-                                  height: '100%',
-                                  borderRadius: 2,
-                                  background: isPositive ? 'var(--color-positive)' : 'var(--color-negative)',
-                                  opacity: 0.7,
-                                  transition: 'width 0.3s ease',
-                                }} />
-                              </div>
-                            </div>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', textAlign: 'right', color: 'var(--color-text-bright)' }}>
-                              {formatNumber(item.position_value, 0)}
-                            </span>
-                            <span style={{
-                              fontFamily: 'var(--font-mono)',
-                              fontSize: '0.82rem',
-                              textAlign: 'right',
-                              color: isPositive ? 'var(--color-positive)' : 'var(--color-negative)',
-                            }}>
-                              {pct.toFixed(1)}%
+          {/* Top 10 Concentration — compact bar layout */}
+          {topPositions.length > 0 && (
+            <section className="surface-panel" style={{ animation: 'slideUp 0.45s ease 0.1s both' }}>
+              <div className="surface-panel__content">
+                <p className="eyebrow" style={{ marginBottom: 12 }}>{t('dashboard.topNConcentration', { n: TOP_N })}</p>
+                <div style={{ display: 'grid', gap: 4 }}>
+                  {topPositions.map((item, i) => {
+                    const pct = totalValue > 0 ? ((item.position_value ?? 0) / totalValue) * 100 : 0
+                    const changePct = realtimeData.get(item.symbol ?? '') ?? 0
+                    const isPositive = changePct >= 0
+                    return (
+                      <div key={item.symbol} style={{
+                        display: 'grid',
+                        gridTemplateColumns: '24px 1fr 80px 60px',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '6px 10px',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'rgba(10,14,26,0.4)',
+                      }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-text-muted)', textAlign: 'center' }}>
+                          {i + 1}
+                        </span>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <strong style={{ fontFamily: 'var(--font-mono)', fontSize: '0.88rem', color: 'var(--color-text-bright)' }}>
+                              {item.symbol}
+                            </strong>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {item.description}
                             </span>
                           </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </section>
-              )}
-
-              {/* Equity curve */}
-              <div style={{ animation: 'slideUp 0.5s ease 0.2s both' }}>
-                <EquityCurveSimple
-                  items={curveItems}
-                  loading={curveLoading}
-                  errorMessage={curveError}
-                  rangeOptions={EQUITY_CURVE_RANGE_OPTIONS.map((opt) => ({ ...opt, label: t(opt.label) }))}
-                  selectedRange={selectedRange}
-                  onSelectRange={setCurveRange}
-                />
+                          <div style={{ marginTop: 4, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                            <div style={{
+                              width: `${Math.min(pct, 100)}%`,
+                              height: '100%',
+                              borderRadius: 2,
+                              background: isPositive ? 'var(--color-positive)' : 'var(--color-negative)',
+                              opacity: 0.7,
+                              transition: 'width 0.3s ease',
+                            }} />
+                          </div>
+                        </div>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', textAlign: 'right', color: 'var(--color-text-bright)' }}>
+                          {formatNumber(item.position_value, 0)}
+                        </span>
+                        <span style={{
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '0.82rem',
+                          textAlign: 'right',
+                          color: isPositive ? 'var(--color-positive)' : 'var(--color-negative)',
+                        }}>
+                          {pct.toFixed(1)}%
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
+            </section>
+          )}
+
+          {/* Equity curve */}
+          <div style={{ animation: 'slideUp 0.5s ease 0.2s both' }}>
+            <EquityCurveSimple
+              items={curveItems}
+              loading={curveLoading}
+              errorMessage={curveError}
+              rangeOptions={EQUITY_CURVE_RANGE_OPTIONS.map((opt) => ({ ...opt, label: t(opt.label) }))}
+              selectedRange={selectedRange}
+              onSelectRange={setCurveRange}
+            />
+          </div>
 
           {/* Performance calendar */}
           <div style={{ animation: 'slideUp 0.5s ease 0.3s both' }}>
