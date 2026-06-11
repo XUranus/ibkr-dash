@@ -122,37 +122,29 @@ export default function PositionsView() {
         label: {
           show: true,
           position: 'inside',
-          align: 'center',
-          verticalAlign: 'middle',
+          textAlign: 'center',
+          textVerticalAlign: 'middle',
+          fontFamily: 'JetBrains Mono, monospace',
+          fontWeight: 700,
+          color: '#fff',
           formatter: (params: { data: { name: string; value: number; changePct: number } }) => {
             const d = params.data
             if (d.value < 100) return ''
             const changeStr = d.changePct >= 0 ? `+${d.changePct.toFixed(1)}%` : `${d.changePct.toFixed(1)}%`
-            // Dynamic font size based on value (log scale)
-            const fontSize = Math.max(9, Math.min(18, 6 + Math.log10(d.value + 1) * 2.5))
-            const changeFontSize = Math.max(8, fontSize - 2)
-            return `{name|${d.name}}\n{change|${changeStr}}`
+            return `${d.name}\n${changeStr}`
           },
-          rich: {
-            name: {
-              fontSize: 14,
-              fontWeight: 700,
-              fontFamily: 'JetBrains Mono, monospace',
-              color: '#fff',
-              lineHeight: 22,
-              align: 'center',
-            },
-            change: {
-              fontSize: 11,
-              fontFamily: 'JetBrains Mono, monospace',
-              color: 'rgba(255,255,255,0.85)',
-              lineHeight: 16,
-              align: 'center',
-            },
-          },
-          // Force centering
-          distance: 0,
-          padding: 0,
+        },
+        labelLayout: (params: { data: { name: string; value: number; changePct: number }; rect: { x: number; y: number; width: number; height: number } }) => {
+          const d = params.data
+          if (d.value < 100) return { fontSize: 0 }
+          const rect = params.rect
+          const area = rect.width * rect.height
+          // Scale font based on tile area
+          const fontSize = Math.max(8, Math.min(20, Math.sqrt(area) / 12))
+          return {
+            fontSize,
+            moveOverlap: 'shiftY',
+          }
         },
         upperLabel: { show: false },
         itemStyle: {
