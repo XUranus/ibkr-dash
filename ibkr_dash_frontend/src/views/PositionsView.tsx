@@ -77,7 +77,8 @@ export default function PositionsView() {
         changePct,
         description: p.description ?? '',
         itemStyle: {
-          borderColor: 'rgba(8,11,18,0.8)',
+          color: changeColor(changePct),
+          borderColor: 'rgba(8,11,18,0.9)',
           borderWidth: 2,
           gapWidth: 2,
         },
@@ -89,7 +90,7 @@ export default function PositionsView() {
         formatter: (params: { data: { name: string; value: number; changePct: number; description: string } }) => {
           const d = params.data
           const changeSign = d.changePct >= 0 ? '+' : ''
-          const changeColor = d.changePct >= 0 ? '#3dd68c' : '#f25c5c'
+          const changeColorHex = d.changePct >= 0 ? '#3dd68c' : '#f25c5c'
           return [
             `<div style="font-family: 'JetBrains Mono', monospace; min-width: 200px;">`,
             `<div style="font-weight:700; font-size:14px; margin-bottom:2px;">${d.name}</div>`,
@@ -100,7 +101,7 @@ export default function PositionsView() {
             `</div>`,
             `<div style="display:flex; justify-content:space-between; font-size:13px; margin-top:2px;">`,
             `<span style="color:#8a8d9e">Daily Change</span>`,
-            `<span style="color:${changeColor}">${changeSign}${d.changePct.toFixed(2)}%</span>`,
+            `<span style="color:${changeColorHex}">${changeSign}${d.changePct.toFixed(2)}%</span>`,
             `</div>`,
             `</div>`,
           ].join('')
@@ -119,7 +120,7 @@ export default function PositionsView() {
           position: 'inside',
           align: 'center',
           verticalAlign: 'middle',
-          formatter: (params: { data: { name: string; value: number; changePct: number } }) => {
+          formatter: (params: { data: { name: string; value: number; changePct: number }; treePathInfo?: { name: string }[] }) => {
             const d = params.data
             if (d.value < 100) return ''
             const changeStr = d.changePct >= 0 ? `+${d.changePct.toFixed(1)}%` : `${d.changePct.toFixed(1)}%`
@@ -127,25 +128,23 @@ export default function PositionsView() {
           },
           rich: {
             name: {
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 700,
               fontFamily: 'JetBrains Mono, monospace',
               color: '#fff',
-              lineHeight: 18,
-              align: 'center',
+              lineHeight: 20,
             },
             change: {
-              fontSize: 11,
+              fontSize: 12,
               fontFamily: 'JetBrains Mono, monospace',
-              color: 'rgba(255,255,255,0.85)',
+              color: 'rgba(255,255,255,0.9)',
               lineHeight: 16,
-              align: 'center',
             },
           },
         },
         upperLabel: { show: false },
         itemStyle: {
-          borderColor: 'rgba(8,11,18,0.8)',
+          borderColor: 'rgba(8,11,18,0.9)',
           borderWidth: 2,
           gapWidth: 2,
         },
@@ -156,17 +155,6 @@ export default function PositionsView() {
             gapWidth: 3,
           },
         }],
-        visualMin: 100,
-        visualMap: {
-          show: false,
-          type: 'continuous',
-          dimension: 'changePct',
-          min: -10,
-          max: 10,
-          inRange: {
-            color: ['#c0392b', '#e74c3c', '#7f8c8d', '#27ae60', '#1a7a42'],
-          },
-        },
       }],
     })
 
