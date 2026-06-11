@@ -53,21 +53,5 @@ export function buildDashboardStatCards(overview: AccountOverview): DashboardSta
       deltaPercent: formatSignedPercent(overview.fifo_total_pnl_delta?.percent_change ?? null),
       deltaTone: deltaTone(overview.fifo_total_pnl_delta),
     },
-    {
-      title: 'dashboard.dailyTwr',
-      value: formatPercent(overview.cnav_twr),
-      helper: 'dashboard.dailyTwrHelper',
-      tone: metricTone(overview.cnav_twr, 'accent'),
-    },
-    {
-      title: 'dashboard.ytdTwr',
-      value: formatPercent(overview.ytd_twr),
-      helper: 'dashboard.ytdTwrHelper',
-      helperData: { startDate: `${overview.report_date.slice(0, 4)}-01-01` },
-      tone: metricTone(overview.ytd_twr, 'accent'),
-    },
-    { title: 'dashboard.ytdDividends', value: formatNumber(overview.crtt_dividends_ytd), tone: 'neutral' },
-    { title: 'dashboard.ytdInterest', value: formatNumber(overview.crtt_broker_interest_ytd), tone: 'neutral' },
-    { title: 'dashboard.ytdCommissions', value: formatNumber(overview.crtt_commissions_ytd), tone: 'negative' },
   ]
 }
