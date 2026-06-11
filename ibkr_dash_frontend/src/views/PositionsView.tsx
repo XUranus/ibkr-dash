@@ -122,30 +122,16 @@ export default function PositionsView() {
         label: {
           show: true,
           position: 'inside',
-          textAlign: 'center',
-          textVerticalAlign: 'middle',
           fontFamily: 'JetBrains Mono, monospace',
           fontWeight: 700,
           color: '#fff',
+          fontSize: 12,
           formatter: (params: { data: { name: string; value: number; changePct: number } }) => {
             const d = params.data
-            if (d.value < 100) return ''
+            if (!d || d.value < 100) return ''
             const changeStr = d.changePct >= 0 ? `+${d.changePct.toFixed(1)}%` : `${d.changePct.toFixed(1)}%`
             return `${d.name}\n${changeStr}`
           },
-        },
-        labelLayout: (params: { data?: { name?: string; value?: number }; rect?: { width?: number; height?: number } }) => {
-          try {
-            const value = params?.data?.value ?? 0
-            if (value < 100) return { fontSize: 0 }
-            const rect = params?.rect
-            if (!rect?.width || !rect?.height) return { fontSize: 12 }
-            const area = rect.width * rect.height
-            const fontSize = Math.max(8, Math.min(20, Math.sqrt(area) / 12))
-            return { fontSize, moveOverlap: 'shiftY' }
-          } catch {
-            return { fontSize: 12 }
-          }
         },
         upperLabel: { show: false },
         itemStyle: {
