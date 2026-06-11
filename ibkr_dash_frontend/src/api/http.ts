@@ -42,11 +42,14 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
     headers,
   })
 
-  // Handle 401 Unauthorized — clear auth state and redirect to login
+  // Handle 401 Unauthorized — clear auth state
+  // Don't redirect if already on root (dashboard handles its own auth state)
   if (response.status === 401) {
     localStorage.removeItem('ibkr-dash.auth-session')
-    window.location.href = '/'
-    throw new ApiError('Session expired. Please log in again.', 401)
+    if (window.location.pathname !== '/') {
+      window.location.href = '/'
+    }
+    throw new ApiError('Authentication required.', 401)
   }
 
   // Handle 204 No Content (e.g., DELETE endpoints)

@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import { fetchEquityCurve } from '@/api/charts'
 import { fetchPositions } from '@/api/positions'
 import { useAccountOverview } from '@/hooks/useAccountOverview'
+import { useAuth } from '@/hooks/useAuth'
 import EquityCurveSimple from '@/components/EquityCurveSimple'
 import ErrorBlock from '@/components/ErrorBlock'
 import LoadingBlock from '@/components/LoadingBlock'
@@ -19,6 +21,8 @@ const TOP_N = 10
 
 export default function DashboardView() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
+  const { authenticated } = useAuth()
   const { overview, ensureLoaded } = useAccountOverview()
   const [curveItems, setCurveItems] = useState<EquityCurvePoint[]>([])
   const [topPositions, setTopPositions] = useState<PositionItem[]>([])
@@ -66,9 +70,11 @@ export default function DashboardView() {
       setPageError('')
       try {
         await ensureLoaded()
-        await loadCurveData(false)
-        const posResponse = await fetchPositions({ sort_by: 'position_value', sort_order: 'desc', page: 1, page_size: TOP_N })
-        setTopPositions(posResponse.items)
+        if (authenticated) {
+          await loadCurveData(false)
+          const posResponse = await fetchPositions({ sort_by: 'position_value', sort_order: 'desc', page: 1, page_size: TOP_N })
+          setTopPositions(posResponse.items)
+        }
       } catch (err) {
         setPageError(err instanceof Error ? err.message : t('dashboard.error'))
       } finally {
@@ -77,14 +83,16 @@ export default function DashboardView() {
     }
     void load()
 
-    refreshTimer.current = setInterval(() => {
-      void loadCurveData(false, true)
-    }, 30000)
+    if (authenticated) {
+      refreshTimer.current = setInterval(() => {
+        void loadCurveData(false, true)
+      }, 30000)
+    }
 
     return () => {
       if (refreshTimer.current) clearInterval(refreshTimer.current)
     }
-  }, [])
+  }, [authenticated])
 
   function setCurveRange(nextRange: EquityCurveRangeKey) {
     if (selectedRange === nextRange) return
@@ -103,86 +111,107 @@ export default function DashboardView() {
         <ErrorBlock message={pageError} />
       ) : (
         <>
-          {/* Stat cards */}
-          <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease' }}>
-            <div className="surface-panel__content">
-              <section className="stats-grid stagger-reveal">
-                {statCards.map((card) => {
-                  const translatedHelper = card.helper
-                    ? (card.helper.startsWith('dashboard.') || card.helper.startsWith('common.')
-                      ? t(card.helper, card.helperData)
-                      : card.helper)
-                    : undefined
-                  return (
-                    <StatCard
-                      key={card.title}
-                      title={t(card.title)}
-                      value={card.value}
-                      helper={translatedHelper}
-                      tone={card.tone}
-                      deltaAmount={card.deltaAmount}
-                      deltaPercent={card.deltaPercent}
-                      deltaTone={card.deltaTone}
-                    />
-                  )
-                })}
-              </section>
-            </div>
-          </section>
-
-          {/* Top 10 Concentration */}
-          {topPositions.length > 0 && (
-            <section className="summary-layout" style={{ animation: 'slideUp 0.45s ease 0.1s both' }}>
-              <section className="surface-panel">
-                <div className="surface-panel__content">
-                  <p className="eyebrow">TOP {TOP_N} CONCENTRATION</p>
-                  <div className="summary-list" style={{ marginTop: 8 }}>
-                    {topPositions.map((item, i) => (
-                      <div key={item.symbol} className="summary-list__row">
-                        <div className="summary-list__meta">
-                          <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-text-bright)' }}>
-                            {i + 1}. {item.symbol}
-                          </strong>
-                          <p>{item.description}</p>
-                        </div>
-                        <div className="summary-list__value">
-                          <strong style={{ fontFamily: 'var(--font-mono)' }}>{formatNumber(item.position_value, 2)}</strong>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>
-                            {item.percent_of_nav != null ? `${formatNumber(item.percent_of_nav, 1)}%` : '--'}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </section>
-
-              {concentrationPie && (
-                <PieDistributionCard
-                  title="Position Distribution"
-                  subtitle={`Top ${TOP_N} holdings by market value`}
-                  items={concentrationPie}
-                />
-              )}
+          {/* Login prompt for unauthenticated users */}
+          {!authenticated && (
+            <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease' }}>
+              <div className="surface-panel__content" style={{ textAlign: 'center', padding: '40px 20px' }}>
+                <p className="eyebrow" style={{ marginBottom: 12 }}>WELCOME</p>
+                <h2 style={{ margin: '0 0 8px', fontSize: '1.4rem', color: 'var(--color-text-bright)' }}>IBKR Dash</h2>
+                <p style={{ color: 'var(--color-text-muted)', marginBottom: 20 }}>
+                  Log in to view your portfolio positions, trades, and AI-powered analysis.
+                </p>
+                <button className="btn btn--accent" onClick={() => navigate('/login')}>
+                  Login
+                </button>
+              </div>
             </section>
           )}
 
-          {/* Equity curve */}
-          <div style={{ animation: 'slideUp 0.5s ease 0.2s both' }}>
-            <EquityCurveSimple
-              items={curveItems}
-              loading={curveLoading}
-              errorMessage={curveError}
-              rangeOptions={EQUITY_CURVE_RANGE_OPTIONS.map((opt) => ({ ...opt, label: t(opt.label) }))}
-              selectedRange={selectedRange}
-              onSelectRange={setCurveRange}
-            />
-          </div>
+          {/* Authenticated content */}
+          {authenticated && (
+            <>
+              {/* Stat cards */}
+              <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease' }}>
+                <div className="surface-panel__content">
+                  <section className="stats-grid stagger-reveal">
+                    {statCards.map((card) => {
+                      const translatedHelper = card.helper
+                        ? (card.helper.startsWith('dashboard.') || card.helper.startsWith('common.')
+                          ? t(card.helper, card.helperData)
+                          : card.helper)
+                        : undefined
+                      return (
+                        <StatCard
+                          key={card.title}
+                          title={t(card.title)}
+                          value={card.value}
+                          helper={translatedHelper}
+                          tone={card.tone}
+                          deltaAmount={card.deltaAmount}
+                          deltaPercent={card.deltaPercent}
+                          deltaTone={card.deltaTone}
+                        />
+                      )
+                    })}
+                  </section>
+                </div>
+              </section>
 
-          {/* Performance calendar */}
-          <div style={{ animation: 'slideUp 0.5s ease 0.3s both' }}>
-            <PerformanceCalendar latestReportDate={overview?.report_date ?? null} />
-          </div>
+              {/* Top 10 Concentration */}
+              {topPositions.length > 0 && (
+                <section className="summary-layout" style={{ animation: 'slideUp 0.45s ease 0.1s both' }}>
+                  <section className="surface-panel">
+                    <div className="surface-panel__content">
+                      <p className="eyebrow">TOP {TOP_N} CONCENTRATION</p>
+                      <div className="summary-list" style={{ marginTop: 8 }}>
+                        {topPositions.map((item, i) => (
+                          <div key={item.symbol} className="summary-list__row">
+                            <div className="summary-list__meta">
+                              <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-text-bright)' }}>
+                                {i + 1}. {item.symbol}
+                              </strong>
+                              <p>{item.description}</p>
+                            </div>
+                            <div className="summary-list__value">
+                              <strong style={{ fontFamily: 'var(--font-mono)' }}>{formatNumber(item.position_value, 2)}</strong>
+                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>
+                                {item.percent_of_nav != null ? `${formatNumber(item.percent_of_nav, 1)}%` : '--'}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </section>
+
+                  {concentrationPie && (
+                    <PieDistributionCard
+                      title="Position Distribution"
+                      subtitle={`Top ${TOP_N} holdings by market value`}
+                      items={concentrationPie}
+                    />
+                  )}
+                </section>
+              )}
+
+              {/* Equity curve */}
+              <div style={{ animation: 'slideUp 0.5s ease 0.2s both' }}>
+                <EquityCurveSimple
+                  items={curveItems}
+                  loading={curveLoading}
+                  errorMessage={curveError}
+                  rangeOptions={EQUITY_CURVE_RANGE_OPTIONS.map((opt) => ({ ...opt, label: t(opt.label) }))}
+                  selectedRange={selectedRange}
+                  onSelectRange={setCurveRange}
+                />
+              </div>
+
+              {/* Performance calendar */}
+              <div style={{ animation: 'slideUp 0.5s ease 0.3s both' }}>
+                <PerformanceCalendar latestReportDate={overview?.report_date ?? null} />
+              </div>
+            </>
+          )}
         </>
       )}
     </section>
