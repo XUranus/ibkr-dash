@@ -39,3 +39,19 @@ export function fetchPositionDetail(params: { symbol: string; asset_class?: stri
   }
   return request<PositionDetailResponse>(`/api/positions/detail?${searchParams.toString()}`)
 }
+
+export interface RealtimePosition {
+  symbol: string
+  description: string
+  position_value: number
+  change_pct: number
+}
+
+export interface RealtimePositionsResponse {
+  items: RealtimePosition[]
+  count: number
+}
+
+export function fetchRealtimePositions(): Promise<RealtimePositionsResponse> {
+  return request<RealtimePositionsResponse>('/api/positions/realtime')
+}

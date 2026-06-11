@@ -5,7 +5,7 @@ import { TreemapChart } from 'echarts/charts'
 import { CanvasRenderer } from 'echarts/renderers'
 import { TooltipComponent } from 'echarts/components'
 import type { EChartsType } from 'echarts/core'
-import { fetchPositions, fetchPositionDetail } from '@/api/positions'
+import { fetchPositions, fetchPositionDetail, fetchRealtimePositions, type RealtimePosition } from '@/api/positions'
 import { useAccountOverview } from '@/hooks/useAccountOverview'
 import ErrorBlock from '@/components/ErrorBlock'
 import LoadingBlock from '@/components/LoadingBlock'
@@ -45,16 +45,22 @@ export default function PositionsView() {
   } | null>(null)
   const chartRef = useRef<HTMLDivElement | null>(null)
   const chartInstance = useRef<EChartsType | null>(null)
+  const [realtimePositions, setRealtimePositions] = useState<RealtimePosition[]>([])
+  const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null)
 
   async function loadPositions() {
     setLoading(true)
     setErrorMessage('')
     try {
-      const [listResponse] = await Promise.all([
+      const [listResponse, realtimeResponse] = await Promise.all([
         fetchPositions({ include_summary: true, sort_by: 'position_value', sort_order: 'desc', page: 1, page_size: 200 }),
         ensureLoaded(),
+        fetchRealtimePositions().catch(() => ({ items: [], count: 0 })),
       ])
       setResponse(listResponse)
+      if (realtimeResponse.items?.length) {
+        setRealtimePositions(realtimeResponse.items)
+      }
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : t('positions.failedToLoadPositions'))
     } finally {
@@ -62,7 +68,19 @@ export default function PositionsView() {
     }
   }
 
-  useEffect(() => { void loadPositions() }, [])
+  useEffect(() => {
+    void loadPositions()
+    // Auto-refresh realtime data every 60 seconds
+    refreshTimer.current = setInterval(async () => {
+      try {
+        const rt = await fetchRealtimePositions()
+        if (rt.items?.length) setRealtimePositions(rt.items)
+      } catch {
+        // Silent fail for background refresh
+      }
+    }, 60000)
+    return () => { if (refreshTimer.current) clearInterval(refreshTimer.current) }
+  }, [])
 
   // Initialize ECharts treemap
   useEffect(() => {
@@ -73,8 +91,13 @@ export default function PositionsView() {
     }
 
     const items = response.items
+    // Build a lookup of realtime change data
+    const rtMap = new Map<string, number>()
+    for (const rt of realtimePositions) {
+      rtMap.set(rt.symbol, rt.change_pct ?? 0)
+    }
     const data = items.map((p) => {
-      const changePct = p.previous_day_change_percent ?? 0
+      const changePct = rtMap.get(p.symbol ?? '') ?? p.previous_day_change_percent ?? 0
       return {
         name: p.symbol ?? '--',
         value: p.position_value ?? 0,
@@ -125,7 +148,7 @@ export default function PositionsView() {
           fontFamily: 'JetBrains Mono, monospace',
           fontWeight: 700,
           color: '#fff',
-          fontSize: 12,
+          fontSize: 16,
           formatter: (params: { data: { name: string; value: number; changePct: number } }) => {
             const d = params.data
             if (!d || d.value < 100) return ''
@@ -154,7 +177,7 @@ export default function PositionsView() {
     return () => {
       window.removeEventListener('resize', handleResize)
     }
-  }, [response])
+  }, [response, realtimePositions])
 
   function classifyAssetBucket(item: PositionItem): string {
     const desc = `${item.description ?? ''}`.toUpperCase()

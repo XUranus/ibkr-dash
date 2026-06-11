@@ -1,12 +1,50 @@
 """Position list, summary, and detail endpoints — publicly accessible."""
 
+from __future__ import annotations
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.api.deps import get_position_service
+from app.api.deps import get_db, get_position_service
+from app.core.database import Database
 from app.schemas.positions import PositionDetailResponse, PositionListResponse, PositionSummaryResponse
 from app.services.position_service import PositionService
 
 router = APIRouter(prefix="/positions", tags=["positions"])
+
+
+@router.get("/realtime")
+def get_positions_realtime(
+    db: Database = Depends(get_db),
+) -> dict:
+    """Return positions with computed change percentages for the treemap.
+
+    Uses unrealized PnL and cost basis to compute a change % when
+    previous_day_change_percent is not available.
+    """
+    rows = db.execute(
+        "SELECT symbol, description, asset_class, quantity, mark_price, "
+        "position_value, percent_of_nav, cost_basis_money, "
+        "total_unrealized_pnl, previous_day_change_percent "
+        "FROM position_snapshots ORDER BY report_date DESC, position_value DESC LIMIT 200"
+    )
+    items = []
+    for r in rows:
+        change_pct = r.get("previous_day_change_percent")
+        # Compute change % from unrealized PnL / position value
+        if change_pct is None or change_pct == 0:
+            pnl = r.get("total_unrealized_pnl") or 0
+            value = r.get("position_value") or 0
+            if value > 0:
+                change_pct = round((pnl / value) * 100, 2)
+            else:
+                change_pct = 0
+        items.append({
+            "symbol": r.get("symbol"),
+            "description": r.get("description"),
+            "position_value": r.get("position_value"),
+            "change_pct": change_pct,
+        })
+    return {"items": items, "count": len(items)}
 
 
 @router.get("", response_model=PositionListResponse)
