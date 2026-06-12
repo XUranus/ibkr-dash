@@ -1,74 +1,71 @@
 /* ═══════════════════════════════════════════════════════════════
-   IBKR Dash — Terminal Luxury Theme
-   Bloomberg Terminal × luxury watch interface
-   Deep obsidian base, amber/gold accents, monospace figures
+   IBKR Dash — Institutional Terminal Theme
+   Bloomberg Terminal / IBKR Client Portal / FactSet inspired
+   Cold dark base, muted accents, zero glow, maximum density
    ═══════════════════════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
 
 :root {
-  font-family: 'DM Sans', -apple-system, sans-serif;
-  line-height: 1.55;
+  font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.5;
   font-weight: 400;
   color-scheme: dark;
 
   /* ── Surface palette ── */
-  --color-bg:              #080b12;
-  --color-bg-elevated:     rgba(12, 16, 28, 0.96);
-  --color-bg-panel:        rgba(14, 18, 32, 0.92);
-  --color-bg-panel-strong: rgba(18, 24, 42, 0.96);
-  --color-bg-muted:        rgba(20, 26, 44, 0.72);
-  --color-bg-glass:        rgba(18, 24, 42, 0.56);
+  --color-bg:              #0A0E14;
+  --color-bg-elevated:     #0D1117;
+  --color-bg-panel:        #111820;
+  --color-bg-panel-strong: #151C28;
+  --color-bg-muted:        #161B22;
+  --color-bg-glass:        #111820;
 
   /* ── Borders ── */
-  --color-border:        rgba(255, 191, 80, 0.08);
-  --color-border-strong: rgba(255, 191, 80, 0.18);
+  --color-border:        rgba(255, 255, 255, 0.06);
+  --color-border-strong: rgba(255, 255, 255, 0.12);
   --color-border-subtle: rgba(255, 255, 255, 0.04);
 
   /* ── Text ── */
-  --color-text-primary:   #e8e4dc;
-  --color-text-secondary: #8a8d9e;
-  --color-text-muted:     #5a5d6e;
-  --color-text-bright:    #fff8ef;
+  --color-text-primary:   #C9D1D9;
+  --color-text-secondary: #6E7681;
+  --color-text-muted:     #484F58;
+  --color-text-bright:    #E6EDF3;
 
-  /* ── Accent — amber/gold ── */
-  --color-accent:       #d4a843;
-  --color-accent-soft:  rgba(212, 168, 67, 0.12);
-  --color-accent-strong:#f0c55e;
-  --color-accent-glow:  rgba(212, 168, 67, 0.06);
+  /* ── Accent — cold blue ── */
+  --color-accent:       #58A6FF;
+  --color-accent-soft:  rgba(88, 166, 255, 0.08);
+  --color-accent-strong:#79C0FF;
+  --color-accent-glow:  rgba(88, 166, 255, 0.04);
 
   /* ── Semantic ── */
-  --color-positive:      #3dd68c;
-  --color-positive-soft: rgba(61, 214, 140, 0.10);
-  --color-negative:      #f25c5c;
-  --color-negative-soft: rgba(242, 92, 92, 0.10);
-  --color-warning:       #f0a030;
+  --color-positive:      #3FB950;
+  --color-positive-soft: rgba(63, 185, 80, 0.08);
+  --color-negative:      #F85149;
+  --color-negative-soft: rgba(248, 81, 73, 0.08);
+  --color-warning:       #D29922;
 
-  /* ── Shadows ── */
-  --shadow-panel:    0 1px 0 rgba(255,191,80,0.04), 0 8px 32px rgba(0,0,0,0.35);
-  --shadow-card:     0 1px 0 rgba(255,191,80,0.03), 0 4px 20px rgba(0,0,0,0.25);
-  --shadow-elevated: 0 12px 48px rgba(0,0,0,0.5), 0 1px 0 rgba(255,191,80,0.06);
-  --shadow-glow:     0 0 30px rgba(212,168,67,0.06);
+  /* ── Shadows — minimal, no glow ── */
+  --shadow-panel:    0 1px 0 rgba(0,0,0,0.3);
+  --shadow-card:     0 1px 0 rgba(0,0,0,0.2);
+  --shadow-elevated: 0 8px 24px rgba(0,0,0,0.4);
+  --shadow-glow:     none;
 
-  /* ── Radii ── */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  /* ── Radii — sharp, terminal-like ── */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
 
-  /* ── Spacing scale ── */
+  /* ── Spacing scale — tighter ── */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.5rem;
-  --space-6: 2rem;
-  --space-7: 3rem;
+  --space-3: 0.625rem;
+  --space-4: 0.875rem;
+  --space-5: 1.25rem;
+  --space-6: 1.75rem;
+  --space-7: 2.5rem;
 
   /* ── Typography ── */
-  --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', monospace;
-  --font-body: 'DM Sans', -apple-system, sans-serif;
-
-  /* ── Grain overlay (subtle noise texture) ── */
-  --grain: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  --font-mono: 'IBM Plex Mono', 'SF Mono', 'Cascadia Code', monospace;
+  --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 }

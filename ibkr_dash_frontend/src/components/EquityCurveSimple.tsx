@@ -40,76 +40,68 @@ export default function EquityCurveSimple({ items, loading, errorMessage, rangeO
     })
 
     chartInstance.current.setOption({
-      animationDuration: 700,
+      animationDuration: 400,
       backgroundColor: 'transparent',
-      grid: { top: 72, right: 72, bottom: 86, left: 28 },
+      grid: { top: 48, right: 60, bottom: 72, left: 20 },
       legend: { show: false },
       tooltip: {
         trigger: 'axis',
-        backgroundColor: 'rgba(6, 12, 24, 0.96)',
-        borderColor: 'rgba(129, 160, 207, 0.22)',
+        backgroundColor: '#111820',
+        borderColor: 'rgba(255,255,255,0.1)',
         borderWidth: 1,
-        textStyle: { color: '#e6eefc' },
-        padding: 14,
+        textStyle: { color: '#C9D1D9', fontSize: 12 },
+        padding: 10,
       },
       xAxis: {
         type: 'time',
-        axisLine: { lineStyle: { color: 'rgba(129, 160, 207, 0.16)' } },
+        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
         axisTick: { show: false },
-        axisLabel: { color: '#6d7d9d', margin: 16 },
+        axisLabel: { color: '#484F58', fontSize: 11, margin: 12 },
         splitLine: { show: false },
       },
       yAxis: [{
         type: 'value',
         position: 'right',
-        axisLabel: { color: '#6d7d9d' },
+        axisLabel: { color: '#484F58', fontSize: 11 },
         splitNumber: 4,
         axisLine: { show: false },
         axisTick: { show: false },
-        splitLine: { lineStyle: { color: 'rgba(129, 160, 207, 0.11)', type: 'dashed' } },
+        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)', type: 'dashed' } },
       }],
       dataZoom: [
         { type: 'inside', xAxisIndex: 0 },
         {
-          type: 'slider', xAxisIndex: 0, height: 22, bottom: 24,
-          borderColor: 'rgba(129, 160, 207, 0.08)',
-          backgroundColor: 'rgba(9, 16, 29, 0.72)',
-          fillerColor: 'rgba(62, 169, 255, 0.18)',
-          handleStyle: { color: '#13284a', borderColor: '#56d5ff' },
-          textStyle: { color: '#6d7d9d' },
+          type: 'slider', xAxisIndex: 0, height: 18, bottom: 16,
+          borderColor: 'rgba(255,255,255,0.06)',
+          backgroundColor: '#0A0E14',
+          fillerColor: 'rgba(88, 166, 255, 0.1)',
+          handleStyle: { color: '#151C28', borderColor: '#58A6FF' },
+          textStyle: { color: '#484F58', fontSize: 10 },
         },
       ],
       series: [
         {
-          name: t('dashboard.totalEquity'), type: 'line', smooth: 0.18, sampling: 'lttb',
-          data: equityData, lineStyle: { width: 3, color: '#56d5ff' },
+          name: t('dashboard.totalEquity'), type: 'line', smooth: 0.15, sampling: 'lttb',
+          data: equityData, lineStyle: { width: 2, color: '#58A6FF' },
           areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(86, 213, 255, 0.26)' },
-            { offset: 1, color: 'rgba(86, 213, 255, 0.02)' },
+            { offset: 0, color: 'rgba(88, 166, 255, 0.12)' },
+            { offset: 1, color: 'rgba(88, 166, 255, 0.01)' },
           ]) },
           showSymbol: false,
         },
         {
-          name: t('dashboard.netPnl'), type: 'line', smooth: 0.22, sampling: 'lttb',
-          data: pnlData, lineStyle: { width: 2.5, color: '#b7e11d' },
-          areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(183, 225, 29, 0.18)' },
-            { offset: 1, color: 'rgba(183, 225, 29, 0.01)' },
-          ]) },
+          name: t('dashboard.netPnl'), type: 'line', smooth: 0.18, sampling: 'lttb',
+          data: pnlData, lineStyle: { width: 1.5, color: '#3FB950' },
           showSymbol: false,
         },
         {
           name: t('dashboard.netCost'), type: 'line', step: 'end',
-          data: costData, lineStyle: { width: 2.5, color: '#ffb454' },
+          data: costData, lineStyle: { width: 1.5, color: '#6E7681' },
           showSymbol: false,
         },
         {
-          name: t('dashboard.realizedPnl'), type: 'line', smooth: 0.16, sampling: 'lttb',
-          data: realizedData, lineStyle: { width: 2.4, color: '#8b7cff' },
-          areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(139, 124, 255, 0.14)' },
-            { offset: 1, color: 'rgba(139, 124, 255, 0.01)' },
-          ]) },
+          name: t('dashboard.realizedPnl'), type: 'line', smooth: 0.12, sampling: 'lttb',
+          data: realizedData, lineStyle: { width: 1.5, color: '#D29922' },
           showSymbol: false,
         },
       ],
@@ -135,44 +127,27 @@ export default function EquityCurveSimple({ items, loading, errorMessage, rangeO
 
   useEffect(() => { renderChart() }, [renderChart])
 
-  const latestPoint = items[items.length - 1] ?? null
-
   return (
     <div className="surface-panel" style={{ position: 'relative', overflow: 'hidden' }}>
       <div className="surface-panel__content">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
-          <div>
-            <p className="eyebrow">{t('dashboard.curves')}</p>
-            <h2 className="panel-title" style={{ fontSize: '1.45rem' }}>{t('dashboard.curvesTitle')}</h2>
-            <p className="panel-subtitle" style={{ maxWidth: '52rem' }}>
-              {t('dashboard.curvesSubtitle')}
-            </p>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+            <p className="eyebrow" style={{ margin: 0 }}>{t('dashboard.curves')}</p>
+            <span className="tag">{items.length > 0 ? `${items[0].report_date} – ${items[items.length - 1].report_date}` : t('dashboard.noHistory')}</span>
           </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            <span className="tag tag--accent">
-              {items.length > 0 ? `${items[0].report_date} - ${items[items.length - 1].report_date}` : t('dashboard.noHistory')}
-            </span>
-            <span className="tag">{t('dashboard.dailyPoints', { count: items.length })}</span>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {rangeOptions.map((opt) => (
+              <button
+                key={opt.key}
+                type="button"
+                className={`btn btn--sm ${selectedRange === opt.key ? 'btn--accent' : ''}`}
+                onClick={() => onSelectRange(opt.key)}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 'var(--space-4)' }}>
-          {rangeOptions.map((opt) => (
-            <button
-              key={opt.key}
-              type="button"
-              className="btn"
-              style={{
-                borderRadius: 999, padding: '8px 14px',
-                background: selectedRange === opt.key ? 'linear-gradient(135deg, rgba(34, 99, 196, 0.96), rgba(18, 59, 128, 0.96))' : 'rgba(15, 26, 45, 0.72)',
-                borderColor: selectedRange === opt.key ? 'rgba(116, 194, 255, 0.45)' : 'rgba(129, 160, 207, 0.12)',
-                color: selectedRange === opt.key ? '#f4f8ff' : 'var(--color-text-secondary)',
-              }}
-              onClick={() => onSelectRange(opt.key)}
-            >
-              {opt.label}
-            </button>
-          ))}
         </div>
 
         {items.length === 0 ? (
@@ -183,13 +158,13 @@ export default function EquityCurveSimple({ items, loading, errorMessage, rangeO
               <div style={{
                 position: 'absolute', inset: 0, zIndex: 3,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'rgba(5, 12, 24, 0.44)', backdropFilter: 'blur(3px)',
-                color: 'var(--color-text-primary)', fontWeight: 600,
+                background: 'rgba(10, 14, 20, 0.5)',
+                color: 'var(--color-text-secondary)', fontSize: '0.82rem',
               }}>
                 {t('dashboard.updatingCurve')}
               </div>
             )}
-            <div ref={chartRef} style={{ width: '100%', height: 620, borderRadius: 24, border: '1px solid rgba(129, 160, 207, 0.1)', background: 'rgba(8, 14, 28, 0.94)' }} />
+            <div ref={chartRef} style={{ width: '100%', height: 400 }} />
           </>
         )}
       </div>

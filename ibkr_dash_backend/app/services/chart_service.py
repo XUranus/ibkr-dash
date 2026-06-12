@@ -78,13 +78,28 @@ class ChartService:
         cash_flow_curve = self._build_net_cost_curve(cash_flow_rows)
         daily_net_flows = self._build_daily_net_flows(cash_flow_rows)
 
+        # Fallback: when cash flows have zero amounts (IBKR API zeroes them),
+        # use the earliest cnav_starting_value as the initial net cost.
+        initial_net_cost = 0.0
+        cash_flows_have_value = any(abs(p[1]) > 0.01 for p in cash_flow_curve) if cash_flow_curve else False
+        if not cash_flows_have_value:
+            earliest_starting = self.db.execute_one(
+                """
+                SELECT cnav_starting_value FROM account_snapshots
+                WHERE cnav_starting_value > 0
+                ORDER BY report_date ASC LIMIT 1
+                """,
+            )
+            if earliest_starting and earliest_starting.get("cnav_starting_value"):
+                initial_net_cost = float(earliest_starting["cnav_starting_value"])
+
         # Build realized PnL curve
         realized_pnl_curve = self._build_realized_pnl_curve(account_id, effective_end)
 
         latest_calendar_month = effective_end.strftime("%Y-%m")
 
         items: list[EquityCurvePoint] = []
-        current_net_cost = 0.0
+        current_net_cost = initial_net_cost if not cash_flows_have_value else 0.0
         current_realized_pnl = 0.0
         cash_flow_index = 0
         realized_pnl_index = 0
@@ -95,10 +110,11 @@ class ChartService:
             report_date = source["report_date"]
             total_equity = source.get("total_equity")
 
-            # Advance cash flow pointer
-            while cash_flow_index < len(cash_flow_curve) and cash_flow_curve[cash_flow_index][0] <= report_date:
-                current_net_cost = cash_flow_curve[cash_flow_index][1]
-                cash_flow_index += 1
+            # Advance cash flow pointer (skip when all amounts are zero)
+            if cash_flows_have_value:
+                while cash_flow_index < len(cash_flow_curve) and cash_flow_curve[cash_flow_index][0] <= report_date:
+                    current_net_cost = cash_flow_curve[cash_flow_index][1]
+                    cash_flow_index += 1
             while realized_pnl_index < len(realized_pnl_curve) and realized_pnl_curve[realized_pnl_index][0] <= report_date:
                 current_realized_pnl = realized_pnl_curve[realized_pnl_index][1]
                 realized_pnl_index += 1

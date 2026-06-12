@@ -67,131 +67,150 @@ export default function AppHeader() {
 
   return (
     <>
-      <header className="surface-panel" style={{ animation: 'slideUp 0.5s ease' }}>
-        <div className="surface-panel__content" style={{ display: 'grid', gap: 'var(--space-4)' }}>
-          {/* Top row: title + account info + auth */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-4)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <div>
-              <p className="eyebrow" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: 'var(--color-accent)', boxShadow: '0 0 8px rgba(212,168,67,0.4)' }} />
-                {t('app.title')}
-              </p>
-              <h1 style={{
-                margin: 0,
-                fontSize: 'clamp(1.8rem, 3.5vw, 2.6rem)',
-                letterSpacing: '-0.04em',
-                fontWeight: 700,
-                color: 'var(--color-text-bright)',
-              }}>
-                {t('app.subtitle')}
-              </h1>
-            </div>
-
-            <div style={{ display: 'grid', gap: 12, justifyItems: 'end' }}>
-              {/* Auth row */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                <button className="btn btn--ghost btn--sm" onClick={toggleLanguage} style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)' }}>
-                  {i18n.language === 'zh-CN' ? 'EN' : '中文'}
-                </button>
-                <span className="tag" style={{ fontSize: '0.62rem' }}>LIVE</span>
-                {!authenticated ? (
-                  <button className="btn btn--ghost btn--sm" onClick={() => setShowLogin(true)}>{t('auth.login')}</button>
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.75rem',
-                      color: 'var(--color-text-muted)',
-                    }}>
-                      {username}
-                    </span>
-                    <button className="btn btn--ghost btn--sm" onClick={handleLogout}>{t('auth.logout')}</button>
-                  </div>
-                )}
-              </div>
-
-              {/* Account metrics strip */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' }}>
-                {[
-                  { label: t('header.date'), value: overview?.report_date ?? '--' },
-                  { label: t('header.equity'), value: formatNumber(overview?.total_equity ?? null) },
-                  {
-                    label: t('header.pnl'),
-                    value: formatNumber(overview?.fifo_total_pnl ?? null),
-                    className: pnlClass(overview?.fifo_total_pnl),
-                  },
-                ].map((item) => (
-                  <div key={item.label} style={{
-                    display: 'flex', alignItems: 'baseline', gap: 8,
-                    padding: '6px 12px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--color-border-subtle)',
-                    background: 'rgba(10, 14, 26, 0.4)',
-                  }}>
-                    <span style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.62rem',
-                      color: 'var(--color-text-muted)',
-                      letterSpacing: '0.1em',
-                      textTransform: 'uppercase',
-                    }}>
-                      {item.label}
-                    </span>
-                    <strong style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.88rem',
-                      fontWeight: 600,
-                      color: item.className ? undefined : 'var(--color-text-bright)',
-                    }}
-                    className={item.className}
-                    >
-                      {item.value}
-                    </strong>
-                  </div>
-                ))}
-              </div>
-            </div>
+      <header style={{
+        background: 'var(--color-bg-panel)',
+        borderBottom: '1px solid var(--color-border)',
+        padding: '0 16px',
+      }}>
+        {/* Top bar: title + account metrics + auth */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 16,
+          height: 40,
+          flexWrap: 'wrap',
+        }}>
+          {/* Left: title */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              color: 'var(--color-text-bright)',
+              letterSpacing: '0.04em',
+            }}>
+              IBKR DASH
+            </span>
+            <span style={{
+              width: 6, height: 6, borderRadius: '50%',
+              background: 'var(--color-positive)',
+              display: 'inline-block',
+            }} />
           </div>
 
-          {/* Navigation */}
-          <nav style={{ display: 'flex', flexWrap: 'wrap', gap: 4, borderTop: '1px solid var(--color-border-subtle)', paddingTop: 'var(--space-3)' }}>
-            {navItems.map((item) => (
+          {/* Center: account metrics strip */}
+          <div style={{ display: 'flex', gap: 0, overflow: 'auto' }}>
+            {[
+              { label: t('header.equity'), value: formatNumber(overview?.total_equity ?? null) },
+              { label: t('header.pnl'), value: formatNumber(overview?.fifo_total_pnl ?? null), className: pnlClass(overview?.fifo_total_pnl) },
+              { label: t('header.date'), value: overview?.report_date ?? '--' },
+            ].map((item) => (
+              <div key={item.label} style={{
+                display: 'flex', alignItems: 'baseline', gap: 6,
+                padding: '0 14px',
+                borderRight: '1px solid var(--color-border)',
+                whiteSpace: 'nowrap',
+              }}>
+                <span style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.58rem',
+                  color: 'var(--color-text-muted)',
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                }}>
+                  {item.label}
+                </span>
+                <strong
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    color: item.className ? undefined : 'var(--color-text-bright)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                  className={item.className}
+                >
+                  {item.value}
+                </strong>
+              </div>
+            ))}
+          </div>
+
+          {/* Right: auth + language */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button className="btn btn--ghost btn--sm" onClick={toggleLanguage} style={{
+              fontSize: '0.65rem', fontFamily: 'var(--font-mono)', padding: '0 6px', minHeight: 22,
+            }}>
+              {i18n.language === 'zh-CN' ? 'EN' : '中文'}
+            </button>
+            {!authenticated ? (
+              <button className="btn btn--ghost btn--sm" onClick={() => setShowLogin(true)} style={{ minHeight: 22, padding: '0 8px', fontSize: '0.7rem' }}>
+                {t('auth.login')}
+              </button>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.68rem',
+                  color: 'var(--color-text-muted)',
+                }}>
+                  {username}
+                </span>
+                <button className="btn btn--ghost btn--sm" onClick={handleLogout} style={{ minHeight: 22, padding: '0 8px', fontSize: '0.7rem' }}>
+                  {t('auth.logout')}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Navigation tabs */}
+        <nav style={{
+          display: 'flex',
+          gap: 0,
+          borderTop: '1px solid var(--color-border-subtle)',
+        }}>
+          {navItems.map((item) => {
+            const active = isActive(item.to)
+            return (
               <button
                 key={item.to}
-                className={`btn terminal-nav__button ${isActive(item.to) ? 'is-active' : ''}`}
                 onClick={() => navigate(item.to)}
                 style={{
-                  borderRadius: 'var(--radius-sm)',
-                  minHeight: 36,
-                  padding: '0 14px',
-                  fontSize: '0.82rem',
-                  fontWeight: isActive(item.to) ? 600 : 400,
-                  color: isActive(item.to) ? 'var(--color-accent-strong)' : 'var(--color-text-secondary)',
-                  background: isActive(item.to) ? 'rgba(212,168,67,0.06)' : 'transparent',
-                  border: '1px solid transparent',
-                  borderColor: isActive(item.to) ? 'rgba(212,168,67,0.2)' : 'transparent',
+                  minHeight: 30,
+                  padding: '0 12px',
+                  border: 'none',
+                  borderBottom: active ? '2px solid var(--color-accent)' : '2px solid transparent',
+                  background: 'transparent',
+                  color: active ? 'var(--color-text-bright)' : 'var(--color-text-secondary)',
+                  fontFamily: 'var(--font-body)',
+                  fontSize: '0.75rem',
+                  fontWeight: active ? 600 : 400,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {item.label}
               </button>
-            ))}
-          </nav>
-        </div>
+            )
+          })}
+        </nav>
       </header>
 
       {/* Login modal */}
       {showLogin && (
         <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setShowLogin(false) }}>
-          <section className="modal-dialog" style={{ width: 'min(400px, 100%)' }}>
-            <div style={{ display: 'grid', gap: 24 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+          <section className="modal-dialog" style={{ width: 'min(380px, 100%)' }}>
+            <div style={{ display: 'grid', gap: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
                 <div>
                   <p className="eyebrow">ACCESS</p>
-                  <h2 style={{ margin: 0, fontSize: '1.4rem', color: 'var(--color-text-bright)' }}>{t('auth.loginTitle')}</h2>
+                  <h2 style={{ margin: 0, fontSize: '1rem', color: 'var(--color-text-bright)' }}>{t('auth.loginTitle')}</h2>
                 </div>
-                <button className="btn btn--ghost btn--sm" onClick={() => setShowLogin(false)} style={{ minWidth: 36, minHeight: 36, padding: 0 }}>✕</button>
+                <button className="btn btn--ghost btn--sm" onClick={() => setShowLogin(false)} style={{ minWidth: 28, minHeight: 28, padding: 0, fontSize: '0.8rem' }}>✕</button>
               </div>
-              <form style={{ display: 'grid', gap: 14 }} onSubmit={handleLogin}>
+              <form style={{ display: 'grid', gap: 10 }} onSubmit={handleLogin}>
                 <label className="field-stack">
                   <span className="field-stack__label">{t('auth.username')}</span>
                   <input className="input" value={loginForm.username} onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })} type="text" autoComplete="username" />
@@ -200,8 +219,8 @@ export default function AppHeader() {
                   <span className="field-stack__label">{t('auth.password')}</span>
                   <input className="input" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} type="password" autoComplete="current-password" />
                 </label>
-                {loginError && <p style={{ margin: 0, color: 'var(--color-negative)', fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>{loginError}</p>}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 4 }}>
+                {loginError && <p style={{ margin: 0, color: 'var(--color-negative)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{loginError}</p>}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4 }}>
                   <button type="button" className="btn btn--ghost" onClick={() => setShowLogin(false)}>{t('auth.cancel')}</button>
                   <button type="submit" className="btn btn--accent" disabled={authLoading}>{t('auth.login')}</button>
                 </div>

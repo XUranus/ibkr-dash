@@ -82,49 +82,41 @@ export default function DashboardView() {
         <ErrorBlock message={pageError} />
       ) : (
         <>
-          {/* Stat cards */}
-          <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease' }}>
-            <div className="surface-panel__content">
-              <section className="stats-grid stagger-reveal">
-                {statCards.map((card) => {
-                  const translatedHelper = card.helper
-                    ? (card.helper.startsWith('dashboard.') || card.helper.startsWith('common.')
-                      ? t(card.helper, card.helperData)
-                      : card.helper)
-                    : undefined
-                  return (
-                    <StatCard
-                      key={card.title}
-                      title={t(card.title)}
-                      value={card.value}
-                      helper={translatedHelper}
-                      tone={card.tone}
-                      deltaAmount={card.deltaAmount}
-                      deltaPercent={card.deltaPercent}
-                      deltaTone={card.deltaTone}
-                    />
-                  )
-                })}
-              </section>
-            </div>
+          {/* Account metrics — compact grid */}
+          <section className="stats-grid">
+            {statCards.map((card) => {
+              const translatedHelper = card.helper
+                ? (card.helper.startsWith('dashboard.') || card.helper.startsWith('common.')
+                  ? t(card.helper, card.helperData)
+                  : card.helper)
+                : undefined
+              return (
+                <StatCard
+                  key={card.title}
+                  title={t(card.title)}
+                  value={card.value}
+                  helper={translatedHelper}
+                  tone={card.tone}
+                  deltaAmount={card.deltaAmount}
+                  deltaPercent={card.deltaPercent}
+                  deltaTone={card.deltaTone}
+                />
+              )
+            })}
           </section>
 
           {/* Equity curve */}
-          <div style={{ animation: 'slideUp 0.5s ease 0.2s both' }}>
-            <EquityCurveSimple
-              items={curveItems}
-              loading={curveLoading}
-              errorMessage={curveError}
-              rangeOptions={EQUITY_CURVE_RANGE_OPTIONS.map((opt) => ({ ...opt, label: t(opt.label) }))}
-              selectedRange={selectedRange}
-              onSelectRange={setCurveRange}
-            />
-          </div>
+          <EquityCurveSimple
+            items={curveItems}
+            loading={curveLoading}
+            errorMessage={curveError}
+            rangeOptions={EQUITY_CURVE_RANGE_OPTIONS.map((opt) => ({ ...opt, label: t(opt.label) }))}
+            selectedRange={selectedRange}
+            onSelectRange={setCurveRange}
+          />
 
           {/* Performance calendar */}
-          <div style={{ animation: 'slideUp 0.5s ease 0.3s both' }}>
-            <PerformanceCalendar latestReportDate={overview?.report_date ?? null} />
-          </div>
+          <PerformanceCalendar latestReportDate={overview?.report_date ?? null} />
         </>
       )}
     </section>
