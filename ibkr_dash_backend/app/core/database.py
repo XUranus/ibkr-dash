@@ -39,6 +39,10 @@ CREATE TABLE IF NOT EXISTS account_snapshots (
     cnav_mtm        REAL,
     cnav_twr        REAL,
     cnav_deposits   REAL,
+    cnav_starting_value       REAL,
+    cnav_ending_value         REAL,
+    cnav_realized             REAL,
+    cnav_change_in_unrealized REAL,
     fifo_total_realized_pnl   REAL,
     fifo_total_unrealized_pnl REAL,
     raw_json        TEXT,
@@ -258,6 +262,10 @@ _MIGRATIONS = [
     "ALTER TABLE trade_records ADD COLUMN currency TEXT DEFAULT 'USD'",
     "ALTER TABLE trade_records ADD COLUMN fx_rate_to_base REAL DEFAULT 1.0",
     "ALTER TABLE account_snapshots ADD COLUMN cnav_deposits REAL",
+    "ALTER TABLE account_snapshots ADD COLUMN cnav_starting_value REAL",
+    "ALTER TABLE account_snapshots ADD COLUMN cnav_ending_value REAL",
+    "ALTER TABLE account_snapshots ADD COLUMN cnav_realized REAL",
+    "ALTER TABLE account_snapshots ADD COLUMN cnav_change_in_unrealized REAL",
 ]
 
 

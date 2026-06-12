@@ -60,7 +60,8 @@ class ChartService:
 
         snapshot_rows = self.db.execute(
             f"""
-            SELECT account_id, report_date, total_equity, cnav_mtm, cnav_twr, cnav_deposits
+            SELECT account_id, report_date, total_equity, cnav_mtm, cnav_twr, cnav_deposits,
+                   cnav_realized, cnav_change_in_unrealized
             FROM account_snapshots
             WHERE {where_clause}
             ORDER BY report_date ASC
@@ -109,14 +110,19 @@ class ChartService:
 
             cumulative_mtm = source.get("cnav_mtm")
             deposits = source.get("cnav_deposits") or 0.0
+            change_in_unrealized = source.get("cnav_change_in_unrealized")
+            realized = source.get("cnav_realized")
             daily_mtm = None
             daily_mtm_inferred = False
 
-            if cumulative_mtm is not None and previous_cumulative_mtm is not None:
-                # Compute true daily MTM: cumulative difference minus deposits
+            # Primary: use changeInUnrealized + realized from ChangeInNAV
+            if change_in_unrealized is not None and realized is not None:
+                daily_mtm = float(change_in_unrealized) + float(realized)
+            elif cumulative_mtm is not None and previous_cumulative_mtm is not None:
+                # Fallback: cumulative difference minus deposits
                 daily_mtm = float(cumulative_mtm) - float(previous_cumulative_mtm) - float(deposits)
             elif cumulative_mtm is None and total_equity is not None and previous_total_equity is not None:
-                # Fallback: infer from equity change
+                # Last resort: infer from equity change
                 daily_mtm = float(total_equity) - float(previous_total_equity) - daily_net_flows.get(report_date, 0.0)
                 daily_mtm_inferred = True
                 if abs(float(daily_mtm)) < INFERRED_DAILY_PNL_EPSILON:
@@ -336,7 +342,8 @@ class ChartService:
 
         snapshot_rows = self.db.execute(
             f"""
-            SELECT account_id, report_date, total_equity, cnav_mtm, cnav_twr, cnav_deposits
+            SELECT account_id, report_date, total_equity, cnav_mtm, cnav_twr, cnav_deposits,
+                   cnav_realized, cnav_change_in_unrealized
             FROM account_snapshots
             WHERE {where_clause}
             ORDER BY report_date ASC
@@ -371,15 +378,21 @@ class ChartService:
             total_equity = source.get("total_equity")
             cumulative_mtm = source.get("cnav_mtm")
             deposits = source.get("cnav_deposits") or 0.0
+            change_in_unrealized = source.get("cnav_change_in_unrealized")
+            realized = source.get("cnav_realized")
 
             daily_mtm = None
             daily_mtm_inferred = False
 
-            if cumulative_mtm is not None and previous_cumulative_mtm is not None:
-                # Compute true daily MTM: cumulative difference minus deposits
+            # Primary: use changeInUnrealized + realized from ChangeInNAV
+            # This is the most reliable source for daily PnL
+            if change_in_unrealized is not None and realized is not None:
+                daily_mtm = float(change_in_unrealized) + float(realized)
+            elif cumulative_mtm is not None and previous_cumulative_mtm is not None:
+                # Fallback: cumulative difference minus deposits
                 daily_mtm = float(cumulative_mtm) - float(previous_cumulative_mtm) - float(deposits)
             elif cumulative_mtm is None and total_equity is not None and previous_total_equity is not None:
-                # Fallback: infer from equity change
+                # Last resort: infer from equity change
                 daily_mtm = float(total_equity) - float(previous_total_equity) - float(deposits)
                 daily_mtm_inferred = True
                 if abs(float(daily_mtm)) < INFERRED_DAILY_PNL_EPSILON:

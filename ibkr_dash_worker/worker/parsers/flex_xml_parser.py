@@ -350,6 +350,10 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexXmlResult]:
                 "cnav_mtm": mtm,
                 "cnav_twr": twr,
                 "cnav_deposits": deposits,
+                "cnav_starting_value": starting_value,
+                "cnav_ending_value": ending_value,
+                "cnav_realized": _safe_float(nav.get("realized")),
+                "cnav_change_in_unrealized": _safe_float(nav.get("changeInUnrealized")),
                 "fifo_total_realized_pnl": 0,
                 "fifo_total_unrealized_pnl": mtm,
             }

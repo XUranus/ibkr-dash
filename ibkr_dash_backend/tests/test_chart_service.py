@@ -233,3 +233,34 @@ def test_twr_from_db_preserved(db: Database) -> None:
 
     # Day 2: TWR from DB (3.0) is preserved
     assert items_by_date["2026-06-02"].twr == 3.0
+
+
+def test_daily_mtm_from_change_in_unrealized(db: Database) -> None:
+    """Test that daily PnL uses changeInUnrealized + realized when available.
+
+    This is the most reliable source for daily PnL, directly from IBKR.
+    """
+    for date, equity, cummtm, twr, realized, change_unrealized in [
+        ("2026-06-01", 110493.68, 479.51, 0.44, 139.03, 457.80),
+        ("2026-06-02", 119072.19, 8578.51, -2.49, 0.0, -3037.64),
+    ]:
+        db.insert("account_snapshots", {
+            "account_id": "U1234567",
+            "report_date": date,
+            "total_equity": equity,
+            "cnav_mtm": cummtm,
+            "cnav_twr": twr,
+            "cnav_deposits": 0.0,
+            "cnav_realized": realized,
+            "cnav_change_in_unrealized": change_unrealized,
+        })
+
+    service = ChartService(db)
+    result = service.get_performance_calendar(view="month", anchor="2026-06")
+    items_by_date = {item.period_key: item for item in result.items}
+
+    # Day 1: changeInUnrealized + realized = 457.80 + 139.03 = 596.83
+    assert items_by_date["2026-06-01"].pnl == 596.83
+
+    # Day 2: changeInUnrealized + realized = -3037.64 + 0 = -3037.64
+    assert items_by_date["2026-06-02"].pnl == -3037.64
