@@ -1,23 +1,23 @@
 """CLI entry point for the IBKR Dash worker.
 
 Usage:
-    python -m worker.main import <file>
-    python -m worker.main run-scheduler
-    python -m worker.main init-db
+    python -m worker.main fetch              # Pull data from IBKR, archive by date
+    python -m worker.main import <file>      # Import a single file (auto-detect format)
+    python -m worker.main import-all         # Import all unprocessed archived files
+    python -m worker.main run                # fetch + import-all (full pipeline)
+    python -m worker.main run-scheduler      # Run on a cron schedule
+    python -m worker.main init-db            # Initialize database schema
 """
 
 from __future__ import annotations
 
 import argparse
 import logging
-import sys
 from pathlib import Path
 
 from worker.clients.sqlite_writer import SQLiteWriter
 from worker.core.config import get_settings
 from worker.core.logger import setup_logging
-from worker.jobs.daily_incremental_job import run_daily_incremental_job
-from worker.jobs.import_daily_snapshot import import_daily_snapshot_file
 
 logger = logging.getLogger(__name__)
 
@@ -25,36 +25,48 @@ logger = logging.getLogger(__name__)
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser."""
     parser = argparse.ArgumentParser(
-        description="IBKR Dash worker -- ETL from IBKR Flex CSV reports to SQLite"
+        description="IBKR Dash worker — ETL from IBKR Flex reports to SQLite"
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # fetch
+    subparsers.add_parser(
+        "fetch",
+        help="Pull data from IBKR Flex Web Service and archive by date.",
+    )
 
     # import <file>
     import_cmd = subparsers.add_parser(
         "import",
-        help="Import a single Flex CSV file into SQLite.",
+        help="Import a single Flex file (XML/CSV/TXT) into SQLite.",
     )
     import_cmd.add_argument(
         "file",
-        help="Path to a Flex CSV file.",
+        help="Path to a Flex file.",
+    )
+
+    # import-all
+    subparsers.add_parser(
+        "import-all",
+        help="Import all unprocessed archived files from data_dir.",
+    )
+
+    # run
+    subparsers.add_parser(
+        "run",
+        help="Full pipeline: fetch from IBKR + import all archived files.",
     )
 
     # run-scheduler
     subparsers.add_parser(
         "run-scheduler",
-        help="Run the background scheduler. Scans data_dir for new CSV files on a cron schedule.",
+        help="Run the background scheduler (daily fetch + import).",
     )
 
     # init-db
     subparsers.add_parser(
         "init-db",
-        help="Initialize the SQLite database schema (create tables and indexes).",
-    )
-
-    # scan
-    subparsers.add_parser(
-        "scan",
-        help="One-shot scan of data_dir for new CSV files and import them.",
+        help="Initialize the SQLite database schema.",
     )
 
     return parser
@@ -81,18 +93,42 @@ def main() -> None:
         logger.info("Database schema initialized at %s", settings.sqlite_path)
         return
 
+    if args.command == "fetch":
+        from worker.jobs.fetch_job import fetch_flex_statements
+        files = fetch_flex_statements()
+        logger.info("Fetched %d files", len(files))
+        return
+
     if args.command == "import":
         file_path = _require_file(args.file)
-        counts = import_daily_snapshot_file(writer, file_path)
+        from worker.jobs.import_job import import_flex_file
+        counts = import_flex_file(writer, file_path)
         logger.info("Import result: %s", counts)
         return
 
-    if args.command == "scan":
-        results = run_daily_incremental_job()
-        if results:
-            for name, counts in results.items():
-                logger.info("%s -> %s", name, counts)
-        else:
+    if args.command == "import-all":
+        from worker.jobs.import_job import import_all_archived
+        results = import_all_archived()
+        for name, counts in results.items():
+            logger.info("%s -> %s", name, counts)
+        return
+
+    if args.command == "run":
+        from worker.jobs.fetch_job import fetch_flex_statements
+        from worker.jobs.import_job import import_all_archived
+
+        # Step 1: Fetch from IBKR
+        logger.info("Step 1: Fetching from IBKR...")
+        files = fetch_flex_statements()
+        logger.info("Fetched %d files", len(files))
+
+        # Step 2: Import all archived files
+        logger.info("Step 2: Importing archived files...")
+        results = import_all_archived()
+        for name, counts in results.items():
+            logger.info("%s -> %s", name, counts)
+
+        if not results:
             logger.info("No new files to import")
         return
 
@@ -107,7 +143,6 @@ def main() -> None:
         )
         scheduler.start()
 
-        # Keep the main thread alive while the scheduler runs in background
         try:
             import time
             while True:

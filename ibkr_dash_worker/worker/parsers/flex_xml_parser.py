@@ -8,22 +8,36 @@ from __future__ import annotations
 
 import logging
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass, field
 from pathlib import Path
+
+from worker.parsers.base import FlexParseResult
 
 logger = logging.getLogger(__name__)
 
+# Backward-compatible alias
+FlexXmlResult = FlexParseResult
 
-@dataclass
-class FlexXmlResult:
-    """Parsed result from a Flex XML response."""
 
-    account_id: str = ""
-    report_date: str = ""  # YYYY-MM-DD
-    positions: list[dict] = field(default_factory=list)
-    trades: list[dict] = field(default_factory=list)
-    cash_flows: list[dict] = field(default_factory=list)
-    account_snapshot: dict = field(default_factory=dict)
+class FlexXmlParser:
+    """Parser for IBKR Flex QueryResponse XML files."""
+
+    @staticmethod
+    def can_parse(file_path: Path) -> bool:
+        """Check if the file is a Flex XML by extension and root tag."""
+        if file_path.suffix.lower() != ".xml":
+            return False
+        try:
+            # Peek at the root tag without loading the full tree
+            for event, elem in ET.iterparse(str(file_path), events=("start",)):
+                return elem.tag in ("FlexQueryResponse", "FlexStatement")
+        except ET.ParseError:
+            return False
+        return False
+
+    @staticmethod
+    def parse(file_path: Path) -> list[FlexParseResult]:
+        """Parse a Flex XML file into standardized results."""
+        return parse_flex_xml(file_path)
 
 
 import re as _re
@@ -156,11 +170,11 @@ def _format_datetime(raw: str | None) -> str:
     return date_iso
 
 
-def parse_flex_xml(xml_path: str | Path) -> list[FlexXmlResult]:
-    """Parse a Flex XML file into a list of FlexXmlResult.
+def parse_flex_xml(xml_path: str | Path) -> list[FlexParseResult]:
+    """Parse a Flex XML file into a list of FlexParseResult.
 
     A single XML file may contain multiple FlexStatement elements
-    (one per account), so we return a list.
+    (one per account/date), so we return a list.
     """
     tree = ET.parse(str(xml_path))
     root = tree.getroot()
@@ -171,7 +185,7 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexXmlResult]:
         to_date = stmt.get("toDate", "")
         report_date = _format_date(to_date)
 
-        result = FlexXmlResult(
+        result = FlexParseResult(
             account_id=account_id,
             report_date=report_date,
         )
