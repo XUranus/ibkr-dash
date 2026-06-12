@@ -33,16 +33,11 @@ class AccountService:
 
         current = snapshots[0]
         previous = snapshots[1] if len(snapshots) > 1 else None
-
-        # Compute aggregate PnL from trade and position tables
-        realized_pnl = self._compute_realized_pnl(current["report_date"])
-        unrealized_pnl = self._compute_unrealized_pnl(current["report_date"])
-        total_pnl = realized_pnl + unrealized_pnl
+        total_equity = float(current.get("total_equity") or 0)
 
         # Compute cash from DB if stored value is 0
         cash = current.get("cash") or 0
         if cash == 0:
-            total_equity = current.get("total_equity") or 0
             pos_row = self.db.execute_one(
                 "SELECT COALESCE(SUM(position_value), 0.0) AS total FROM position_snapshots WHERE report_date = ?",
                 (current["report_date"],),
@@ -51,11 +46,23 @@ class AccountService:
             if total_equity > 0 and pos_total > 0:
                 cash = max(total_equity - pos_total, 0)
 
+        # Compute net cost from position cost basis + cash
+        net_cost = self._compute_net_cost(current["report_date"], total_equity, cash)
+
+        # Compute realized PnL from trades
+        realized_pnl = self._compute_realized_pnl(current["report_date"])
+
+        # Derive total PnL and unrealized PnL consistently:
+        # total_pnl = total_equity - net_cost
+        # unrealized_pnl = total_pnl - realized_pnl
+        total_pnl = total_equity - net_cost if net_cost > 0 else 0.0
+        unrealized_pnl = total_pnl - realized_pnl
+
         overview = AccountOverviewResponse(
             account_id=current["account_id"],
             report_date=current["report_date"],
             currency=current.get("currency"),
-            total_equity=current.get("total_equity"),
+            total_equity=total_equity,
             cash=cash,
             stock_value=current.get("stock_value") or (total_equity - cash if total_equity else 0),
             options_value=current.get("options_value"),
@@ -69,17 +76,27 @@ class AccountService:
         )
 
         if previous is not None:
-            overview.total_equity_delta = self._build_delta(
-                current.get("total_equity"), previous.get("total_equity")
-            )
+            prev_equity = float(previous.get("total_equity") or 0)
+            overview.total_equity_delta = self._build_delta(total_equity, prev_equity)
 
+            prev_cash = previous.get("cash") or 0
+            if prev_cash == 0:
+                prev_pos = self.db.execute_one(
+                    "SELECT COALESCE(SUM(position_value), 0.0) AS total FROM position_snapshots WHERE report_date = ?",
+                    (previous["report_date"],),
+                )
+                prev_pos_total = float(prev_pos["total"]) if prev_pos else 0
+                if prev_equity > 0 and prev_pos_total > 0:
+                    prev_cash = max(prev_equity - prev_pos_total, 0)
+
+            prev_net_cost = self._compute_net_cost(previous["report_date"], prev_equity, prev_cash)
             prev_realized = self._compute_realized_pnl(previous["report_date"])
-            prev_unrealized = self._compute_unrealized_pnl(previous["report_date"])
-            prev_total = prev_realized + prev_unrealized
+            prev_total_pnl = prev_equity - prev_net_cost if prev_net_cost > 0 else 0.0
+            prev_unrealized = prev_total_pnl - prev_realized
 
             overview.fifo_total_realized_pnl_delta = self._build_delta(realized_pnl, prev_realized)
             overview.fifo_total_unrealized_pnl_delta = self._build_delta(unrealized_pnl, prev_unrealized)
-            overview.fifo_total_pnl_delta = self._build_delta(total_pnl, prev_total)
+            overview.fifo_total_pnl_delta = self._build_delta(total_pnl, prev_total_pnl)
 
         return overview
 
@@ -112,33 +129,39 @@ class AccountService:
         )
         return float(row["total"]) if row else 0.0
 
-    def _compute_unrealized_pnl(self, report_date: str) -> float:
-        """Compute unrealized PnL from position snapshots.
+    def _compute_net_cost(self, report_date: str, total_equity: float, cash: float) -> float:
+        """Compute net cost (total investment) from position cost basis + cash.
 
-        Uses position_value - (quantity * average_cost_price) for each position.
-        Falls back to latest available position data if current day has none.
+        Falls back to earliest cnav_starting_value if no cost basis data.
         """
-        # Try to compute from position data for the given date
-        rows = self.db.execute(
-            "SELECT COALESCE(SUM(total_unrealized_pnl), 0.0) AS total FROM position_snapshots WHERE report_date = ?",
+        # Try position cost basis for the given date
+        row = self.db.execute_one(
+            "SELECT COALESCE(SUM(cost_basis_money), 0.0) AS total FROM position_snapshots WHERE report_date = ?",
             (report_date,),
         )
-        total = float(rows[0]["total"]) if rows else 0.0
-        if total != 0:
-            return total
+        cost_basis = float(row["total"]) if row else 0.0
+        if cost_basis > 0:
+            return cost_basis + cash
 
-        # Fallback: use the latest available position unrealized PnL
+        # Fallback: use latest available cost basis
         row = self.db.execute_one(
             """
-            SELECT COALESCE(SUM(total_unrealized_pnl), 0.0) AS total, report_date
+            SELECT COALESCE(SUM(cost_basis_money), 0.0) AS total
             FROM position_snapshots
-            WHERE total_unrealized_pnl != 0
+            WHERE cost_basis_money > 0
             GROUP BY report_date
             ORDER BY report_date DESC LIMIT 1
             """,
         )
-        if row and float(row["total"]) != 0:
-            return float(row["total"])
+        if row and float(row["total"]) > 0:
+            return float(row["total"]) + cash
+
+        # Fallback: earliest cnav_starting_value
+        row = self.db.execute_one(
+            "SELECT cnav_starting_value FROM account_snapshots WHERE cnav_starting_value > 0 ORDER BY report_date ASC LIMIT 1"
+        )
+        if row and row.get("cnav_starting_value"):
+            return float(row["cnav_starting_value"])
 
         return 0.0
 
