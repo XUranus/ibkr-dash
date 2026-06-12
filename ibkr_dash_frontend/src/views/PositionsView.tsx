@@ -189,10 +189,62 @@ export default function PositionsView() {
 
   function classifyIndustry(item: PositionItem): string {
     const text = `${item.symbol ?? ''} ${item.description ?? ''}`.toUpperCase()
-    if (text.includes('AMD') || text.includes('ARM') || text.includes('INTEL') || text.includes('QUALCOMM')) return 'Semiconductor'
-    if (text.includes('MICROSOFT') || text.includes('META') || text.includes('STRATEGY')) return 'Software/Platform'
-    if (text.includes('AMAZON')) return 'E-Commerce'
-    if (text.includes('TESLA')) return 'EV/Mobility'
+    const assetClass = item.asset_class ?? ''
+
+    // Options — group by underlying
+    if (assetClass === 'OPT') return 'Options'
+
+    // Semiconductor
+    if (text.includes('AVGO') || text.includes('BROADCOM') ||
+        text.includes('MRVL') || text.includes('MARVELL') ||
+        text.includes('TXN') || text.includes('TEXAS INSTRUMENT') ||
+        text.includes('SITIME') || text.includes('SITM') ||
+        text.includes('AAOI') || text.includes('APPLIED OPTO') ||
+        text.includes('SK HYNIX') || text.includes('000660') ||
+        text.includes('BESI') || text.includes('BE SEMICONDUCTOR') ||
+        text.includes('NVDA') || text.includes('NVIDIA')) return 'Semiconductor'
+
+    // Internet / Cloud / Fintech
+    if (text.includes('GOOG') || text.includes('ALPHABET') ||
+        text.includes('NET') || text.includes('CLOUDFLARE') ||
+        text.includes('CRCL') || text.includes('CIRCLE') ||
+        text.includes('HOOD') || text.includes('ROBINHOOD')) return 'Internet/Cloud'
+
+    // E-Commerce / Consumer Tech
+    if (text.includes('PDD') || text.includes('BABA') || text.includes('ALIBABA') ||
+        text.includes('CPNG') || text.includes('COUPANG') ||
+        text.includes('YUMC') || text.includes('YUM CHINA')) return 'E-Commerce/Consumer'
+
+    // Software / Enterprise
+    if (text.includes('MSTR') || text.includes('STRATEGY') ||
+        text.includes('ROP') || text.includes('ROPER') ||
+        text.includes('SMCI') || text.includes('SUPER MICRO')) return 'Software/Enterprise'
+
+    // Energy / Nuclear
+    if (text.includes('SMR') || text.includes('NUSCALE') ||
+        text.includes('LEU') || text.includes('CENTRUS') ||
+        text.includes('OKLO')) return 'Energy/Nuclear'
+
+    // Materials / Mining
+    if (text.includes('MP') || text.includes('MP MATERIAL') ||
+        text.includes('COPX') || text.includes('COPPER') ||
+        text.includes('TMC') || text.includes('METALS CO') ||
+        text.includes('USAR') || text.includes('RARE EARTH')) return 'Materials/Mining'
+
+    // Precious Metals
+    if (text.includes('IAU') || text.includes('GOLD') ||
+        text.includes('IAUI')) return 'Precious Metals'
+
+    // Treasuries / Fixed Income
+    if (text.includes('SHV') || text.includes('SGOV') ||
+        text.includes('TREASURY') || text.includes('BOND')) return 'Treasuries'
+
+    // Consumer / Staples
+    if (text.includes('PG') || text.includes('PROCTER')) return 'Consumer/Staples'
+
+    // Telecom
+    if (text.includes('NOK') || text.includes('NOKIA')) return 'Telecom'
+
     return 'Other'
   }
 
@@ -217,13 +269,20 @@ export default function PositionsView() {
   }, [response, overview, t])
 
   const industryPieItems = useMemo<PieSegmentItem[]>(() => {
-    const palette = ['#56d5ff', '#6ee7b7', '#8b7cff', '#ffb454', '#ff7b98', '#7dd3fc', '#c084fc']
+    const palette = ['#56d5ff', '#6ee7b7', '#8b7cff', '#ffb454', '#ff7b98', '#7dd3fc', '#c084fc', '#f59e0b', '#10b981', '#6366f1', '#ec4899']
     const noteMap: Record<string, string> = {
-      'Semiconductor': t('positions.chipsProcessors'),
-      'Software/Platform': t('positions.platformSocialFintech'),
-      'E-Commerce': t('positions.onlineRetailCloud'),
-      'EV/Mobility': t('positions.electricVehicles'),
-      'Other': t('positions.otherHoldings'),
+      'Semiconductor': 'Chips, processors, equipment',
+      'Internet/Cloud': 'Search, cloud, fintech',
+      'E-Commerce/Consumer': 'Online retail, food delivery',
+      'Software/Enterprise': 'Enterprise software, servers',
+      'Energy/Nuclear': 'Nuclear, uranium, clean energy',
+      'Materials/Mining': 'Rare earth, copper, metals',
+      'Precious Metals': 'Gold ETFs',
+      'Treasuries': 'Short-term government bonds',
+      'Consumer/Staples': 'Consumer goods',
+      'Telecom': 'Telecom equipment',
+      'Options': 'Options contracts',
+      'Other': 'Other holdings',
     }
     const buckets = new Map<string, { value: number; members: string[] }>()
     response?.items.forEach((item) => {
@@ -281,32 +340,8 @@ export default function PositionsView() {
             </section>
           )}
 
-          {/* Summary cards */}
-          <section className="summary-layout summary-layout--triple">
-            <section className="surface-panel">
-              <div className="surface-panel__content">
-                <h3 className="summary-title">{t('positions.positionConcentration')}</h3>
-                {!summary || summary.top_positions.length === 0 ? (
-                  <div className="empty-state" style={{ minHeight: 'auto', padding: '2rem 1rem' }}>{t('positions.noConcentrationData')}</div>
-                ) : (
-                  <div className="summary-list">
-                    {summary.top_positions.map((item) => (
-                      <div key={`${item.asset_class}-${item.symbol}`} className="summary-list__row">
-                        <div className="summary-list__meta">
-                          <strong>{item.symbol ?? '--'}</strong>
-                          <p>{item.description ?? t('positions.noName')}</p>
-                        </div>
-                        <div className="summary-list__value">
-                          <strong>{formatNumber(item.position_value, 2)}</strong>
-                          <span>{item.percent_of_nav === null ? '--' : `${formatNumber(item.percent_of_nav, 2)}%`}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </section>
-
+          {/* Distribution charts */}
+          <section className="summary-layout">
             <PieDistributionCard title={t('positions.assetClasses')} subtitle={t('positions.assetClassesDesc')} items={assetPieItems} />
             <PieDistributionCard title={t('positions.industryDistribution')} subtitle={t('positions.industryDistributionDesc')} items={industryPieItems} />
           </section>
