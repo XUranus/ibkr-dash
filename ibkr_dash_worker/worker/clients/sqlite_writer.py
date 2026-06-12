@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS account_snapshots (
     crypto_value    REAL,
     cnav_mtm        REAL,
     cnav_twr        REAL,
+    cnav_deposits   REAL,
     fifo_total_realized_pnl   REAL,
     fifo_total_unrealized_pnl REAL,
     raw_json        TEXT,
@@ -101,6 +102,7 @@ CREATE TABLE IF NOT EXISTS cash_flows (
     amount          REAL,
     amount_in_base  REAL,
     flow_type       TEXT,
+    flow_direction  TEXT,
     dividend_type   TEXT,
     transaction_id  TEXT,
     raw_json        TEXT,
@@ -184,13 +186,13 @@ class SQLiteWriter:
             INSERT INTO account_snapshots
                 (account_id, report_date, currency, total_equity, cash,
                  stock_value, options_value, funds_value, crypto_value,
-                 cnav_mtm, cnav_twr,
+                 cnav_mtm, cnav_twr, cnav_deposits,
                  fifo_total_realized_pnl, fifo_total_unrealized_pnl,
                  raw_json, ingested_at)
             VALUES
                 (:account_id, :report_date, :currency, :total_equity, :cash,
                  :stock_value, :options_value, :funds_value, :crypto_value,
-                 :cnav_mtm, :cnav_twr,
+                 :cnav_mtm, :cnav_twr, :cnav_deposits,
                  :fifo_total_realized_pnl, :fifo_total_unrealized_pnl,
                  :raw_json, :ingested_at)
             ON CONFLICT(account_id, report_date) DO UPDATE SET
@@ -203,6 +205,7 @@ class SQLiteWriter:
                 crypto_value   = excluded.crypto_value,
                 cnav_mtm       = excluded.cnav_mtm,
                 cnav_twr       = excluded.cnav_twr,
+                cnav_deposits  = excluded.cnav_deposits,
                 fifo_total_realized_pnl   = excluded.fifo_total_realized_pnl,
                 fifo_total_unrealized_pnl = excluded.fifo_total_unrealized_pnl,
                 raw_json       = excluded.raw_json,
@@ -223,6 +226,7 @@ class SQLiteWriter:
                     "crypto_value": doc.get("crypto_value"),
                     "cnav_mtm": doc.get("cnav_mtm"),
                     "cnav_twr": doc.get("cnav_twr"),
+                    "cnav_deposits": doc.get("cnav_deposits"),
                     "fifo_total_realized_pnl": doc.get("fifo_total_realized_pnl"),
                     "fifo_total_unrealized_pnl": doc.get("fifo_total_unrealized_pnl"),
                     "raw_json": json.dumps(doc, default=str),

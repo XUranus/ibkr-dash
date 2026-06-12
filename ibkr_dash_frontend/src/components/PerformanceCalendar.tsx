@@ -84,6 +84,7 @@ export default function PerformanceCalendar({ latestReportDate }: Props) {
 
   function switchView(nextView: PerformanceCalendarView) {
     if (activeView === nextView) return
+    setResponse(null)
     setActiveView(nextView)
   }
 

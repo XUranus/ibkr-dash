@@ -314,8 +314,14 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexXmlResult]:
             starting_value = _safe_float(nav.get("startingValue"))
             twr = _safe_float(nav.get("twr"))
 
-            # Compute MTM from starting/ending values (more reliable than mtm field)
+            # Compute cumulative MTM from starting/ending values.
+            # This includes deposits/withdrawals; the chart service will
+            # compute the true daily MTM by subtracting consecutive days
+            # and adjusting for deposits.
             mtm = ending_value - starting_value if starting_value > 0 else _safe_float(nav.get("mtm"))
+
+            # Daily deposit/withdrawal amount (for daily MTM adjustment)
+            deposits = _safe_float(nav.get("depositsWithdrawals"))
 
             # Compute cash: try CashReport first, then estimate from equity - positions
             cash_balance = 0.0
@@ -343,6 +349,7 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexXmlResult]:
                 "stock_value": ending_value - cash_balance,
                 "cnav_mtm": mtm,
                 "cnav_twr": twr,
+                "cnav_deposits": deposits,
                 "fifo_total_realized_pnl": 0,
                 "fifo_total_unrealized_pnl": mtm,
             }

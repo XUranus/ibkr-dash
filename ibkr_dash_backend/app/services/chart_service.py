@@ -60,7 +60,7 @@ class ChartService:
 
         snapshot_rows = self.db.execute(
             f"""
-            SELECT account_id, report_date, total_equity, cnav_mtm, cnav_twr
+            SELECT account_id, report_date, total_equity, cnav_mtm, cnav_twr, cnav_deposits
             FROM account_snapshots
             WHERE {where_clause}
             ORDER BY report_date ASC
@@ -88,6 +88,7 @@ class ChartService:
         cash_flow_index = 0
         realized_pnl_index = 0
         previous_total_equity: float | None = None
+        previous_cumulative_mtm: float | None = None
 
         for source in snapshot_rows:
             report_date = source["report_date"]
@@ -106,19 +107,28 @@ class ChartService:
             if total_equity is not None and net_cost is not None:
                 total_pnl = float(total_equity) - float(net_cost)
 
-            daily_mtm = source.get("cnav_mtm")
+            cumulative_mtm = source.get("cnav_mtm")
+            deposits = source.get("cnav_deposits") or 0.0
+            daily_mtm = None
             daily_mtm_inferred = False
-            if daily_mtm is None and total_equity is not None and previous_total_equity is not None:
+
+            if cumulative_mtm is not None and previous_cumulative_mtm is not None:
+                # Compute true daily MTM: cumulative difference minus deposits
+                daily_mtm = float(cumulative_mtm) - float(previous_cumulative_mtm) - float(deposits)
+            elif cumulative_mtm is None and total_equity is not None and previous_total_equity is not None:
+                # Fallback: infer from equity change
                 daily_mtm = float(total_equity) - float(previous_total_equity) - daily_net_flows.get(report_date, 0.0)
                 daily_mtm_inferred = True
                 if abs(float(daily_mtm)) < INFERRED_DAILY_PNL_EPSILON:
                     daily_mtm = 0.0
 
-            daily_twr = source.get("cnav_twr")
-            if daily_twr is None and daily_mtm is not None and previous_total_equity not in (None, 0, 0.0):
-                daily_twr = float(daily_mtm) / abs(float(previous_total_equity)) * 100.0
-            if daily_mtm_inferred and daily_mtm == 0.0:
-                daily_twr = 0.0
+            daily_twr = None
+            if daily_mtm is not None:
+                daily_twr = source.get("cnav_twr")
+                if daily_twr is None and previous_total_equity not in (None, 0, 0.0):
+                    daily_twr = float(daily_mtm) / abs(float(previous_total_equity)) * 100.0
+                if daily_mtm_inferred and daily_mtm == 0.0:
+                    daily_twr = 0.0
             # Only show daily MTM/TWR for the latest calendar month
             if not report_date.startswith(latest_calendar_month):
                 daily_mtm = None
@@ -134,6 +144,8 @@ class ChartService:
                 daily_twr=self._round_percent(daily_twr),
             ))
             previous_total_equity = float(total_equity) if total_equity is not None else previous_total_equity
+            if cumulative_mtm is not None:
+                previous_cumulative_mtm = float(cumulative_mtm)
 
         return EquityCurveResponse(items=items)
 
@@ -216,7 +228,7 @@ class ChartService:
                 period_start=period_date.isoformat(),
                 pnl=entry.daily_mtm if entry else None,
                 twr=entry.daily_twr if entry else None,
-                has_data=entry is not None,
+                has_data=entry is not None and entry.daily_mtm is not None,
             ))
 
         return PerformanceCalendarResponse(
@@ -324,7 +336,7 @@ class ChartService:
 
         snapshot_rows = self.db.execute(
             f"""
-            SELECT account_id, report_date, total_equity, cnav_mtm, cnav_twr
+            SELECT account_id, report_date, total_equity, cnav_mtm, cnav_twr, cnav_deposits
             FROM account_snapshots
             WHERE {where_clause}
             ORDER BY report_date ASC
@@ -336,42 +348,50 @@ class ChartService:
 
         account_id = snapshot_rows[0].get("account_id") or snapshot_rows[-1].get("account_id")
 
-        # Get previous snapshot before start for TWR calculation
+        # Get previous snapshot before start for daily MTM/TWR calculation
         previous_total_equity: float | None = None
+        previous_cumulative_mtm: float | None = None
         if start is not None:
             prev_row = self.db.execute_one(
                 """
-                SELECT total_equity FROM account_snapshots
+                SELECT total_equity, cnav_mtm FROM account_snapshots
                 WHERE report_date < ? ORDER BY report_date DESC LIMIT 1
                 """,
                 (start.isoformat(),),
             )
-            if prev_row and prev_row.get("total_equity") is not None:
-                previous_total_equity = float(prev_row["total_equity"])
-
-        cash_flow_rows = self._fetch_cash_flows(account_id, end, start) if account_id else []
-        daily_net_flows = self._build_daily_net_flows(cash_flow_rows)
+            if prev_row:
+                if prev_row.get("total_equity") is not None:
+                    previous_total_equity = float(prev_row["total_equity"])
+                if prev_row.get("cnav_mtm") is not None:
+                    previous_cumulative_mtm = float(prev_row["cnav_mtm"])
 
         entries: list[DailyPerformanceEntry] = []
         for source in snapshot_rows:
             rd = parse_date(source["report_date"])
             total_equity = source.get("total_equity")
+            cumulative_mtm = source.get("cnav_mtm")
+            deposits = source.get("cnav_deposits") or 0.0
 
-            daily_mtm = source.get("cnav_mtm")
+            daily_mtm = None
             daily_mtm_inferred = False
-            if daily_mtm is None and total_equity is not None and previous_total_equity is not None:
-                daily_mtm = float(total_equity) - float(previous_total_equity) - daily_net_flows.get(
-                    rd.isoformat(), 0.0
-                )
+
+            if cumulative_mtm is not None and previous_cumulative_mtm is not None:
+                # Compute true daily MTM: cumulative difference minus deposits
+                daily_mtm = float(cumulative_mtm) - float(previous_cumulative_mtm) - float(deposits)
+            elif cumulative_mtm is None and total_equity is not None and previous_total_equity is not None:
+                # Fallback: infer from equity change
+                daily_mtm = float(total_equity) - float(previous_total_equity) - float(deposits)
                 daily_mtm_inferred = True
                 if abs(float(daily_mtm)) < INFERRED_DAILY_PNL_EPSILON:
                     daily_mtm = 0.0
 
-            daily_twr = source.get("cnav_twr")
-            if daily_twr is None and daily_mtm is not None and previous_total_equity not in (None, 0, 0.0):
-                daily_twr = float(daily_mtm) / abs(float(previous_total_equity)) * 100.0
-            if daily_mtm_inferred and daily_mtm == 0.0:
-                daily_twr = 0.0
+            daily_twr = None
+            if daily_mtm is not None:
+                daily_twr = source.get("cnav_twr")
+                if daily_twr is None and previous_total_equity not in (None, 0, 0.0):
+                    daily_twr = float(daily_mtm) / abs(float(previous_total_equity)) * 100.0
+                if daily_mtm_inferred and daily_mtm == 0.0:
+                    daily_twr = 0.0
 
             entries.append(DailyPerformanceEntry(
                 report_date=rd,
@@ -380,6 +400,8 @@ class ChartService:
             ))
             if total_equity is not None:
                 previous_total_equity = float(total_equity)
+            if cumulative_mtm is not None:
+                previous_cumulative_mtm = float(cumulative_mtm)
 
         return entries
 
