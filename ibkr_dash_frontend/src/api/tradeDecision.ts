@@ -52,3 +52,7 @@ export async function fetchRecentTradeDecisions(params: { limit?: number; symbol
 export function fetchTradeDecisionDetail(decisionId: string): Promise<TradeDecisionResult> {
   return request<TradeDecisionResult>(`/api/trade-decision/decisions/${encodeURIComponent(decisionId)}`)
 }
+
+export function fetchTradeDecisionReport(decisionId: string, lang: string = 'zh'): Promise<{ report: string }> {
+  return request<{ report: string }>(`/api/trade-decision/decisions/${encodeURIComponent(decisionId)}/report?lang=${lang}`)
+}

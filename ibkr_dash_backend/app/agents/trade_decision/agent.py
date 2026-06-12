@@ -105,7 +105,17 @@ async def analyze_trade(
     else:
         validated = _build_fallback_decision(symbol, decision_type, question)
 
-    # Step 4: Save
+    # Step 4: Verify
+    from app.agents.report_generator import verify_decision
+    verification = verify_decision(validated)
+
+    # Step 5: Generate bilingual reports
+    from app.agents.report_generator import generate_trade_decision_report, save_report
+    report_zh = generate_trade_decision_report(validated, symbol, lang="zh")
+    report_en = generate_trade_decision_report(validated, symbol, lang="en")
+    report_paths = save_report("trade_decision", symbol, report_zh, report_en, report_id=symbol)
+
+    # Step 6: Save
     document = {
         **validated,
         "symbol": symbol,
@@ -121,6 +131,10 @@ async def analyze_trade(
         "raw_llm_response": result.raw_response if result.ok else "",
         "fallback_used": not result.ok,
         "prompt_metadata": {"trade_decision_composer": prompt_metadata},
+        "verification": verification,
+        "report_paths": report_paths,
+        "report_zh": report_zh,
+        "report_en": report_en,
     }
     saved = _save_decision(db, document)
     return saved

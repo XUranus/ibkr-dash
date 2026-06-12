@@ -305,7 +305,10 @@
     "actionSell": "卖出",
     "actionWait": "等待",
     "actionAvoid": "回避",
-    "actionWatchlist": "观察"
+    "actionWatchlist": "观察",
+    "reportView": "报告",
+    "structuredView": "结构化",
+    "noReportAvailable": "暂无报告，请先运行分析。"
   },
   "tradeReview": {
     "title": "交易复盘",
@@ -328,7 +331,10 @@
     "reviewDataParseError": "复盘数据无法解析。",
     "failedToLoad": "加载失败",
     "reviewFailed": "复盘失败",
-    "failedToLoadReview": "加载复盘失败"
+    "failedToLoadReview": "加载复盘失败",
+    "reportView": "报告",
+    "structuredView": "结构化",
+    "noReportAvailable": "暂无报告，请先运行复盘。"
   },
   "dailyReview": {
     "title": "每日持仓复盘",

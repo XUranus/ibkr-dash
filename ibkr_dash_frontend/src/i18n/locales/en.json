@@ -305,7 +305,10 @@
     "actionSell": "Sell",
     "actionWait": "Wait",
     "actionAvoid": "Avoid",
-    "actionWatchlist": "Watchlist"
+    "actionWatchlist": "Watchlist",
+    "reportView": "Report",
+    "structuredView": "Structured",
+    "noReportAvailable": "No report available. Run an analysis first."
   },
   "tradeReview": {
     "title": "Trade Review",
@@ -328,7 +331,10 @@
     "reviewDataParseError": "Review data could not be parsed.",
     "failedToLoad": "Failed to load",
     "reviewFailed": "Review failed",
-    "failedToLoadReview": "Failed to load review"
+    "failedToLoadReview": "Failed to load review",
+    "reportView": "Report",
+    "structuredView": "Structured",
+    "noReportAvailable": "No report available. Run a review first."
   },
   "dailyReview": {
     "title": "Daily Position Review",

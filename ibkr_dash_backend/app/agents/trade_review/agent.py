@@ -90,7 +90,18 @@ async def review_trade(
     else:
         validated = _build_fallback_review(symbol, review_type, trade_id)
 
-    # Step 4: Save
+    # Step 4: Verify
+    from app.agents.report_generator import verify_review
+    verification = verify_review(validated)
+
+    # Step 5: Generate bilingual reports
+    from app.agents.report_generator import generate_trade_review_report, save_report
+    report_zh = generate_trade_review_report(validated, symbol, lang="zh")
+    report_en = generate_trade_review_report(validated, symbol, lang="en")
+    rid = trade_id or symbol
+    report_paths = save_report("trade_review", symbol, report_zh, report_en, report_id=rid)
+
+    # Step 6: Save
     document = {
         **validated,
         "symbol": symbol,
@@ -101,6 +112,10 @@ async def review_trade(
         "raw_llm_response": result.raw_response if result.ok else "",
         "fallback_used": not result.ok,
         "prompt_metadata": {"trade_review_main": prompt_metadata},
+        "verification": verification,
+        "report_paths": report_paths,
+        "report_zh": report_zh,
+        "report_en": report_en,
     }
     saved = _save_review(db, document)
     return saved

@@ -46,3 +46,7 @@ export async function fetchRecentTradeReviews(params: { limit?: number; symbol?:
 export function fetchTradeReviewDetail(reviewId: string): Promise<TradeReviewResult> {
   return request<TradeReviewResult>(`/api/trade-review/reviews/${encodeURIComponent(reviewId)}`)
 }
+
+export function fetchTradeReviewReport(reviewId: string, lang: string = 'zh'): Promise<{ report: string }> {
+  return request<{ report: string }>(`/api/trade-review/reviews/${encodeURIComponent(reviewId)}/report?lang=${lang}`)
+}

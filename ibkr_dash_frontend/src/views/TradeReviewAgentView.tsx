@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { fetchRecentTradeReviews, fetchTradeReviewDetail, fetchTradeReviewHealth, startSingleTradeReviewTask, startSymbolReviewTask } from '@/api/tradeReview'
+import ReactMarkdown from 'react-markdown'
+import { fetchRecentTradeReviews, fetchTradeReviewDetail, fetchTradeReviewHealth, fetchTradeReviewReport, startSingleTradeReviewTask, startSymbolReviewTask } from '@/api/tradeReview'
 import type { TradeReviewHealth, TradeReviewResult } from '@/types/tradeReview'
 
 export default function TradeReviewAgentView() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [health, setHealth] = useState<TradeReviewHealth | null>(null)
@@ -14,6 +15,9 @@ export default function TradeReviewAgentView() {
   const [tradeId, setTradeId] = useState('')
   const [generating, setGenerating] = useState(false)
   const [activeTab, setActiveTab] = useState<'symbol' | 'single'>('symbol')
+  const [reportContent, setReportContent] = useState<string>('')
+  const [reportLoading, setReportLoading] = useState(false)
+  const [viewMode, setViewMode] = useState<'structured' | 'report'>('report')
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -64,6 +68,12 @@ export default function TradeReviewAgentView() {
   async function handleSelectReview(id: string) {
     try {
       setSelectedReview(await fetchTradeReviewDetail(id))
+      setReportLoading(true)
+      const lang = i18n.language?.startsWith('zh') ? 'zh' : 'en'
+      fetchTradeReviewReport(id, lang)
+        .then((r) => setReportContent(r.report))
+        .catch(() => setReportContent(''))
+        .finally(() => setReportLoading(false))
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : t('tradeReview.failedToLoadReview'))
     }
@@ -184,44 +194,69 @@ export default function TradeReviewAgentView() {
               <div className="empty-state" style={{ minHeight: 300 }}>{t('tradeReview.reviewDataParseError')}</div>
             ) : (
               <div style={{ display: 'grid', gap: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <p className="eyebrow" style={{ margin: 0 }}>{selectedReview.symbol || selectedReview.review_type}</p>
-                  {reviewData.overall_score != null && (
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '1.2rem', fontWeight: 700, color: 'var(--color-accent-strong)' }}>{reviewData.overall_score}/100</span>
-                  )}
-                  {reviewData.rating && (
-                    <span className={`tag ${reviewData.rating === 'excellent' ? 'tag--positive' : reviewData.rating === 'poor' ? 'tag--negative' : ''}`}>{reviewData.rating}</span>
-                  )}
+                {/* Header with tabs */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <p className="eyebrow" style={{ margin: 0 }}>{selectedReview.symbol || selectedReview.review_type}</p>
+                    {reviewData.overall_score != null && (
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '1.2rem', fontWeight: 700, color: 'var(--color-accent-strong)' }}>{reviewData.overall_score}/100</span>
+                    )}
+                    {reviewData.rating && (
+                      <span className={`tag ${reviewData.rating === 'excellent' ? 'tag--positive' : reviewData.rating === 'poor' ? 'tag--negative' : ''}`}>{reviewData.rating}</span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button className={`btn btn--sm ${viewMode === 'report' ? 'btn--accent' : ''}`} onClick={() => setViewMode('report')}>{t('tradeReview.reportView')}</button>
+                    <button className={`btn btn--sm ${viewMode === 'structured' ? 'btn--accent' : ''}`} onClick={() => setViewMode('structured')}>{t('tradeReview.structuredView')}</button>
+                  </div>
                 </div>
 
-                {reviewData.summary && (
-                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem', lineHeight: 1.6 }}>{reviewData.summary}</p>
-                )}
-
-                {reviewData.strengths?.length > 0 && (
-                  <div>
-                    <p className="eyebrow" style={{ color: 'var(--color-positive)' }}>{t('tradeReview.strengths')}</p>
-                    <ul style={{ margin: '4px 0 0', padding: '0 0 0 16px', color: 'var(--color-text-secondary)', fontSize: '0.88rem' }}>
-                      {reviewData.strengths.map((s: string, i: number) => <li key={i}>{s}</li>)}
-                    </ul>
+                {/* Report view (Markdown) */}
+                {viewMode === 'report' && (
+                  <div className="copilot-markdown" style={{ lineHeight: 1.7 }}>
+                    {reportLoading ? (
+                      <p style={{ color: 'var(--color-text-muted)' }}>{t('common.loading')}</p>
+                    ) : reportContent ? (
+                      <ReactMarkdown>{reportContent}</ReactMarkdown>
+                    ) : (
+                      <p style={{ color: 'var(--color-text-muted)' }}>{t('tradeReview.noReportAvailable')}</p>
+                    )}
                   </div>
                 )}
 
-                {reviewData.weaknesses?.length > 0 && (
-                  <div>
-                    <p className="eyebrow" style={{ color: 'var(--color-negative)' }}>{t('tradeReview.weaknesses')}</p>
-                    <ul style={{ margin: '4px 0 0', padding: '0 0 0 16px', color: 'var(--color-text-secondary)', fontSize: '0.88rem' }}>
-                      {reviewData.weaknesses.map((w: string, i: number) => <li key={i}>{w}</li>)}
-                    </ul>
-                  </div>
-                )}
+                {/* Structured view */}
+                {viewMode === 'structured' && (
+                  <div style={{ display: 'grid', gap: 16 }}>
+                    {reviewData.summary && (
+                      <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem', lineHeight: 1.6 }}>{reviewData.summary}</p>
+                    )}
 
-                {reviewData.improvement_suggestions?.length > 0 && (
-                  <div>
-                    <p className="eyebrow">{t('tradeReview.improvements')}</p>
-                    <ul style={{ margin: '4px 0 0', padding: '0 0 0 16px', color: 'var(--color-text-secondary)', fontSize: '0.88rem' }}>
-                      {reviewData.improvement_suggestions.map((s: string, i: number) => <li key={i}>{s}</li>)}
-                    </ul>
+                    {reviewData.strengths?.length > 0 && (
+                      <div>
+                        <p className="eyebrow" style={{ color: 'var(--color-positive)' }}>{t('tradeReview.strengths')}</p>
+                        <ul style={{ margin: '4px 0 0', padding: '0 0 0 16px', color: 'var(--color-text-secondary)', fontSize: '0.88rem' }}>
+                          {reviewData.strengths.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                        </ul>
+                      </div>
+                    )}
+
+                    {reviewData.weaknesses?.length > 0 && (
+                      <div>
+                        <p className="eyebrow" style={{ color: 'var(--color-negative)' }}>{t('tradeReview.weaknesses')}</p>
+                        <ul style={{ margin: '4px 0 0', padding: '0 0 0 16px', color: 'var(--color-text-secondary)', fontSize: '0.88rem' }}>
+                          {reviewData.weaknesses.map((w: string, i: number) => <li key={i}>{w}</li>)}
+                        </ul>
+                      </div>
+                    )}
+
+                    {reviewData.improvement_suggestions?.length > 0 && (
+                      <div>
+                        <p className="eyebrow">{t('tradeReview.improvements')}</p>
+                        <ul style={{ margin: '4px 0 0', padding: '0 0 0 16px', color: 'var(--color-text-secondary)', fontSize: '0.88rem' }}>
+                          {reviewData.improvement_suggestions.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

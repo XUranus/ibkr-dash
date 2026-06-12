@@ -137,6 +137,45 @@ def get_review_by_id(
     return _row_to_response(row)
 
 
+@router.get("/reviews/{review_id}/report")
+def get_review_report(
+    review_id: str,
+    lang: str = Query(default="zh", pattern="^(zh|en)$"),
+    _user: str | None = Depends(get_current_user),
+    db: Database = Depends(get_db),
+) -> dict:
+    """Get the markdown report for a trade review."""
+    row = db.execute_one(
+        "SELECT * FROM trade_reviews WHERE id = ?",
+        (review_id,),
+    )
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Trade review not found: {review_id}",
+        )
+
+    import json
+    from app.utils.json_fields import parse_json_fields
+    parsed = parse_json_fields(row, ["review_output"])
+    output = parsed.get("review_output", {})
+
+    report_key = f"report_{lang}"
+    report = output.get(report_key)
+
+    if not report:
+        from app.agents.report_generator import generate_trade_review_report
+        symbol = row.get("symbol", "")
+        report = generate_trade_review_report(output, symbol, lang=lang)
+
+    return {
+        "review_id": review_id,
+        "symbol": row.get("symbol", ""),
+        "lang": lang,
+        "report": report,
+    }
+
+
 @router.get("/health", response_model=TradeReviewHealthResponse)
 def health_check(
     settings: Settings = Depends(get_settings),

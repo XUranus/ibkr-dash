@@ -135,6 +135,51 @@ def get_decision_by_id(
     return _row_to_response(row)
 
 
+@router.get("/decisions/{decision_id}/report")
+def get_decision_report(
+    decision_id: str,
+    lang: str = Query(default="zh", pattern="^(zh|en)$"),
+    _user: str | None = Depends(get_current_user),
+    db: Database = Depends(get_db),
+) -> dict:
+    """Get the markdown report for a trade decision.
+
+    Returns the bilingual markdown report stored with the decision.
+    """
+    row = db.execute_one(
+        "SELECT * FROM trade_decisions WHERE id = ?",
+        (decision_id,),
+    )
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Trade decision not found: {decision_id}",
+        )
+
+    # Parse the decision output to get report
+    import json
+    from app.utils.json_fields import parse_json_fields
+    parsed = parse_json_fields(row, ["decision_output"])
+    output = parsed.get("decision_output", {})
+
+    # Try to get pre-generated report
+    report_key = f"report_{lang}"
+    report = output.get(report_key)
+
+    if not report:
+        # Generate on-the-fly
+        from app.agents.report_generator import generate_trade_decision_report
+        symbol = row.get("symbol", "")
+        report = generate_trade_decision_report(output, symbol, lang=lang)
+
+    return {
+        "decision_id": decision_id,
+        "symbol": row.get("symbol", ""),
+        "lang": lang,
+        "report": report,
+    }
+
+
 @router.get("/health", response_model=TradeDecisionHealthResponse)
 def health_check(
     settings: Settings = Depends(get_settings),

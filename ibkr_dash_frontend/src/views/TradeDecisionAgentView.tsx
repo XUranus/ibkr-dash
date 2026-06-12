@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { analyzeEntryDecision, analyzeHoldingDecision, fetchRecentTradeDecisions, fetchTradeDecisionDetail, fetchTradeDecisionHealth } from '@/api/tradeDecision'
+import ReactMarkdown from 'react-markdown'
+import { analyzeEntryDecision, analyzeHoldingDecision, fetchRecentTradeDecisions, fetchTradeDecisionDetail, fetchTradeDecisionHealth, fetchTradeDecisionReport } from '@/api/tradeDecision'
 import type { TradeDecisionHealth, TradeDecisionResult } from '@/types/tradeDecision'
 
 type DecisionMode = 'entry' | 'holding'
 
 export default function TradeDecisionAgentView() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [health, setHealth] = useState<TradeDecisionHealth | null>(null)
@@ -16,6 +17,9 @@ export default function TradeDecisionAgentView() {
   const [question, setQuestion] = useState('')
   const [mode, setMode] = useState<DecisionMode>('entry')
   const [generating, setGenerating] = useState(false)
+  const [reportContent, setReportContent] = useState<string>('')
+  const [reportLoading, setReportLoading] = useState(false)
+  const [viewMode, setViewMode] = useState<'structured' | 'report'>('report')
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -52,6 +56,13 @@ export default function TradeDecisionAgentView() {
   async function handleSelectDecision(id: string) {
     try {
       setSelectedDecision(await fetchTradeDecisionDetail(id))
+      // Fetch report in background
+      setReportLoading(true)
+      const lang = i18n.language?.startsWith('zh') ? 'zh' : 'en'
+      fetchTradeDecisionReport(id, lang)
+        .then((r) => setReportContent(r.report))
+        .catch(() => setReportContent(''))
+        .finally(() => setReportLoading(false))
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : t('tradeDecision.failedToLoadDecision'))
     }
@@ -171,39 +182,64 @@ export default function TradeDecisionAgentView() {
               <div className="empty-state" style={{ minHeight: 300 }}>{t('tradeDecision.decisionDataParseError')}</div>
             ) : (
               <div style={{ display: 'grid', gap: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                  <p className="eyebrow" style={{ margin: 0 }}>{selectedDecision.symbol}</p>
-                  <span className="tag tag--accent">{selectedDecision.decision_type}</span>
-                  {decisionData.action && (
-                    <span className="tag tag--positive">{actionLabels[decisionData.action] ?? decisionData.action}</span>
-                  )}
-                  {decisionData.confidence && (
-                    <span className="tag">{decisionData.confidence}</span>
-                  )}
-                  {decisionData.overall_score != null && decisionData.overall_score > 0 && (
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '1.2rem', fontWeight: 700, color: 'var(--color-accent-strong)' }}>{decisionData.overall_score}/100</span>
-                  )}
+                {/* Header with tabs */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <p className="eyebrow" style={{ margin: 0 }}>{selectedDecision.symbol}</p>
+                    <span className="tag tag--accent">{selectedDecision.decision_type}</span>
+                    {decisionData.action && (
+                      <span className="tag tag--positive">{actionLabels[decisionData.action] ?? decisionData.action}</span>
+                    )}
+                    {decisionData.confidence && (
+                      <span className="tag">{decisionData.confidence}</span>
+                    )}
+                    {decisionData.overall_score != null && decisionData.overall_score > 0 && (
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '1.2rem', fontWeight: 700, color: 'var(--color-accent-strong)' }}>{decisionData.overall_score}/100</span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button className={`btn btn--sm ${viewMode === 'report' ? 'btn--accent' : ''}`} onClick={() => setViewMode('report')}>{t('tradeDecision.reportView')}</button>
+                    <button className={`btn btn--sm ${viewMode === 'structured' ? 'btn--accent' : ''}`} onClick={() => setViewMode('structured')}>{t('tradeDecision.structuredView')}</button>
+                  </div>
                 </div>
 
-                {decisionData.decision_summary && (
-                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem', lineHeight: 1.6 }}>{decisionData.decision_summary}</p>
-                )}
-
-                {decisionData.key_reasons?.length > 0 && (
-                  <div>
-                    <p className="eyebrow">{t('tradeDecision.keyReasons')}</p>
-                    <ul style={{ margin: '4px 0 0', padding: '0 0 0 16px', color: 'var(--color-text-secondary)', fontSize: '0.88rem' }}>
-                      {decisionData.key_reasons.map((r: string, i: number) => <li key={i}>{r}</li>)}
-                    </ul>
+                {/* Report view (Markdown) */}
+                {viewMode === 'report' && (
+                  <div className="copilot-markdown" style={{ lineHeight: 1.7 }}>
+                    {reportLoading ? (
+                      <p style={{ color: 'var(--color-text-muted)' }}>{t('common.loading')}</p>
+                    ) : reportContent ? (
+                      <ReactMarkdown>{reportContent}</ReactMarkdown>
+                    ) : (
+                      <p style={{ color: 'var(--color-text-muted)' }}>{t('tradeDecision.noReportAvailable')}</p>
+                    )}
                   </div>
                 )}
 
-                {decisionData.major_risks?.length > 0 && (
-                  <div>
-                    <p className="eyebrow" style={{ color: 'var(--color-negative)' }}>{t('tradeDecision.risks')}</p>
-                    <ul style={{ margin: '4px 0 0', padding: '0 0 0 16px', color: 'var(--color-text-secondary)', fontSize: '0.88rem' }}>
-                      {decisionData.major_risks.map((r: string, i: number) => <li key={i}>{r}</li>)}
-                    </ul>
+                {/* Structured view */}
+                {viewMode === 'structured' && (
+                  <div style={{ display: 'grid', gap: 16 }}>
+                    {decisionData.decision_summary && (
+                      <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem', lineHeight: 1.6 }}>{decisionData.decision_summary}</p>
+                    )}
+
+                    {decisionData.key_reasons?.length > 0 && (
+                      <div>
+                        <p className="eyebrow">{t('tradeDecision.keyReasons')}</p>
+                        <ul style={{ margin: '4px 0 0', padding: '0 0 0 16px', color: 'var(--color-text-secondary)', fontSize: '0.88rem' }}>
+                          {decisionData.key_reasons.map((r: string, i: number) => <li key={i}>{r}</li>)}
+                        </ul>
+                      </div>
+                    )}
+
+                    {decisionData.major_risks?.length > 0 && (
+                      <div>
+                        <p className="eyebrow" style={{ color: 'var(--color-negative)' }}>{t('tradeDecision.risks')}</p>
+                        <ul style={{ margin: '4px 0 0', padding: '0 0 0 16px', color: 'var(--color-text-secondary)', fontSize: '0.88rem' }}>
+                          {decisionData.major_risks.map((r: string, i: number) => <li key={i}>{r}</li>)}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
