@@ -23,6 +23,7 @@ class FlexXmlResult:
     positions: list[dict] = field(default_factory=list)
     trades: list[dict] = field(default_factory=list)
     cash_flows: list[dict] = field(default_factory=list)
+    account_snapshot: dict = field(default_factory=dict)
 
 
 def _safe_float(value: str | None, default: float = 0.0) -> float:
@@ -205,6 +206,44 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexXmlResult]:
                 "dividend_type": ct.get("dividendType", ""),
                 "transaction_id": ct.get("transactionID", ""),
             })
+
+        # Parse ChangeInNAV for PnL and TWR
+        nav = stmt.find(".//ChangeInNAV")
+        if nav is not None:
+            ending_value = _safe_float(nav.get("endingValue"))
+            mtm = _safe_float(nav.get("mtm"))
+            realized = _safe_float(nav.get("realized"))
+            twr = _safe_float(nav.get("twr"))
+
+            # Compute cash: try CashReport first, then estimate from equity - positions
+            cash_balance = 0.0
+            for cash in stmt.findall(".//CashReport/CashReportBalance"):
+                cash_balance += _safe_float(cash.get("endingCash"))
+
+            if cash_balance == 0:
+                # Estimate cash from equity minus position values (with FX conversion)
+                total_position_value = 0.0
+                for pos in stmt.findall(".//OpenPositions/OpenPosition"):
+                    val = _safe_float(pos.get("positionValue"))
+                    cur = pos.get("currency", "USD")
+                    fx = _safe_float(pos.get("fxRateToBase"), 1.0)
+                    if cur != "USD" and fx > 0:
+                        val = val * fx
+                    total_position_value += val
+                cash_balance = max(ending_value - total_position_value, 0)
+
+            result.account_snapshot = {
+                "account_id": account_id,
+                "report_date": report_date,
+                "currency": "USD",
+                "total_equity": ending_value,
+                "cash": cash_balance,
+                "stock_value": ending_value - cash_balance,
+                "cnav_mtm": mtm,
+                "cnav_twr": twr,
+                "fifo_total_realized_pnl": realized,
+                "fifo_total_unrealized_pnl": mtm - realized if mtm and realized else 0,
+            }
 
         logger.info(
             "Parsed Flex XML for %s on %s: %d positions, %d trades, %d cash flows",

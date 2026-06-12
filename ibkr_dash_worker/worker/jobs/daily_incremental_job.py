@@ -89,8 +89,11 @@ def _import_xml_file(writer: SQLiteWriter, xml_path: Path) -> dict[str, int]:
                 writer.insert_cash_flow(cf)
             counts["cash_flows"] += len(result.cash_flows)
 
-        if result.positions:
-            # Build account snapshot from position data
+        # Use parsed account snapshot if available, otherwise build from positions
+        if result.account_snapshot:
+            writer.upsert_account_snapshot(result.account_snapshot)
+            counts["account_snapshots"] += 1
+        elif result.positions:
             total_value = sum(p.get("position_value", 0) or 0 for p in result.positions)
             writer.upsert_account_snapshot({
                 "account_id": result.account_id,
