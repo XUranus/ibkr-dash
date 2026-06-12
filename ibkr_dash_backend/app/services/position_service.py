@@ -100,6 +100,9 @@ class PositionService:
         # Enrich with realized PnL from trades if missing
         self._enrich_realized_pnl(rows, effective_report_date)
 
+        # Compute daily change from previous day's mark price
+        self._compute_daily_change(rows, effective_report_date)
+
         items = [self._row_to_position_item(row) for row in rows]
 
         summary = None
@@ -500,6 +503,49 @@ class PositionService:
                 sym = row.get("symbol")
                 if sym in fifo_map and not row.get("total_realized_pnl"):
                     row["total_realized_pnl"] = fifo_map[sym].get("realized_pnl", 0.0)
+
+    def _compute_daily_change(self, rows: list[dict], report_date: str) -> None:
+        """Compute daily change percentage from previous day's mark price.
+
+        IBKR API doesn't provide this field directly. We compute it as:
+        (today_price - yesterday_price) / yesterday_price * 100
+        """
+        # Collect symbols
+        symbols = {r["symbol"] for r in rows if r.get("symbol")}
+        if not symbols:
+            return
+
+        # Get previous report date
+        prev_row = self.db.execute_one(
+            "SELECT report_date FROM position_snapshots WHERE report_date < ? ORDER BY report_date DESC LIMIT 1",
+            (report_date,),
+        )
+        if not prev_row:
+            return
+        prev_date = prev_row["report_date"]
+
+        # Get previous day's mark prices
+        placeholders = ",".join("?" for _ in symbols)
+        prev_prices = self.db.execute(
+            f"""
+            SELECT symbol, mark_price FROM position_snapshots
+            WHERE report_date = ? AND symbol IN ({placeholders})
+            """,
+            (prev_date, *symbols),
+        )
+        price_map: dict[str, float] = {
+            r["symbol"]: float(r["mark_price"]) for r in prev_prices if r.get("mark_price")
+        }
+
+        # Compute daily change
+        for row in rows:
+            if row.get("previous_day_change_percent") is not None:
+                continue  # already set
+            sym = row.get("symbol")
+            today_price = float(row.get("mark_price") or 0)
+            yesterday_price = price_map.get(sym)
+            if sym and today_price > 0 and yesterday_price and yesterday_price > 0:
+                row["previous_day_change_percent"] = (today_price - yesterday_price) / yesterday_price * 100.0
 
     @staticmethod
     def _row_to_position_item(row: dict) -> PositionItem:
