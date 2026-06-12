@@ -464,26 +464,42 @@ class PositionService:
         return compute_fifo_cost_basis(trades)
 
     def _enrich_realized_pnl(self, rows: list[dict], report_date: str) -> None:
-        """Fill in total_realized_pnl from trade_records for positions missing it."""
-        missing = [r for r in rows if r.get("total_realized_pnl") is None]
-        if not missing:
-            return
+        """Fill in total_realized_pnl from trade records.
 
-        # Aggregate realized PnL per symbol from trades
-        pnl_rows = self.db.execute(
-            """
-            SELECT symbol, COALESCE(SUM(fifo_pnl_realized), 0.0) AS realized_pnl
-            FROM trade_records
-            WHERE trade_date <= ?
-            GROUP BY symbol
-            """,
+        First tries SUM(fifo_pnl_realized) from DB.
+        Falls back to FIFO computation when API zeroes the field.
+        """
+        # Check if DB has non-zero realized PnL
+        check = self.db.execute_one(
+            "SELECT COALESCE(SUM(fifo_pnl_realized), 0.0) AS total FROM trade_records WHERE trade_date <= ?",
             (report_date,),
         )
-        pnl_lookup: dict[str, float] = {r["symbol"]: float(r["realized_pnl"]) for r in pnl_rows}
+        has_db_data = check and abs(float(check["total"])) > 0.01
 
-        for row in missing:
-            sym = row.get("symbol")
-            row["total_realized_pnl"] = pnl_lookup.get(sym, 0.0)
+        if has_db_data:
+            # Use DB values directly
+            pnl_rows = self.db.execute(
+                """
+                SELECT symbol, COALESCE(SUM(fifo_pnl_realized), 0.0) AS realized_pnl
+                FROM trade_records WHERE trade_date <= ?
+                GROUP BY symbol
+                """,
+                (report_date,),
+            )
+            pnl_lookup: dict[str, float] = {r["symbol"]: float(r["realized_pnl"]) for r in pnl_rows}
+            for row in rows:
+                if not row.get("total_realized_pnl"):
+                    row["total_realized_pnl"] = pnl_lookup.get(row.get("symbol"), 0.0)
+        else:
+            # Compute from FIFO
+            symbols = {r["symbol"] for r in rows if r.get("symbol")}
+            if not symbols:
+                return
+            fifo_map = self._compute_fifo_cost_basis(symbols)
+            for row in rows:
+                sym = row.get("symbol")
+                if sym in fifo_map and not row.get("total_realized_pnl"):
+                    row["total_realized_pnl"] = fifo_map[sym].get("realized_pnl", 0.0)
 
     @staticmethod
     def _row_to_position_item(row: dict) -> PositionItem:
