@@ -46,17 +46,19 @@ class AccountService:
             if total_equity > 0 and pos_total > 0:
                 cash = max(total_equity - pos_total, 0)
 
-        # Compute net cost from position cost basis + cash
+        # Compute net cost from TWR-based cumulative PnL
         net_cost = self._compute_net_cost(current["report_date"], total_equity, cash)
 
-        # Compute realized PnL from trades
-        realized_pnl = self._compute_realized_pnl(current["report_date"])
-
-        # Derive total PnL and unrealized PnL consistently:
-        # total_pnl = total_equity - net_cost
-        # unrealized_pnl = total_pnl - realized_pnl
+        # total_pnl = equity - net_cost
         total_pnl = total_equity - net_cost if net_cost > 0 else 0.0
-        unrealized_pnl = total_pnl - realized_pnl
+
+        # Get unrealized PnL from position data (ibkr-show-public approach)
+        unrealized_pnl = self._compute_unrealized_from_positions(current["report_date"])
+
+        # Derive realized PnL: realized = total_pnl - unrealized
+        # This is more accurate than SUM(fifo_pnl_realized) from trades,
+        # because the real-time API zeroes out fifo_pnl_realized.
+        realized_pnl = total_pnl - unrealized_pnl
 
         overview = AccountOverviewResponse(
             account_id=current["account_id"],
@@ -90,9 +92,9 @@ class AccountService:
                     prev_cash = max(prev_equity - prev_pos_total, 0)
 
             prev_net_cost = self._compute_net_cost(previous["report_date"], prev_equity, prev_cash)
-            prev_realized = self._compute_realized_pnl(previous["report_date"])
             prev_total_pnl = prev_equity - prev_net_cost if prev_net_cost > 0 else 0.0
-            prev_unrealized = prev_total_pnl - prev_realized
+            prev_unrealized = self._compute_unrealized_from_positions(previous["report_date"])
+            prev_realized = prev_total_pnl - prev_unrealized
 
             overview.fifo_total_realized_pnl_delta = self._build_delta(realized_pnl, prev_realized)
             overview.fifo_total_unrealized_pnl_delta = self._build_delta(unrealized_pnl, prev_unrealized)
@@ -128,6 +130,33 @@ class AccountService:
             (report_date,),
         )
         return float(row["total"]) if row else 0.0
+
+    def _compute_unrealized_from_positions(self, report_date: str) -> float:
+        """Compute unrealized PnL from position snapshots (ibkr-show-public approach).
+
+        Uses SUM(fifo_pnl_unrealized) from position_snapshots.
+        Falls back to latest available position data if current day has none.
+        """
+        # Try the given date
+        row = self.db.execute_one(
+            "SELECT COALESCE(SUM(fifo_pnl_unrealized), 0.0) AS total FROM position_snapshots WHERE report_date = ?",
+            (report_date,),
+        )
+        val = float(row["total"]) if row else 0.0
+        if val != 0:
+            return val
+
+        # Fallback: latest available non-zero unrealized
+        row = self.db.execute_one(
+            """
+            SELECT COALESCE(SUM(fifo_pnl_unrealized), 0.0) AS total
+            FROM position_snapshots
+            WHERE fifo_pnl_unrealized != 0
+            GROUP BY report_date
+            ORDER BY report_date DESC LIMIT 1
+            """,
+        )
+        return float(row["total"]) if row and float(row["total"]) != 0 else 0.0
 
     def _compute_net_cost(self, report_date: str, total_equity: float, _cash: float) -> float:
         """Compute net cost (total investment) using TWR-based cumulative PnL.

@@ -73,8 +73,19 @@ class ChartService:
         cash_flow_curve = self._build_net_cost_curve(cash_flow_rows)
         daily_net_flows = self._build_daily_net_flows(cash_flow_rows)
 
-        # Build realized PnL curve
-        realized_pnl_curve = self._build_realized_pnl_curve(account_id, effective_end)
+        # Build unrealized PnL per date from position snapshots (ibkr-show-public approach)
+        unrealized_rows = self.db.execute(
+            """
+            SELECT report_date, COALESCE(SUM(fifo_pnl_unrealized), 0.0) AS total
+            FROM position_snapshots
+            WHERE fifo_pnl_unrealized != 0
+            GROUP BY report_date
+            ORDER BY report_date ASC
+            """,
+        )
+        unrealized_by_date: dict[str, float] = {}
+        for row in unrealized_rows:
+            unrealized_by_date[row["report_date"]] = float(row["total"])
 
         # Determine if cash flow data has real values
         cash_flows_have_value = any(abs(p[1]) > 0.01 for p in cash_flow_curve) if cash_flow_curve else False
@@ -83,11 +94,10 @@ class ChartService:
 
         items: list[EquityCurvePoint] = []
         current_net_cost = 0.0
-        current_realized_pnl = 0.0
         cash_flow_index = 0
-        realized_pnl_index = 0
         previous_total_equity: float | None = None
         cumulative_market_pnl = 0.0  # TWR-based cumulative PnL (excludes deposits)
+        latest_unrealized = 0.0  # fallback for days without position data
 
         for source in snapshot_rows:
             report_date = source["report_date"]
@@ -98,9 +108,10 @@ class ChartService:
                 while cash_flow_index < len(cash_flow_curve) and cash_flow_curve[cash_flow_index][0] <= report_date:
                     current_net_cost = cash_flow_curve[cash_flow_index][1]
                     cash_flow_index += 1
-            while realized_pnl_index < len(realized_pnl_curve) and realized_pnl_curve[realized_pnl_index][0] <= report_date:
-                current_realized_pnl = realized_pnl_curve[realized_pnl_index][1]
-                realized_pnl_index += 1
+
+            # Update unrealized PnL from position data
+            if report_date in unrealized_by_date:
+                latest_unrealized = unrealized_by_date[report_date]
 
             twr = source.get("cnav_twr")
             cumulative_mtm = source.get("cnav_mtm")
@@ -157,6 +168,11 @@ class ChartService:
             if total_equity is not None:
                 total_pnl = float(total_equity) - float(net_cost)
 
+            # Derive realized = total_pnl - unrealized (ibkr-show-public approach)
+            realized_pnl = None
+            if total_pnl is not None:
+                realized_pnl = total_pnl - latest_unrealized
+
             # Only show daily MTM/TWR for the latest calendar month
             if not report_date.startswith(latest_calendar_month):
                 daily_mtm = None
@@ -169,7 +185,7 @@ class ChartService:
                     total_equity=self._round_amount(total_equity),
                     total_pnl=self._round_amount(total_pnl),
                     net_cost=self._round_amount(net_cost),
-                    realized_pnl=self._round_amount(current_realized_pnl),
+                    realized_pnl=self._round_amount(realized_pnl),
                     daily_mtm=self._round_amount(daily_mtm),
                     daily_twr=self._round_percent(daily_twr),
                 ))
