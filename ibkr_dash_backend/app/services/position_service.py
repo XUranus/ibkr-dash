@@ -480,45 +480,65 @@ class PositionService:
                     seen.add(key)
                     unique_trades.append(t)
 
-            # FIFO tracking: list of (quantity, price) for open positions
+            # FIFO tracking: list of (signed_quantity, price)
+            # Positive = long, negative = short
             open_positions: list[tuple[float, float]] = []
             realized_pnl = 0.0
 
             for t in unique_trades:
                 buy_sell = (t.get("buy_sell") or "").upper()
-                qty = abs(float(t.get("quantity") or 0))
+                raw_qty = float(t.get("quantity") or 0)
                 price = float(t.get("trade_price") or 0)
 
                 # Options: IBKR reports quantity in contracts (1 = 100 shares)
                 if (t.get("asset_class") or "") == "OPT":
-                    qty = qty * 100
+                    raw_qty = raw_qty * 100
 
-                if qty <= 0 or price <= 0:
+                if raw_qty == 0 or price <= 0:
                     continue
 
-                if buy_sell in ("BUY", "B"):
-                    open_positions.append((qty, price))
-                elif buy_sell in ("SELL", "SS", "SL"):
-                    # Close earliest positions first (FIFO)
-                    remaining_to_close = qty
-                    while remaining_to_close > 0 and open_positions:
-                        open_qty, open_price = open_positions[0]
-                        closed_qty = min(remaining_to_close, open_qty)
-                        realized_pnl += closed_qty * (price - open_price)
-                        remaining_to_close -= closed_qty
-                        if closed_qty >= open_qty:
-                            open_positions.pop(0)
-                        else:
-                            open_positions[0] = (open_qty - closed_qty, open_price)
+                # BUY = positive, SELL = negative
+                trade_qty = raw_qty if buy_sell in ("BUY", "B") else -abs(raw_qty)
+
+                # Close existing positions with opposite sign first (FIFO)
+                remaining = trade_qty
+                while remaining != 0 and open_positions:
+                    oq, op = open_positions[0]
+                    # Same sign → can't close, break
+                    if (remaining > 0 and oq > 0) or (remaining < 0 and oq < 0):
+                        break
+                    # Opposite sign → close
+                    close_qty = min(abs(remaining), abs(oq))
+                    # Realized PnL: (exit_price - entry_price) * quantity_for_long
+                    # For short: (entry_price - exit_price) * quantity
+                    if oq > 0:  # closing long
+                        realized_pnl += close_qty * (price - op)
+                    else:  # closing short
+                        realized_pnl += close_qty * (op - price)
+                    # Reduce remaining: positive trades shrink, negative trades grow
+                    if remaining > 0:
+                        remaining -= close_qty
+                    else:
+                        remaining += close_qty
+                    if abs(close_qty) >= abs(oq):
+                        open_positions.pop(0)
+                    else:
+                        # Partially close: adjust the open position quantity
+                        open_positions[0] = (oq + (close_qty if oq > 0 else -close_qty), op)
+                        break
+
+                # Open new position with remaining quantity
+                if abs(remaining) > 0.001:
+                    open_positions.append((remaining, price))
 
             # Compute cost basis from remaining open positions
-            total_cost = sum(q * p for q, p in open_positions)
+            total_cost = sum(abs(q) * p for q, p in open_positions)
             total_qty = sum(q for q, _ in open_positions)
 
             if total_cost > 0:
                 result[sym] = {
                     "cost_basis": total_cost,
-                    "avg_cost": total_cost / total_qty if total_qty > 0 else 0,
+                    "avg_cost": total_cost / abs(total_qty) if total_qty != 0 else 0,
                     "total_qty": total_qty,
                     "realized_pnl": realized_pnl,
                 }

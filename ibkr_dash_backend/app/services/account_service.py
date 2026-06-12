@@ -220,27 +220,35 @@ class AccountService:
             open_pos: list[tuple[float, float]] = []
             for t in unique:
                 buy_sell = (t.get("buy_sell") or "").upper()
-                qty = abs(float(t.get("quantity") or 0))
+                raw_qty = float(t.get("quantity") or 0)
                 price = float(t.get("trade_price") or 0)
                 # Options: IBKR reports quantity in contracts (1 = 100 shares)
                 if (t.get("asset_class") or "") == "OPT":
-                    qty = qty * 100
-                if qty <= 0 or price <= 0:
+                    raw_qty = raw_qty * 100
+                if raw_qty == 0 or price <= 0:
                     continue
-                if buy_sell in ("BUY", "B"):
-                    open_pos.append((qty, price))
-                elif buy_sell in ("SELL", "SS", "SL"):
-                    remaining = qty
-                    while remaining > 0 and open_pos:
-                        oq, op = open_pos[0]
-                        closed = min(remaining, oq)
-                        remaining -= closed
-                        if closed >= oq:
-                            open_pos.pop(0)
-                        else:
-                            open_pos[0] = (oq - closed, op)
+                # BUY = positive, SELL = negative
+                trade_qty = raw_qty if buy_sell in ("BUY", "B") else -abs(raw_qty)
+                # Close existing positions with opposite sign first
+                remaining = trade_qty
+                while remaining != 0 and open_pos:
+                    oq, op = open_pos[0]
+                    if (remaining > 0 and oq > 0) or (remaining < 0 and oq < 0):
+                        break
+                    close_qty = min(abs(remaining), abs(oq))
+                    if remaining > 0:
+                        remaining -= close_qty
+                    else:
+                        remaining += close_qty
+                    if abs(close_qty) >= abs(oq):
+                        open_pos.pop(0)
+                    else:
+                        open_pos[0] = (oq + (close_qty if oq > 0 else -close_qty), op)
+                        break
+                if abs(remaining) > 0.001:
+                    open_pos.append((remaining, price))
 
-            total_cost = sum(q * p for q, p in open_pos)
+            total_cost = sum(abs(q) * p for q, p in open_pos)
             total_qty = sum(q for q, _ in open_pos)
             if total_cost > 0:
                 result[sym] = {"cost_basis": total_cost, "total_qty": total_qty}
