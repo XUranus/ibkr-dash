@@ -315,18 +315,27 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexParseResult]:
                 "order_type": confirm.get("orderType", ""),
             })
 
-        # Parse CashTransactions
+        # Parse CashTransactions (skip SUMMARY entries to avoid double-counting)
         for ct in stmt.findall(".//CashTransactions/CashTransaction"):
+            if ct.get("levelOfDetail", "").upper() == "SUMMARY":
+                continue
             symbol = ct.get("symbol", "")
+            amount = _safe_float(ct.get("amount"))
+            currency = ct.get("currency", "USD")
+            fx_rate = _safe_float(ct.get("fxRateToBase"), 1.0)
+            # amountInBase may not exist; compute from amount * fxRateToBase
+            amount_in_base = _safe_float(ct.get("amountInBase"))
+            if amount_in_base == 0 and amount != 0:
+                amount_in_base = amount * fx_rate if currency != "USD" and fx_rate > 0 else amount
             result.cash_flows.append({
                 "account_id": account_id,
-                "currency": ct.get("currency", "USD"),
+                "currency": currency,
                 "symbol": symbol or None,
                 "description": ct.get("description", ""),
                 "date_time": _format_datetime(ct.get("dateTime")),
                 "settle_date": _format_date(ct.get("settleDate")),
-                "amount": _safe_float(ct.get("amount")),
-                "amount_in_base": _safe_float(ct.get("amountInBase")),
+                "amount": amount,
+                "amount_in_base": amount_in_base,
                 "flow_type": ct.get("type", ""),
                 "flow_direction": ct.get("swapType", ""),
                 "dividend_type": ct.get("dividendType", ""),
