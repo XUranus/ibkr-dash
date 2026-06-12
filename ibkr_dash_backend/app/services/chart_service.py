@@ -50,23 +50,18 @@ class ChartService:
         effective_end = parse_date(end_date) or latest_report_date
         effective_start = parse_date(start_date)
 
-        # Fetch snapshots
-        conditions = ["report_date <= ?"]
-        params: list = [effective_end.isoformat()]
-        if effective_start:
-            conditions.append("report_date >= ?")
-            params.append(effective_start.isoformat())
-        where_clause = " AND ".join(conditions)
-
+        # Fetch ALL snapshots from the beginning (not just the requested range)
+        # so cumulative PnL and net_cost are computed correctly.
+        # We filter for display later.
         snapshot_rows = self.db.execute(
-            f"""
+            """
             SELECT account_id, report_date, total_equity, cnav_mtm, cnav_twr, cnav_deposits,
                    cnav_realized, cnav_change_in_unrealized
             FROM account_snapshots
-            WHERE {where_clause}
+            WHERE report_date <= ?
             ORDER BY report_date ASC
             """,
-            tuple(params),
+            (effective_end.isoformat(),),
         )
         if not snapshot_rows:
             return EquityCurveResponse(items=[])
@@ -78,70 +73,27 @@ class ChartService:
         cash_flow_curve = self._build_net_cost_curve(cash_flow_rows)
         daily_net_flows = self._build_daily_net_flows(cash_flow_rows)
 
-        # Fallback: when cash flows have zero amounts (IBKR API zeroes them),
-        # compute net cost from position cost basis data.
-        initial_net_cost = 0.0
-        cash_flows_have_value = any(abs(p[1]) > 0.01 for p in cash_flow_curve) if cash_flow_curve else False
-        if not cash_flows_have_value:
-            # Try to get net cost from position cost basis + cash
-            cost_basis_row = self.db.execute_one(
-                """
-                SELECT
-                    COALESCE(SUM(cost_basis_money), 0) AS total_cost_basis,
-                    ps.report_date
-                FROM position_snapshots ps
-                WHERE cost_basis_money > 0
-                GROUP BY ps.report_date
-                ORDER BY ps.report_date DESC LIMIT 1
-                """,
-            )
-            if cost_basis_row and float(cost_basis_row["total_cost_basis"]) > 0:
-                # net_cost = cost_basis + cash = cost_basis + (total_equity - position_value)
-                cost_date = cost_basis_row["report_date"]
-                snapshot = self.db.execute_one(
-                    "SELECT total_equity FROM account_snapshots WHERE report_date = ?",
-                    (cost_date,),
-                )
-                pos_value_row = self.db.execute_one(
-                    "SELECT COALESCE(SUM(position_value), 0) AS total FROM position_snapshots WHERE report_date = ?",
-                    (cost_date,),
-                )
-                if snapshot and pos_value_row:
-                    total_eq = float(snapshot["total_equity"] or 0)
-                    pos_val = float(pos_value_row["total"] or 0)
-                    cost_basis = float(cost_basis_row["total_cost_basis"])
-                    cash_balance = max(total_eq - pos_val, 0)
-                    initial_net_cost = cost_basis + cash_balance
-            # Fallback to cnav_starting_value
-            if initial_net_cost == 0:
-                earliest_starting = self.db.execute_one(
-                    """
-                    SELECT cnav_starting_value FROM account_snapshots
-                    WHERE cnav_starting_value > 0
-                    ORDER BY report_date ASC LIMIT 1
-                    """,
-                )
-                if earliest_starting and earliest_starting.get("cnav_starting_value"):
-                    initial_net_cost = float(earliest_starting["cnav_starting_value"])
-
         # Build realized PnL curve
         realized_pnl_curve = self._build_realized_pnl_curve(account_id, effective_end)
+
+        # Determine if cash flow data has real values
+        cash_flows_have_value = any(abs(p[1]) > 0.01 for p in cash_flow_curve) if cash_flow_curve else False
 
         latest_calendar_month = effective_end.strftime("%Y-%m")
 
         items: list[EquityCurvePoint] = []
-        current_net_cost = initial_net_cost if not cash_flows_have_value else 0.0
+        current_net_cost = 0.0
         current_realized_pnl = 0.0
         cash_flow_index = 0
         realized_pnl_index = 0
         previous_total_equity: float | None = None
-        previous_cumulative_mtm: float | None = None
+        cumulative_market_pnl = 0.0  # TWR-based cumulative PnL (excludes deposits)
 
         for source in snapshot_rows:
             report_date = source["report_date"]
             total_equity = source.get("total_equity")
 
-            # Advance cash flow pointer (skip when all amounts are zero)
+            # Advance cash flow pointer
             if cash_flows_have_value:
                 while cash_flow_index < len(cash_flow_curve) and cash_flow_curve[cash_flow_index][0] <= report_date:
                     current_net_cost = cash_flow_curve[cash_flow_index][1]
@@ -150,21 +102,16 @@ class ChartService:
                 current_realized_pnl = realized_pnl_curve[realized_pnl_index][1]
                 realized_pnl_index += 1
 
-            net_cost = current_net_cost
-            total_pnl = None
-            if total_equity is not None and net_cost is not None:
-                total_pnl = float(total_equity) - float(net_cost)
-
+            twr = source.get("cnav_twr")
             cumulative_mtm = source.get("cnav_mtm")
             deposits = source.get("cnav_deposits") or 0.0
             change_in_unrealized = source.get("cnav_change_in_unrealized")
             realized = source.get("cnav_realized")
+
+            # Compute daily MTM
             daily_mtm = None
             daily_mtm_inferred = False
-            twr = source.get("cnav_twr")
 
-            # Primary: use changeInUnrealized + realized from ChangeInNAV.
-            # Skip when IBKR API zeroes out detail fields but TWR is non-zero.
             detail_pnl = (float(change_in_unrealized or 0) + float(realized or 0))
             detail_fields_populated = (
                 change_in_unrealized is not None
@@ -174,16 +121,11 @@ class ChartService:
             if detail_fields_populated:
                 daily_mtm = detail_pnl
             elif twr is not None and previous_total_equity is not None and previous_total_equity != 0:
-                # Fallback: derive from TWR and previous equity.
-                # More reliable than cumulative subtraction when deposits are unknown
-                # (IBKR real-time API zeroes out depositsWithdrawals).
                 daily_mtm = float(previous_total_equity) * float(twr) / 100.0
                 daily_mtm_inferred = True
-            elif cumulative_mtm is not None and previous_cumulative_mtm is not None:
-                # Fallback: cumulative difference minus deposits
-                daily_mtm = float(cumulative_mtm) - float(previous_cumulative_mtm) - float(deposits)
+            elif cumulative_mtm is not None and previous_total_equity is not None:
+                daily_mtm = float(cumulative_mtm) - float(deposits)
             elif cumulative_mtm is None and total_equity is not None and previous_total_equity is not None:
-                # Last resort: infer from equity change
                 daily_mtm = float(total_equity) - float(previous_total_equity) - daily_net_flows.get(report_date, 0.0)
                 daily_mtm_inferred = True
                 if abs(float(daily_mtm)) < INFERRED_DAILY_PNL_EPSILON:
@@ -196,23 +138,42 @@ class ChartService:
                     daily_twr = float(daily_mtm) / abs(float(previous_total_equity)) * 100.0
                 if daily_mtm_inferred and daily_mtm == 0.0:
                     daily_twr = 0.0
+
+            # Accumulate TWR-based market PnL (excludes deposit effects)
+            if daily_mtm is not None:
+                cumulative_market_pnl += float(daily_mtm)
+
+            # Compute net_cost and total_pnl
+            if cash_flows_have_value:
+                # Use actual cash flow data (ibkr-show-public approach)
+                net_cost = current_net_cost
+            else:
+                # Derive net_cost from TWR-based cumulative PnL:
+                # net_cost = total_equity - cumulative_market_pnl
+                # This automatically increases when deposits arrive (equity rises, PnL doesn't)
+                net_cost = float(total_equity or 0) - cumulative_market_pnl if total_equity is not None else 0.0
+
+            total_pnl = None
+            if total_equity is not None:
+                total_pnl = float(total_equity) - float(net_cost)
+
             # Only show daily MTM/TWR for the latest calendar month
             if not report_date.startswith(latest_calendar_month):
                 daily_mtm = None
                 daily_twr = None
 
-            items.append(EquityCurvePoint(
-                report_date=report_date,
-                total_equity=self._round_amount(total_equity),
-                total_pnl=self._round_amount(total_pnl),
-                net_cost=self._round_amount(net_cost),
-                realized_pnl=self._round_amount(current_realized_pnl),
-                daily_mtm=self._round_amount(daily_mtm),
-                daily_twr=self._round_percent(daily_twr),
-            ))
+            # Only include items within the requested display range
+            if effective_start is None or report_date >= effective_start.isoformat():
+                items.append(EquityCurvePoint(
+                    report_date=report_date,
+                    total_equity=self._round_amount(total_equity),
+                    total_pnl=self._round_amount(total_pnl),
+                    net_cost=self._round_amount(net_cost),
+                    realized_pnl=self._round_amount(current_realized_pnl),
+                    daily_mtm=self._round_amount(daily_mtm),
+                    daily_twr=self._round_percent(daily_twr),
+                ))
             previous_total_equity = float(total_equity) if total_equity is not None else previous_total_equity
-            if cumulative_mtm is not None:
-                previous_cumulative_mtm = float(cumulative_mtm)
 
         return EquityCurveResponse(items=items)
 

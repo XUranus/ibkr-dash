@@ -129,41 +129,55 @@ class AccountService:
         )
         return float(row["total"]) if row else 0.0
 
-    def _compute_net_cost(self, report_date: str, total_equity: float, cash: float) -> float:
-        """Compute net cost (total investment) from position cost basis + cash.
+    def _compute_net_cost(self, report_date: str, total_equity: float, _cash: float) -> float:
+        """Compute net cost (total investment) using TWR-based cumulative PnL.
 
-        Falls back to earliest cnav_starting_value if no cost basis data.
+        net_cost = total_equity - cumulative_market_pnl
+        where cumulative_market_pnl = Σ(daily_twr * prev_equity / 100) for all days up to report_date.
+
+        This correctly handles deposits: when a deposit arrives, total_equity rises
+        but cumulative_market_pnl doesn't (TWR excludes cash flows), so net_cost increases.
         """
-        # Try position cost basis for the given date
-        row = self.db.execute_one(
-            "SELECT COALESCE(SUM(cost_basis_money), 0.0) AS total FROM position_snapshots WHERE report_date = ?",
+        rows = self.db.execute(
+            """
+            SELECT total_equity, cnav_twr, cnav_mtm, cnav_deposits,
+                   cnav_change_in_unrealized, cnav_realized
+            FROM account_snapshots
+            WHERE report_date <= ?
+            ORDER BY report_date ASC
+            """,
             (report_date,),
         )
-        cost_basis = float(row["total"]) if row else 0.0
-        if cost_basis > 0:
-            return cost_basis + cash
+        if not rows:
+            return 0.0
 
-        # Fallback: use latest available cost basis
-        row = self.db.execute_one(
-            """
-            SELECT COALESCE(SUM(cost_basis_money), 0.0) AS total
-            FROM position_snapshots
-            WHERE cost_basis_money > 0
-            GROUP BY report_date
-            ORDER BY report_date DESC LIMIT 1
-            """,
-        )
-        if row and float(row["total"]) > 0:
-            return float(row["total"]) + cash
+        cumulative_pnl = 0.0
+        prev_equity = None
+        for row in rows:
+            equity = row.get("total_equity")
+            twr = row.get("cnav_twr")
+            cumtm = row.get("cnav_mtm")
+            deposits = row.get("cnav_deposits") or 0.0
+            chg_unreal = row.get("cnav_change_in_unrealized")
+            rlsd = row.get("cnav_realized")
 
-        # Fallback: earliest cnav_starting_value
-        row = self.db.execute_one(
-            "SELECT cnav_starting_value FROM account_snapshots WHERE cnav_starting_value > 0 ORDER BY report_date ASC LIMIT 1"
-        )
-        if row and row.get("cnav_starting_value"):
-            return float(row["cnav_starting_value"])
+            # Compute daily PnL (same logic as chart_service)
+            detail_pnl = (float(chg_unreal or 0) + float(rlsd or 0))
+            detail_ok = (
+                chg_unreal is not None and rlsd is not None
+                and not (detail_pnl == 0.0 and twr is not None and float(twr or 0) != 0.0)
+            )
+            if detail_ok:
+                cumulative_pnl += detail_pnl
+            elif twr is not None and prev_equity is not None and prev_equity != 0:
+                cumulative_pnl += float(prev_equity) * float(twr) / 100.0
+            elif cumtm is not None:
+                cumulative_pnl += float(cumtm) - float(deposits)
 
-        return 0.0
+            prev_equity = float(equity) if equity is not None else prev_equity
+
+        net_cost = float(total_equity) - cumulative_pnl
+        return max(net_cost, 0.0)
 
     @staticmethod
     def _build_delta(current: float | None, previous: float | None) -> AccountDeltaMetric | None:
