@@ -359,11 +359,12 @@ class PositionService:
         return row["report_date"] if row else None
 
     def _backfill_zero_fields(self, rows: list[dict]) -> None:
-        """Backfill zero financial fields with latest non-zero historical values.
+        """Backfill zero financial fields with computed or historical values.
 
         IBKR real-time API zeroes out cost_basis_money, fifo_pnl_unrealized,
-        and average_cost_price. This method looks up the latest non-zero value
-        for each symbol from historical position snapshots.
+        and average_cost_price. This method:
+        1. Looks up the latest non-zero historical value from position_snapshots
+        2. Falls back to FIFO cost basis computed from trade records
         """
         fields_to_backfill = [
             "cost_basis_money",
@@ -382,7 +383,7 @@ class PositionService:
         if not symbols_to_fix:
             return
 
-        # Batch query: for each symbol, get the latest non-zero values
+        # Strategy 1: look up latest non-zero historical values
         placeholders = ",".join("?" for _ in symbols_to_fix)
         backfill_rows = self.db.execute(
             f"""
@@ -403,31 +404,114 @@ class PositionService:
         )
         backfill_map: dict[str, dict] = {r["symbol"]: r for r in backfill_rows}
 
+        # Strategy 2: compute FIFO cost basis from trade records
+        still_missing = symbols_to_fix - set(backfill_map.keys())
+        fifo_map: dict[str, dict] = {}
+        if still_missing:
+            fifo_map = self._compute_fifo_cost_basis(still_missing)
+
         # Apply backfill
         for row in rows:
             sym = row.get("symbol")
-            if sym not in backfill_map:
+            if not sym:
                 continue
-            hist = backfill_map[sym]
+
+            cost = float(row.get("cost_basis_money") or 0)
+            qty = float(row.get("quantity") or 0)
+            value = float(row.get("position_value") or 0)
 
             # Backfill cost_basis_money
-            if float(row.get("cost_basis_money") or 0) == 0 and hist.get("cost_basis_money"):
-                row["cost_basis_money"] = hist["cost_basis_money"]
+            if cost == 0:
+                if sym in backfill_map and backfill_map[sym].get("cost_basis_money"):
+                    cost = float(backfill_map[sym]["cost_basis_money"])
+                    row["cost_basis_money"] = cost
+                elif sym in fifo_map:
+                    cost = fifo_map[sym]["cost_basis"]
+                    row["cost_basis_money"] = cost
 
-            # Backfill average_cost_price from cost_basis / quantity
-            if float(row.get("average_cost_price") or 0) == 0:
-                cost = float(row.get("cost_basis_money") or 0)
-                qty = float(row.get("quantity") or 0)
-                if cost > 0 and qty > 0:
-                    row["average_cost_price"] = cost / qty
+            # Backfill average_cost_price
+            if float(row.get("average_cost_price") or 0) == 0 and cost > 0 and qty > 0:
+                row["average_cost_price"] = cost / qty
 
             # Backfill unrealized PnL
-            if float(row.get("total_unrealized_pnl") or 0) == 0:
-                cost = float(row.get("cost_basis_money") or 0)
-                value = float(row.get("position_value") or 0)
-                if cost > 0:
-                    row["total_unrealized_pnl"] = value - cost
-                    row["fifo_pnl_unrealized"] = value - cost
+            if float(row.get("total_unrealized_pnl") or 0) == 0 and cost > 0:
+                unrealized = value - cost
+                row["total_unrealized_pnl"] = unrealized
+                row["fifo_pnl_unrealized"] = unrealized
+
+    def _compute_fifo_cost_basis(self, symbols: set[str]) -> dict[str, dict]:
+        """Compute FIFO cost basis for symbols from trade records.
+
+        Returns:
+            Dict mapping symbol to {cost_basis, avg_cost, realized_pnl}
+        """
+        placeholders = ",".join("?" for _ in symbols)
+        trades = self.db.execute(
+            f"""
+            SELECT symbol, trade_date, buy_sell, quantity, trade_price, net_cash
+            FROM trade_records
+            WHERE symbol IN ({placeholders})
+            ORDER BY symbol, trade_date ASC, date_time ASC
+            """,
+            tuple(symbols),
+        )
+
+        # Group trades by symbol
+        trades_by_symbol: dict[str, list[dict]] = {}
+        for t in trades:
+            sym = t["symbol"]
+            trades_by_symbol.setdefault(sym, []).append(t)
+
+        result: dict[str, dict] = {}
+        for sym, sym_trades in trades_by_symbol.items():
+            # Deduplicate trades (XML parser may create duplicates across FlexStatements)
+            seen: set[str] = set()
+            unique_trades: list[dict] = []
+            for t in sym_trades:
+                key = f"{t['trade_date']}:{t['buy_sell']}:{t['quantity']}:{t['trade_price']}"
+                if key not in seen:
+                    seen.add(key)
+                    unique_trades.append(t)
+
+            # FIFO tracking: list of (quantity, price) for open positions
+            open_positions: list[tuple[float, float]] = []
+            realized_pnl = 0.0
+
+            for t in unique_trades:
+                buy_sell = (t.get("buy_sell") or "").upper()
+                qty = abs(float(t.get("quantity") or 0))
+                price = float(t.get("trade_price") or 0)
+
+                if qty <= 0 or price <= 0:
+                    continue
+
+                if buy_sell in ("BUY", "B"):
+                    open_positions.append((qty, price))
+                elif buy_sell in ("SELL", "SS", "SL"):
+                    # Close earliest positions first (FIFO)
+                    remaining_to_close = qty
+                    while remaining_to_close > 0 and open_positions:
+                        open_qty, open_price = open_positions[0]
+                        closed_qty = min(remaining_to_close, open_qty)
+                        realized_pnl += closed_qty * (price - open_price)
+                        remaining_to_close -= closed_qty
+                        if closed_qty >= open_qty:
+                            open_positions.pop(0)
+                        else:
+                            open_positions[0] = (open_qty - closed_qty, open_price)
+
+            # Compute cost basis from remaining open positions
+            total_cost = sum(q * p for q, p in open_positions)
+            total_qty = sum(q for q, _ in open_positions)
+
+            if total_cost > 0:
+                result[sym] = {
+                    "cost_basis": total_cost,
+                    "avg_cost": total_cost / total_qty if total_qty > 0 else 0,
+                    "realized_pnl": realized_pnl,
+                }
+
+        return result
 
     def _enrich_realized_pnl(self, rows: list[dict], report_date: str) -> None:
         """Fill in total_realized_pnl from trade_records for positions missing it."""
