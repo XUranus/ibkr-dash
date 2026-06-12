@@ -105,7 +105,7 @@ export default function TradesView() {
             <StatCard title={t('trades.buyCount')} value={String(tradeSummary?.buy_count ?? 0)} tone="positive" />
             <StatCard title={t('trades.sellCount')} value={String(tradeSummary?.sell_count ?? 0)} tone="negative" />
             <StatCard title={t('trades.symbols')} value={String(tradeSummary?.symbols_count ?? 0)} tone="neutral" />
-            <StatCard title={t('trades.totalCommission')} value={formatNumber(tradeSummary?.total_commission ?? null, 4)} tone={(tradeSummary?.total_commission ?? 0) < 0 ? 'negative' : 'neutral'} />
+            <StatCard title={t('trades.totalCommission')} value={formatNumber(tradeSummary?.total_commission ?? null, 2)} tone={(tradeSummary?.total_commission ?? 0) < 0 ? 'negative' : 'neutral'} />
             <StatCard title={t('trades.realizedPnl')} value={formatNumber(tradeSummary?.total_realized_pnl ?? null)} tone={(tradeSummary?.total_realized_pnl ?? 0) >= 0 ? 'positive' : 'negative'} />
             <StatCard title={t('trades.netProceeds')} value={formatNumber(tradeSummary?.total_proceeds ?? null)} tone={(tradeSummary?.total_proceeds ?? 0) >= 0 ? 'positive' : 'negative'} />
           </section>
