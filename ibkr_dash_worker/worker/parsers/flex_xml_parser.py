@@ -12,6 +12,8 @@ from pathlib import Path
 
 from worker.parsers.base import FlexParseResult
 
+OPTION_MULTIPLIER = 100  # 1 options contract = 100 shares
+
 logger = logging.getLogger(__name__)
 
 # Backward-compatible alias
@@ -215,8 +217,8 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexParseResult]:
             # Options: IBKR reports quantity in contracts (1 contract = 100 shares)
             # Convert to shares for consistent display
             if asset_class == "OPT":
-                raw_quantity = raw_quantity * 100
-                avg_cost = avg_cost / 100 if avg_cost > 0 else avg_cost
+                raw_quantity = raw_quantity * OPTION_MULTIPLIER
+                avg_cost = avg_cost / OPTION_MULTIPLIER if avg_cost > 0 else avg_cost
                 cost_basis = cost_basis  # cost_basis is already total value
 
             result.positions.append({

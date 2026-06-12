@@ -7,6 +7,7 @@ day-over-day deltas by comparing with the previous snapshot.
 from __future__ import annotations
 
 from app.core.database import Database
+from app.utils.fifo import compute_fifo_cost_basis
 from app.schemas.account import (
     AccountDeltaMetric,
     AccountOverviewResponse,
@@ -189,7 +190,10 @@ class AccountService:
         return total_unrealized
 
     def _compute_fifo_cost_basis(self, symbols: set[str]) -> dict[str, dict]:
-        """Compute FIFO cost basis for symbols from trade records."""
+        """Compute FIFO cost basis for symbols from trade records.
+
+        Delegates to the shared FIFO utility.
+        """
         if not symbols:
             return {}
         placeholders = ",".join("?" for _ in symbols)
@@ -202,58 +206,7 @@ class AccountService:
             """,
             tuple(symbols),
         )
-
-        trades_by_symbol: dict[str, list[dict]] = {}
-        for t in trades:
-            trades_by_symbol.setdefault(t["symbol"], []).append(t)
-
-        result: dict[str, dict] = {}
-        for sym, sym_trades in trades_by_symbol.items():
-            seen: set[str] = set()
-            unique: list[dict] = []
-            for t in sym_trades:
-                key = f"{t['trade_date']}:{t['buy_sell']}:{t['quantity']}:{t['trade_price']}"
-                if key not in seen:
-                    seen.add(key)
-                    unique.append(t)
-
-            open_pos: list[tuple[float, float]] = []
-            for t in unique:
-                buy_sell = (t.get("buy_sell") or "").upper()
-                raw_qty = float(t.get("quantity") or 0)
-                price = float(t.get("trade_price") or 0)
-                # Options: IBKR reports quantity in contracts (1 = 100 shares)
-                if (t.get("asset_class") or "") == "OPT":
-                    raw_qty = raw_qty * 100
-                if raw_qty == 0 or price <= 0:
-                    continue
-                # BUY = positive, SELL = negative
-                trade_qty = raw_qty if buy_sell in ("BUY", "B") else -abs(raw_qty)
-                # Close existing positions with opposite sign first
-                remaining = trade_qty
-                while remaining != 0 and open_pos:
-                    oq, op = open_pos[0]
-                    if (remaining > 0 and oq > 0) or (remaining < 0 and oq < 0):
-                        break
-                    close_qty = min(abs(remaining), abs(oq))
-                    if remaining > 0:
-                        remaining -= close_qty
-                    else:
-                        remaining += close_qty
-                    if abs(close_qty) >= abs(oq):
-                        open_pos.pop(0)
-                    else:
-                        open_pos[0] = (oq + (close_qty if oq > 0 else -close_qty), op)
-                        break
-                if abs(remaining) > 0.001:
-                    open_pos.append((remaining, price))
-
-            total_cost = sum(abs(q) * p for q, p in open_pos)
-            total_qty = sum(q for q, _ in open_pos)
-            if total_cost > 0:
-                result[sym] = {"cost_basis": total_cost, "total_qty": total_qty}
-
-        return result
+        return compute_fifo_cost_basis(trades)
 
     def _compute_net_cost(self, report_date: str, total_equity: float, _cash: float) -> float:
         """Compute net cost (total investment) using TWR-based cumulative PnL.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from app.core.database import Database
+from app.utils.fifo import compute_fifo_cost_basis
 from app.schemas.positions import (
     PositionAssetDistributionItem,
     PositionConcentrationItem,
@@ -372,12 +373,13 @@ class PositionService:
             "fifo_pnl_unrealized",
             "average_cost_price",
         ]
+        _EPSILON = 0.01
 
         # Collect symbols that need backfilling
         symbols_to_fix: set[str] = set()
         for row in rows:
             sym = row.get("symbol")
-            if sym and any(float(row.get(f) or 0) == 0 for f in fields_to_backfill):
+            if sym and any(abs(float(row.get(f) or 0)) < _EPSILON for f in fields_to_backfill):
                 symbols_to_fix.add(sym)
 
         if not symbols_to_fix:
@@ -387,18 +389,14 @@ class PositionService:
         placeholders = ",".join("?" for _ in symbols_to_fix)
         backfill_rows = self.db.execute(
             f"""
-            SELECT symbol,
-                   cost_basis_money,
-                   total_unrealized_pnl,
-                   fifo_pnl_unrealized,
-                   average_cost_price,
-                   quantity,
-                   mark_price
-            FROM position_snapshots
-            WHERE symbol IN ({placeholders})
-              AND cost_basis_money > 0
-            GROUP BY symbol
-            HAVING report_date = MAX(report_date)
+            SELECT symbol, cost_basis_money, total_unrealized_pnl,
+                   fifo_pnl_unrealized, average_cost_price, quantity, mark_price
+            FROM (
+                SELECT *, ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY report_date DESC) AS rn
+                FROM position_snapshots
+                WHERE symbol IN ({placeholders}) AND cost_basis_money > 0
+            )
+            WHERE rn = 1
             """,
             tuple(symbols_to_fix),
         )
@@ -449,101 +447,21 @@ class PositionService:
     def _compute_fifo_cost_basis(self, symbols: set[str]) -> dict[str, dict]:
         """Compute FIFO cost basis for symbols from trade records.
 
-        Returns:
-            Dict mapping symbol to {cost_basis, avg_cost, realized_pnl}
+        Delegates to the shared FIFO utility.
         """
+        if not symbols:
+            return {}
         placeholders = ",".join("?" for _ in symbols)
         trades = self.db.execute(
             f"""
-            SELECT symbol, asset_class, trade_date, buy_sell, quantity, trade_price, net_cash
+            SELECT symbol, asset_class, trade_date, buy_sell, quantity, trade_price
             FROM trade_records
             WHERE symbol IN ({placeholders})
             ORDER BY symbol, trade_date ASC, date_time ASC
             """,
             tuple(symbols),
         )
-
-        # Group trades by symbol
-        trades_by_symbol: dict[str, list[dict]] = {}
-        for t in trades:
-            sym = t["symbol"]
-            trades_by_symbol.setdefault(sym, []).append(t)
-
-        result: dict[str, dict] = {}
-        for sym, sym_trades in trades_by_symbol.items():
-            # Deduplicate trades (XML parser may create duplicates across FlexStatements)
-            seen: set[str] = set()
-            unique_trades: list[dict] = []
-            for t in sym_trades:
-                key = f"{t['trade_date']}:{t['buy_sell']}:{t['quantity']}:{t['trade_price']}"
-                if key not in seen:
-                    seen.add(key)
-                    unique_trades.append(t)
-
-            # FIFO tracking: list of (signed_quantity, price)
-            # Positive = long, negative = short
-            open_positions: list[tuple[float, float]] = []
-            realized_pnl = 0.0
-
-            for t in unique_trades:
-                buy_sell = (t.get("buy_sell") or "").upper()
-                raw_qty = float(t.get("quantity") or 0)
-                price = float(t.get("trade_price") or 0)
-
-                # Options: IBKR reports quantity in contracts (1 = 100 shares)
-                if (t.get("asset_class") or "") == "OPT":
-                    raw_qty = raw_qty * 100
-
-                if raw_qty == 0 or price <= 0:
-                    continue
-
-                # BUY = positive, SELL = negative
-                trade_qty = raw_qty if buy_sell in ("BUY", "B") else -abs(raw_qty)
-
-                # Close existing positions with opposite sign first (FIFO)
-                remaining = trade_qty
-                while remaining != 0 and open_positions:
-                    oq, op = open_positions[0]
-                    # Same sign → can't close, break
-                    if (remaining > 0 and oq > 0) or (remaining < 0 and oq < 0):
-                        break
-                    # Opposite sign → close
-                    close_qty = min(abs(remaining), abs(oq))
-                    # Realized PnL: (exit_price - entry_price) * quantity_for_long
-                    # For short: (entry_price - exit_price) * quantity
-                    if oq > 0:  # closing long
-                        realized_pnl += close_qty * (price - op)
-                    else:  # closing short
-                        realized_pnl += close_qty * (op - price)
-                    # Reduce remaining: positive trades shrink, negative trades grow
-                    if remaining > 0:
-                        remaining -= close_qty
-                    else:
-                        remaining += close_qty
-                    if abs(close_qty) >= abs(oq):
-                        open_positions.pop(0)
-                    else:
-                        # Partially close: adjust the open position quantity
-                        open_positions[0] = (oq + (close_qty if oq > 0 else -close_qty), op)
-                        break
-
-                # Open new position with remaining quantity
-                if abs(remaining) > 0.001:
-                    open_positions.append((remaining, price))
-
-            # Compute cost basis from remaining open positions
-            total_cost = sum(abs(q) * p for q, p in open_positions)
-            total_qty = sum(q for q, _ in open_positions)
-
-            if total_cost > 0:
-                result[sym] = {
-                    "cost_basis": total_cost,
-                    "avg_cost": total_cost / abs(total_qty) if total_qty != 0 else 0,
-                    "total_qty": total_qty,
-                    "realized_pnl": realized_pnl,
-                }
-
-        return result
+        return compute_fifo_cost_basis(trades)
 
     def _enrich_realized_pnl(self, rows: list[dict], report_date: str) -> None:
         """Fill in total_realized_pnl from trade_records for positions missing it."""
