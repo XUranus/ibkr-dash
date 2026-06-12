@@ -98,10 +98,30 @@ class AccountService:
             """,
             (report_date,),
         )
-        return float(row["total"]) if row else 0.0
+        fifo_total = float(row["total"]) if row else 0.0
+
+        # If FIFO PnL is 0, try to compute from trade mtm_pnl (for Flex XML data)
+        if fifo_total == 0:
+            row = self.db.execute_one(
+                """
+                SELECT COALESCE(SUM(CAST(json_extract(raw_json, '$.mtmPnl') AS REAL)), 0.0) AS total
+                FROM trade_records
+                WHERE trade_date <= ? AND raw_json IS NOT NULL
+                """,
+                (report_date,),
+            )
+            mtm_total = float(row["total"]) if row else 0.0
+            if mtm_total != 0:
+                return mtm_total
+
+        return fifo_total
 
     def _compute_unrealized_pnl(self, report_date: str) -> float:
-        """Sum unrealized PnL from position snapshots for the given date."""
+        """Compute unrealized PnL.
+
+        First tries position_snapshots.total_unrealized_pnl.
+        Falls back to ChangeInNAV cumulative MTM if positions have no PnL data.
+        """
         row = self.db.execute_one(
             """
             SELECT COALESCE(SUM(total_unrealized_pnl), 0.0) AS total
@@ -110,7 +130,21 @@ class AccountService:
             """,
             (report_date,),
         )
-        return float(row["total"]) if row else 0.0
+        total = float(row["total"]) if row else 0.0
+
+        if total != 0:
+            return total
+
+        # Fallback: compute cumulative MTM from account_snapshots as proxy for unrealized PnL
+        rows = self.db.execute(
+            "SELECT COALESCE(SUM(cnav_mtm), 0.0) AS cumulative_mtm FROM account_snapshots WHERE report_date <= ?",
+            (report_date,),
+        )
+        cumulative_mtm = float(rows[0]["cumulative_mtm"]) if rows else 0.0
+
+        # Subtract realized PnL to get unrealized component
+        realized = self._compute_realized_pnl(report_date)
+        return cumulative_mtm - realized if cumulative_mtm != 0 else 0.0
 
     @staticmethod
     def _build_delta(current: float | None, previous: float | None) -> AccountDeltaMetric | None:
