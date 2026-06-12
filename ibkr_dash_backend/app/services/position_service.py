@@ -426,7 +426,14 @@ class PositionService:
                     cost = float(backfill_map[sym]["cost_basis_money"])
                     row["cost_basis_money"] = cost
                 elif sym in fifo_map:
-                    cost = fifo_map[sym]["cost_basis"]
+                    fifo_cost = fifo_map[sym]["cost_basis"]
+                    fifo_qty = fifo_map[sym].get("total_qty", 0)
+                    # Scale if FIFO quantity doesn't match actual position
+                    # (happens when trade history is incomplete)
+                    if fifo_qty > 0 and qty > 0 and abs(fifo_qty - qty) > 0.01:
+                        cost = fifo_cost * (qty / fifo_qty)
+                    else:
+                        cost = fifo_cost
                     row["cost_basis_money"] = cost
 
             # Backfill average_cost_price
@@ -508,6 +515,7 @@ class PositionService:
                 result[sym] = {
                     "cost_basis": total_cost,
                     "avg_cost": total_cost / total_qty if total_qty > 0 else 0,
+                    "total_qty": total_qty,
                     "realized_pnl": realized_pnl,
                 }
 

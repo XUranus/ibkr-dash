@@ -132,10 +132,11 @@ class AccountService:
         return float(row["total"]) if row else 0.0
 
     def _compute_unrealized_from_positions(self, report_date: str) -> float:
-        """Compute unrealized PnL from position snapshots (ibkr-show-public approach).
+        """Compute unrealized PnL from position snapshots.
 
-        Uses SUM(fifo_pnl_unrealized) from position_snapshots.
-        Falls back to latest available position data if current day has none.
+        Uses SUM(fifo_pnl_unrealized) when available.
+        Falls back to SUM(position_value - cost_basis_money) when unrealized is 0.
+        Falls back to computing cost basis from trades via FIFO.
         """
         # Try the given date
         row = self.db.execute_one(
@@ -146,17 +147,102 @@ class AccountService:
         if val != 0:
             return val
 
-        # Fallback: latest available non-zero unrealized
+        # Fallback: compute from position_value - cost_basis_money
         row = self.db.execute_one(
             """
-            SELECT COALESCE(SUM(fifo_pnl_unrealized), 0.0) AS total
+            SELECT COALESCE(SUM(position_value - cost_basis_money), 0.0) AS total
             FROM position_snapshots
-            WHERE fifo_pnl_unrealized != 0
-            GROUP BY report_date
-            ORDER BY report_date DESC LIMIT 1
+            WHERE report_date = ? AND cost_basis_money > 0
             """,
+            (report_date,),
         )
-        return float(row["total"]) if row and float(row["total"]) != 0 else 0.0
+        val = float(row["total"]) if row else 0.0
+        if val != 0:
+            return val
+
+        # Fallback: compute cost basis from trades via FIFO
+        positions = self.db.execute(
+            "SELECT symbol, quantity, position_value FROM position_snapshots WHERE report_date = ?",
+            (report_date,),
+        )
+        if not positions:
+            return 0.0
+
+        symbols = {p["symbol"] for p in positions if p.get("symbol")}
+        if not symbols:
+            return 0.0
+
+        fifo_map = self._compute_fifo_cost_basis(symbols)
+        total_unrealized = 0.0
+        for p in positions:
+            sym = p.get("symbol")
+            qty = float(p.get("quantity") or 0)
+            value = float(p.get("position_value") or 0)
+            if sym in fifo_map:
+                fifo_cost = fifo_map[sym]["cost_basis"]
+                fifo_qty = fifo_map[sym]["total_qty"]
+                if fifo_qty > 0 and qty > 0 and abs(fifo_qty - qty) > 0.01:
+                    cost = fifo_cost * (qty / fifo_qty)
+                else:
+                    cost = fifo_cost
+                total_unrealized += value - cost
+        return total_unrealized
+
+    def _compute_fifo_cost_basis(self, symbols: set[str]) -> dict[str, dict]:
+        """Compute FIFO cost basis for symbols from trade records."""
+        if not symbols:
+            return {}
+        placeholders = ",".join("?" for _ in symbols)
+        trades = self.db.execute(
+            f"""
+            SELECT symbol, trade_date, buy_sell, quantity, trade_price
+            FROM trade_records
+            WHERE symbol IN ({placeholders})
+            ORDER BY symbol, trade_date ASC, date_time ASC
+            """,
+            tuple(symbols),
+        )
+
+        trades_by_symbol: dict[str, list[dict]] = {}
+        for t in trades:
+            trades_by_symbol.setdefault(t["symbol"], []).append(t)
+
+        result: dict[str, dict] = {}
+        for sym, sym_trades in trades_by_symbol.items():
+            seen: set[str] = set()
+            unique: list[dict] = []
+            for t in sym_trades:
+                key = f"{t['trade_date']}:{t['buy_sell']}:{t['quantity']}:{t['trade_price']}"
+                if key not in seen:
+                    seen.add(key)
+                    unique.append(t)
+
+            open_pos: list[tuple[float, float]] = []
+            for t in unique:
+                buy_sell = (t.get("buy_sell") or "").upper()
+                qty = abs(float(t.get("quantity") or 0))
+                price = float(t.get("trade_price") or 0)
+                if qty <= 0 or price <= 0:
+                    continue
+                if buy_sell in ("BUY", "B"):
+                    open_pos.append((qty, price))
+                elif buy_sell in ("SELL", "SS", "SL"):
+                    remaining = qty
+                    while remaining > 0 and open_pos:
+                        oq, op = open_pos[0]
+                        closed = min(remaining, oq)
+                        remaining -= closed
+                        if closed >= oq:
+                            open_pos.pop(0)
+                        else:
+                            open_pos[0] = (oq - closed, op)
+
+            total_cost = sum(q * p for q, p in open_pos)
+            total_qty = sum(q for q, _ in open_pos)
+            if total_cost > 0:
+                result[sym] = {"cost_basis": total_cost, "total_qty": total_qty}
+
+        return result
 
     def _compute_net_cost(self, report_date: str, total_equity: float, _cash: float) -> float:
         """Compute net cost (total investment) using TWR-based cumulative PnL.
