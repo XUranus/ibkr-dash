@@ -26,6 +26,15 @@ class FlexXmlResult:
     account_snapshot: dict = field(default_factory=dict)
 
 
+import re as _re
+
+# Month name mapping for dd-MMM-yy format
+_MONTH_MAP = {
+    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+    "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+}
+
+
 def _safe_float(value: str | None, default: float = 0.0) -> float:
     """Safely convert a string to float."""
     if value is None:
@@ -37,32 +46,114 @@ def _safe_float(value: str | None, default: float = 0.0) -> float:
 
 
 def _format_date(raw: str | None) -> str:
-    """Convert IBKR date to ISO format (YYYY-MM-DD).
+    """Convert various date formats to ISO (YYYY-MM-DD).
 
-    Handles both YYYYMMDD and YYYY-MM-DD formats.
+    Supported formats:
+      YYYYMMDD        (20260611)
+      YYYY-MM-dd      (2026-06-11)
+      MM/dd/yy        (06/11/26)
+      MM/dd/yyyy      (06/11/2026)
+      dd/MM/yy        (11/06/26)
+      dd/MM/yyyy      (11/06/2026)
+      dd-MMM-yy      (11-Jun-26)
+      dd-MMM-yyyy    (11-Jun-2026)
     """
     if not raw:
         return ""
-    # Already in YYYY-MM-DD format
-    if len(raw) == 10 and raw[4] == '-' and raw[7] == '-':
+    raw = raw.strip()
+
+    # Already ISO: YYYY-MM-dd
+    if _re.match(r"^\d{4}-\d{2}-\d{2}$", raw):
         return raw
-    # YYYYMMDD format
-    if len(raw) == 8 and raw.isdigit():
+
+    # YYYYMMDD
+    if _re.match(r"^\d{8}$", raw):
         return f"{raw[:4]}-{raw[4:6]}-{raw[6:8]}"
+
+    # dd-MMM-yy or dd-MMM-yyyy (e.g., 11-Jun-26, 11-Jun-2026)
+    m = _re.match(r"^(\d{1,2})-([A-Za-z]{3})-(\d{2,4})$", raw)
+    if m:
+        day, mon_str, year = m.groups()
+        mon = _MONTH_MAP.get(mon_str.lower())
+        if mon:
+            yr = int(year)
+            if yr < 100:
+                yr += 2000
+            return f"{yr}-{mon:02d}-{int(day):02d}"
+
+    # Slash-separated: MM/dd/yy, MM/dd/yyyy, dd/MM/yy, dd/MM/yyyy
+    if "/" in raw:
+        parts = raw.split("/")
+        if len(parts) == 3:
+            a, b, c = parts
+            a, b = int(a), int(b)
+            yr = int(c)
+            if yr < 100:
+                yr += 2000
+            # Heuristic: if first part > 12, it's dd/MM; otherwise MM/dd
+            if a > 12:
+                return f"{yr}-{b:02d}-{a:02d}"
+            else:
+                return f"{yr}-{a:02d}-{b:02d}"
+
     return raw
 
 
 def _format_datetime(raw: str | None) -> str:
-    """Convert IBKR datetime (YYYYMMDD;HHMMSS) to ISO format."""
+    """Convert various datetime formats to ISO (YYYY-MM-ddTHH:MM:SS).
+
+    Supported separators between date and time: ;, space, T
+    Supported time formats:
+      HHmmss           (143022)
+      HH:mm:ss         (14:30:22)
+      HH:mm:ss TZ      (14:30:22 EST)
+      HH:mm TZ         (14:30 EST)
+    """
     if not raw:
         return ""
-    parts = raw.split(";")
-    if len(parts) == 2:
-        date_part = _format_date(parts[0])
-        time_part = parts[1]
-        if len(time_part) >= 6:
-            return f"{date_part}T{time_part[:2]}:{time_part[2:4]}:{time_part[4:6]}"
-    return _format_date(raw)
+    raw = raw.strip()
+
+    # Split on ; or T or space (but not timezone abbreviations)
+    # Try common separators
+    date_part = raw
+    time_part = ""
+    for sep in [";", "T"]:
+        if sep in raw:
+            date_part, time_part = raw.split(sep, 1)
+            break
+    # Try space separator only if the second part looks like a time
+    if not time_part and " " in raw:
+        parts = raw.split()
+        if len(parts) >= 2 and ":" in parts[1]:
+            date_part = parts[0]
+            time_part = " ".join(parts[1:])
+
+    date_iso = _format_date(date_part)
+    if not time_part:
+        return date_iso
+
+    time_part = time_part.strip()
+    # Strip timezone suffix (e.g., " EST", " +0800")
+    time_clean = _re.sub(r"\s*[A-Z]{2,4}$", "", time_part).strip()
+    time_clean = _re.sub(r"\s*[+-]\d{4}$", "", time_clean).strip()
+
+    # HHmmss (6 digits)
+    if _re.match(r"^\d{6}$", time_clean):
+        return f"{date_iso}T{time_clean[:2]}:{time_clean[2:4]}:{time_clean[4:6]}"
+
+    # HHmm (4 digits, no seconds)
+    if _re.match(r"^\d{4}$", time_clean):
+        return f"{date_iso}T{time_clean[:2]}:{time_clean[2:4]}:00"
+
+    # HH:mm:ss or HH:mm
+    if ":" in time_clean:
+        parts = time_clean.split(":")
+        h = parts[0].zfill(2)
+        m = parts[1].zfill(2) if len(parts) > 1 else "00"
+        s = parts[2].zfill(2) if len(parts) > 2 else "00"
+        return f"{date_iso}T{h}:{m}:{s}"
+
+    return date_iso
 
 
 def parse_flex_xml(xml_path: str | Path) -> list[FlexXmlResult]:
