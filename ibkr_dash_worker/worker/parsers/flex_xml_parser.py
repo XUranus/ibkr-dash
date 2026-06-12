@@ -209,18 +209,28 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexParseResult]:
                 avg_cost = avg_cost * fx_rate
                 cost_basis = cost_basis * fx_rate
                 pnl_unrealized = pnl_unrealized * fx_rate
+            asset_class = pos.get("assetCategory", "")
+            raw_quantity = _safe_float(pos.get("position"))
+
+            # Options: IBKR reports quantity in contracts (1 contract = 100 shares)
+            # Convert to shares for consistent display
+            if asset_class == "OPT":
+                raw_quantity = raw_quantity * 100
+                avg_cost = avg_cost / 100 if avg_cost > 0 else avg_cost
+                cost_basis = cost_basis  # cost_basis is already total value
+
             result.positions.append({
                 "account_id": account_id,
                 "report_date": report_date,
                 "symbol": symbol,
                 "description": pos.get("description", ""),
-                "asset_class": pos.get("assetCategory", ""),
+                "asset_class": asset_class,
                 "conid": pos.get("conid", ""),
                 "isin": pos.get("isin", ""),
                 "listing_exchange": pos.get("listingExchange", ""),
                 "currency": currency,
                 "fx_rate_to_base": fx_rate,
-                "quantity": _safe_float(pos.get("position")),
+                "quantity": raw_quantity,
                 "mark_price": mark_price,
                 "position_value": position_value,
                 "average_cost_price": avg_cost,

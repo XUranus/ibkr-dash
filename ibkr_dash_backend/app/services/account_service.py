@@ -195,7 +195,7 @@ class AccountService:
         placeholders = ",".join("?" for _ in symbols)
         trades = self.db.execute(
             f"""
-            SELECT symbol, trade_date, buy_sell, quantity, trade_price
+            SELECT symbol, asset_class, trade_date, buy_sell, quantity, trade_price
             FROM trade_records
             WHERE symbol IN ({placeholders})
             ORDER BY symbol, trade_date ASC, date_time ASC
@@ -222,6 +222,9 @@ class AccountService:
                 buy_sell = (t.get("buy_sell") or "").upper()
                 qty = abs(float(t.get("quantity") or 0))
                 price = float(t.get("trade_price") or 0)
+                # Options: IBKR reports quantity in contracts (1 = 100 shares)
+                if (t.get("asset_class") or "") == "OPT":
+                    qty = qty * 100
                 if qty <= 0 or price <= 0:
                     continue
                 if buy_sell in ("BUY", "B"):
