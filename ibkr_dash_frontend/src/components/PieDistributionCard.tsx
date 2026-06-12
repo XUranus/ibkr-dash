@@ -19,8 +19,8 @@ interface Props {
 export default function PieDistributionCard({ title, subtitle, items }: Props) {
   const { t } = useTranslation()
   const [hoveredItem, setHoveredItem] = useState<PieSegmentItem | null>(null)
-  const chartSize = 220
-  const strokeWidth = 30
+  const chartSize = 160
+  const strokeWidth = 22
   const radius = (chartSize - strokeWidth) / 2
   const circumference = 2 * Math.PI * radius
 
@@ -64,7 +64,7 @@ export default function PieDistributionCard({ title, subtitle, items }: Props) {
           <div className="empty-state" style={{ minHeight: 280 }}>{t('common.noData')}</div>
         ) : (
           <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
-            <div style={{ position: 'relative', width: 240, height: 240, justifySelf: 'center' }}>
+            <div style={{ position: 'relative', width: 180, height: 180, justifySelf: 'center' }}>
               <svg viewBox={`0 0 ${chartSize} ${chartSize}`} style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
                 <circle cx={chartSize / 2} cy={chartSize / 2} r={radius} fill="none" stroke="rgba(129, 160, 207, 0.12)" strokeWidth={strokeWidth} />
                 {chartSegments.map((seg) => (

@@ -182,6 +182,7 @@ export default function PositionsView() {
   function classifyAssetBucket(item: PositionItem): string {
     const desc = `${item.description ?? ''}`.toUpperCase()
     const sym = `${item.symbol ?? ''}`.toUpperCase()
+    if (item.asset_class === 'OPT') return 'Options'
     if (desc.includes('TREASURY') || desc.includes('BOND') || desc.includes('0-3 MONTH') || sym === 'SGOV') return 'Fixed Income'
     if (item.asset_class === 'STK') return 'Stocks'
     return 'Other'
@@ -251,6 +252,7 @@ export default function PositionsView() {
   const assetPieItems = useMemo<PieSegmentItem[]>(() => {
     const buckets = new Map<string, { value: number; members: string[] }>([
       ['Stocks', { value: 0, members: [] }],
+      ['Options', { value: 0, members: [] }],
       ['Fixed Income', { value: 0, members: [] }],
       ['Cash', { value: Math.max(overview?.cash ?? 0, 0), members: ['Account Cash'] }],
     ])
@@ -262,9 +264,10 @@ export default function PositionsView() {
       buckets.set(bucket, cur)
     })
     return [
-      { label: t('positions.stocks'), value: buckets.get('Stocks')?.value ?? 0, color: '#56d5ff', note: t('positions.stockAdrHoldings'), members: buckets.get('Stocks')?.members },
-      { label: t('positions.fixedIncome'), value: buckets.get('Fixed Income')?.value ?? 0, color: '#6ee7b7', note: t('positions.treasuryBondEtfs'), members: buckets.get('Fixed Income')?.members },
-      { label: t('positions.cash'), value: buckets.get('Cash')?.value ?? 0, color: '#8b7cff', note: t('positions.accountCashBalance'), members: [t('positions.usdCash')] },
+      { label: 'Stocks', value: buckets.get('Stocks')?.value ?? 0, color: '#56d5ff', note: 'Stocks, ADRs, ETFs', members: buckets.get('Stocks')?.members },
+      { label: 'Options', value: buckets.get('Options')?.value ?? 0, color: '#ffb454', note: 'Options contracts', members: buckets.get('Options')?.members },
+      { label: 'Fixed Income', value: buckets.get('Fixed Income')?.value ?? 0, color: '#6ee7b7', note: 'Treasury & bond ETFs', members: buckets.get('Fixed Income')?.members },
+      { label: 'Cash', value: buckets.get('Cash')?.value ?? 0, color: '#8b7cff', note: 'Account cash balance', members: ['USD Cash'] },
     ].filter((item) => item.value > 0)
   }, [response, overview, t])
 
@@ -292,8 +295,17 @@ export default function PositionsView() {
       cur.members.push(item.symbol ?? item.description ?? '--')
       buckets.set(industry, cur)
     })
-    return Array.from(buckets.entries())
-      .sort((a, b) => b[1].value - a[1].value)
+    // Top 5 industries + aggregate the rest into "Other"
+    const sorted = Array.from(buckets.entries()).sort((a, b) => b[1].value - a[1].value)
+    const top5 = sorted.slice(0, 5)
+    const rest = sorted.slice(5)
+    if (rest.length > 0) {
+      const otherValue = rest.reduce((sum, [, d]) => sum + d.value, 0)
+      const otherMembers = rest.flatMap(([, d]) => d.members)
+      top5.push(['Other', { value: otherValue, members: otherMembers }])
+    }
+    return top5
+      .filter(([, data]) => data.value > 0)
       .map(([label, data], i) => ({
         label, value: data.value, color: palette[i % palette.length],
         note: noteMap[label] ?? label,
