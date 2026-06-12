@@ -65,6 +65,24 @@ export default function PieDistributionCard({ title, subtitle, items }: Props) {
         ) : (
           <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
             <div style={{ position: 'relative', width: 180, height: 180, justifySelf: 'center' }}>
+              {/* Floating tooltip on hover */}
+              {hoveredItem && hoveredItem.members && hoveredItem.members.length > 0 && (
+                <div style={{
+                  position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
+                  marginBottom: 8, padding: '8px 12px', borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-bg-panel-strong)', border: '1px solid var(--color-border-strong)',
+                  boxShadow: 'var(--shadow-elevated)', zIndex: 10, minWidth: 160, maxWidth: 280,
+                  pointerEvents: 'none',
+                }}>
+                  <div style={{ fontSize: '0.72rem', color: hoveredItem.color, fontWeight: 600, marginBottom: 4 }}>
+                    {hoveredItem.label} · {pct(hoveredItem.value)}
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                    {hoveredItem.members.slice(0, 10).join(', ')}
+                    {hoveredItem.members.length > 10 && ` +${hoveredItem.members.length - 10} more`}
+                  </div>
+                </div>
+              )}
               <svg viewBox={`0 0 ${chartSize} ${chartSize}`} style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
                 <circle cx={chartSize / 2} cy={chartSize / 2} r={radius} fill="none" stroke="rgba(129, 160, 207, 0.12)" strokeWidth={strokeWidth} />
                 {chartSegments.map((seg) => (
@@ -86,8 +104,18 @@ export default function PieDistributionCard({ title, subtitle, items }: Props) {
                 ))}
               </svg>
               <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'grid', gap: 4, textAlign: 'center' }}>
-                <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.82rem' }}>{t('common.total')}</span>
-                <strong style={{ fontSize: '1.05rem' }}>{formatNumber(total, 2)}</strong>
+                {hoveredItem ? (
+                  <>
+                    <span style={{ color: hoveredItem.color, fontSize: '0.82rem', fontWeight: 600 }}>{hoveredItem.label}</span>
+                    <strong style={{ fontSize: '1.05rem' }}>{formatNumber(hoveredItem.value, 2)}</strong>
+                    <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.78rem' }}>{pct(hoveredItem.value)}</span>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.82rem' }}>{t('common.total')}</span>
+                    <strong style={{ fontSize: '1.05rem' }}>{formatNumber(total, 2)}</strong>
+                  </>
+                )}
               </div>
             </div>
 
