@@ -187,7 +187,7 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexXmlResult]:
             mark_price = _safe_float(pos.get("markPrice"))
             position_value = _safe_float(pos.get("positionValue"))
             avg_cost = _safe_float(pos.get("averageCost"))
-            cost_basis = _safe_float(pos.get("costBasis"))
+            cost_basis = _safe_float(pos.get("costBasis")) or _safe_float(pos.get("costBasisMoney"))
             pnl_unrealized = _safe_float(pos.get("fifoPnlUnrealized"))
             if currency != "USD" and fx_rate > 0:
                 mark_price = mark_price * fx_rate

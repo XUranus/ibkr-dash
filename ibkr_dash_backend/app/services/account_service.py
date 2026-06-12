@@ -116,9 +116,9 @@ class AccountService:
         """Compute unrealized PnL from position snapshots.
 
         Uses position_value - (quantity * average_cost_price) for each position.
-        Falls back to cumulative MTM if cost basis is not available.
+        Falls back to latest available position data if current day has none.
         """
-        # Try to compute from position data
+        # Try to compute from position data for the given date
         rows = self.db.execute(
             "SELECT COALESCE(SUM(total_unrealized_pnl), 0.0) AS total FROM position_snapshots WHERE report_date = ?",
             (report_date,),
@@ -127,12 +127,20 @@ class AccountService:
         if total != 0:
             return total
 
-        # Fallback: cumulative MTM from account snapshots
-        rows = self.db.execute(
-            "SELECT COALESCE(SUM(cnav_mtm), 0.0) AS cumulative_mtm FROM account_snapshots WHERE report_date <= ?",
-            (report_date,),
+        # Fallback: use the latest available position unrealized PnL
+        row = self.db.execute_one(
+            """
+            SELECT COALESCE(SUM(total_unrealized_pnl), 0.0) AS total, report_date
+            FROM position_snapshots
+            WHERE total_unrealized_pnl != 0
+            GROUP BY report_date
+            ORDER BY report_date DESC LIMIT 1
+            """,
         )
-        return float(rows[0]["cumulative_mtm"]) if rows else 0.0
+        if row and float(row["total"]) != 0:
+            return float(row["total"])
+
+        return 0.0
 
     @staticmethod
     def _build_delta(current: float | None, previous: float | None) -> AccountDeltaMetric | None:

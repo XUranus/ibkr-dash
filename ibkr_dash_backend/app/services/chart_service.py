@@ -79,19 +79,50 @@ class ChartService:
         daily_net_flows = self._build_daily_net_flows(cash_flow_rows)
 
         # Fallback: when cash flows have zero amounts (IBKR API zeroes them),
-        # use the earliest cnav_starting_value as the initial net cost.
+        # compute net cost from position cost basis data.
         initial_net_cost = 0.0
         cash_flows_have_value = any(abs(p[1]) > 0.01 for p in cash_flow_curve) if cash_flow_curve else False
         if not cash_flows_have_value:
-            earliest_starting = self.db.execute_one(
+            # Try to get net cost from position cost basis + cash
+            cost_basis_row = self.db.execute_one(
                 """
-                SELECT cnav_starting_value FROM account_snapshots
-                WHERE cnav_starting_value > 0
-                ORDER BY report_date ASC LIMIT 1
+                SELECT
+                    COALESCE(SUM(cost_basis_money), 0) AS total_cost_basis,
+                    ps.report_date
+                FROM position_snapshots ps
+                WHERE cost_basis_money > 0
+                GROUP BY ps.report_date
+                ORDER BY ps.report_date DESC LIMIT 1
                 """,
             )
-            if earliest_starting and earliest_starting.get("cnav_starting_value"):
-                initial_net_cost = float(earliest_starting["cnav_starting_value"])
+            if cost_basis_row and float(cost_basis_row["total_cost_basis"]) > 0:
+                # net_cost = cost_basis + cash = cost_basis + (total_equity - position_value)
+                cost_date = cost_basis_row["report_date"]
+                snapshot = self.db.execute_one(
+                    "SELECT total_equity FROM account_snapshots WHERE report_date = ?",
+                    (cost_date,),
+                )
+                pos_value_row = self.db.execute_one(
+                    "SELECT COALESCE(SUM(position_value), 0) AS total FROM position_snapshots WHERE report_date = ?",
+                    (cost_date,),
+                )
+                if snapshot and pos_value_row:
+                    total_eq = float(snapshot["total_equity"] or 0)
+                    pos_val = float(pos_value_row["total"] or 0)
+                    cost_basis = float(cost_basis_row["total_cost_basis"])
+                    cash_balance = max(total_eq - pos_val, 0)
+                    initial_net_cost = cost_basis + cash_balance
+            # Fallback to cnav_starting_value
+            if initial_net_cost == 0:
+                earliest_starting = self.db.execute_one(
+                    """
+                    SELECT cnav_starting_value FROM account_snapshots
+                    WHERE cnav_starting_value > 0
+                    ORDER BY report_date ASC LIMIT 1
+                    """,
+                )
+                if earliest_starting and earliest_starting.get("cnav_starting_value"):
+                    initial_net_cost = float(earliest_starting["cnav_starting_value"])
 
         # Build realized PnL curve
         realized_pnl_curve = self._build_realized_pnl_curve(account_id, effective_end)
