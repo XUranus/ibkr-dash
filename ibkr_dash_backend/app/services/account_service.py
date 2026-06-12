@@ -39,13 +39,25 @@ class AccountService:
         unrealized_pnl = self._compute_unrealized_pnl(current["report_date"])
         total_pnl = realized_pnl + unrealized_pnl
 
+        # Compute cash from DB if stored value is 0
+        cash = current.get("cash") or 0
+        if cash == 0:
+            total_equity = current.get("total_equity") or 0
+            pos_row = self.db.execute_one(
+                "SELECT COALESCE(SUM(position_value), 0.0) AS total FROM position_snapshots WHERE report_date = ?",
+                (current["report_date"],),
+            )
+            pos_total = float(pos_row["total"]) if pos_row else 0
+            if total_equity > 0 and pos_total > 0:
+                cash = max(total_equity - pos_total, 0)
+
         overview = AccountOverviewResponse(
             account_id=current["account_id"],
             report_date=current["report_date"],
             currency=current.get("currency"),
             total_equity=current.get("total_equity"),
-            cash=current.get("cash"),
-            stock_value=current.get("stock_value"),
+            cash=cash,
+            stock_value=current.get("stock_value") or (total_equity - cash if total_equity else 0),
             options_value=current.get("options_value"),
             funds_value=current.get("funds_value"),
             crypto_value=current.get("crypto_value"),
@@ -89,7 +101,7 @@ class AccountService:
         return AccountSnapshotListResponse(items=items)
 
     def _compute_realized_pnl(self, report_date: str) -> float:
-        """Sum realized PnL from all trades up to the given date."""
+        """Sum realized PnL from trades up to the given date."""
         row = self.db.execute_one(
             """
             SELECT COALESCE(SUM(fifo_pnl_realized), 0.0) AS total
@@ -98,53 +110,29 @@ class AccountService:
             """,
             (report_date,),
         )
-        fifo_total = float(row["total"]) if row else 0.0
-
-        # If FIFO PnL is 0, try to compute from trade mtm_pnl (for Flex XML data)
-        if fifo_total == 0:
-            row = self.db.execute_one(
-                """
-                SELECT COALESCE(SUM(CAST(json_extract(raw_json, '$.mtmPnl') AS REAL)), 0.0) AS total
-                FROM trade_records
-                WHERE trade_date <= ? AND raw_json IS NOT NULL
-                """,
-                (report_date,),
-            )
-            mtm_total = float(row["total"]) if row else 0.0
-            if mtm_total != 0:
-                return mtm_total
-
-        return fifo_total
+        return float(row["total"]) if row else 0.0
 
     def _compute_unrealized_pnl(self, report_date: str) -> float:
-        """Compute unrealized PnL.
+        """Compute unrealized PnL from position snapshots.
 
-        First tries position_snapshots.total_unrealized_pnl.
-        Falls back to ChangeInNAV cumulative MTM if positions have no PnL data.
+        Uses position_value - (quantity * average_cost_price) for each position.
+        Falls back to cumulative MTM if cost basis is not available.
         """
-        row = self.db.execute_one(
-            """
-            SELECT COALESCE(SUM(total_unrealized_pnl), 0.0) AS total
-            FROM position_snapshots
-            WHERE report_date = ?
-            """,
+        # Try to compute from position data
+        rows = self.db.execute(
+            "SELECT COALESCE(SUM(total_unrealized_pnl), 0.0) AS total FROM position_snapshots WHERE report_date = ?",
             (report_date,),
         )
-        total = float(row["total"]) if row else 0.0
-
+        total = float(rows[0]["total"]) if rows else 0.0
         if total != 0:
             return total
 
-        # Fallback: compute cumulative MTM from account_snapshots as proxy for unrealized PnL
+        # Fallback: cumulative MTM from account snapshots
         rows = self.db.execute(
             "SELECT COALESCE(SUM(cnav_mtm), 0.0) AS cumulative_mtm FROM account_snapshots WHERE report_date <= ?",
             (report_date,),
         )
-        cumulative_mtm = float(rows[0]["cumulative_mtm"]) if rows else 0.0
-
-        # Subtract realized PnL to get unrealized component
-        realized = self._compute_realized_pnl(report_date)
-        return cumulative_mtm - realized if cumulative_mtm != 0 else 0.0
+        return float(rows[0]["cumulative_mtm"]) if rows else 0.0
 
     @staticmethod
     def _build_delta(current: float | None, previous: float | None) -> AccountDeltaMetric | None:

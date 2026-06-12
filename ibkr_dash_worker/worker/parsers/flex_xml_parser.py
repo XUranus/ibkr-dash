@@ -37,10 +37,19 @@ def _safe_float(value: str | None, default: float = 0.0) -> float:
 
 
 def _format_date(raw: str | None) -> str:
-    """Convert IBKR date (YYYYMMDD) to ISO format (YYYY-MM-DD)."""
-    if not raw or len(raw) < 8:
-        return raw or ""
-    return f"{raw[:4]}-{raw[4:6]}-{raw[6:8]}"
+    """Convert IBKR date to ISO format (YYYY-MM-DD).
+
+    Handles both YYYYMMDD and YYYY-MM-DD formats.
+    """
+    if not raw:
+        return ""
+    # Already in YYYY-MM-DD format
+    if len(raw) == 10 and raw[4] == '-' and raw[7] == '-':
+        return raw
+    # YYYYMMDD format
+    if len(raw) == 8 and raw.isdigit():
+        return f"{raw[:4]}-{raw[4:6]}-{raw[6:8]}"
+    return raw
 
 
 def _format_datetime(raw: str | None) -> str:
@@ -211,9 +220,11 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexXmlResult]:
         nav = stmt.find(".//ChangeInNAV")
         if nav is not None:
             ending_value = _safe_float(nav.get("endingValue"))
-            mtm = _safe_float(nav.get("mtm"))
-            realized = _safe_float(nav.get("realized"))
+            starting_value = _safe_float(nav.get("startingValue"))
             twr = _safe_float(nav.get("twr"))
+
+            # Compute MTM from starting/ending values (more reliable than mtm field)
+            mtm = ending_value - starting_value if starting_value > 0 else _safe_float(nav.get("mtm"))
 
             # Compute cash: try CashReport first, then estimate from equity - positions
             cash_balance = 0.0
@@ -241,8 +252,8 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexXmlResult]:
                 "stock_value": ending_value - cash_balance,
                 "cnav_mtm": mtm,
                 "cnav_twr": twr,
-                "fifo_total_realized_pnl": realized,
-                "fifo_total_unrealized_pnl": mtm - realized if mtm and realized else 0,
+                "fifo_total_realized_pnl": 0,
+                "fifo_total_unrealized_pnl": mtm,
             }
 
         logger.info(
