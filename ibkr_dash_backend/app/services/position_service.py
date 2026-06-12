@@ -93,6 +93,9 @@ class PositionService:
             tuple(params) + (limit, offset),
         )
 
+        # Backfill zero financial fields with latest non-zero historical values
+        self._backfill_zero_fields(rows)
+
         # Enrich with realized PnL from trades if missing
         self._enrich_realized_pnl(rows, effective_report_date)
 
@@ -354,6 +357,77 @@ class PositionService:
             "SELECT report_date FROM position_snapshots ORDER BY report_date DESC LIMIT 1"
         )
         return row["report_date"] if row else None
+
+    def _backfill_zero_fields(self, rows: list[dict]) -> None:
+        """Backfill zero financial fields with latest non-zero historical values.
+
+        IBKR real-time API zeroes out cost_basis_money, fifo_pnl_unrealized,
+        and average_cost_price. This method looks up the latest non-zero value
+        for each symbol from historical position snapshots.
+        """
+        fields_to_backfill = [
+            "cost_basis_money",
+            "total_unrealized_pnl",
+            "fifo_pnl_unrealized",
+            "average_cost_price",
+        ]
+
+        # Collect symbols that need backfilling
+        symbols_to_fix: set[str] = set()
+        for row in rows:
+            sym = row.get("symbol")
+            if sym and any(float(row.get(f) or 0) == 0 for f in fields_to_backfill):
+                symbols_to_fix.add(sym)
+
+        if not symbols_to_fix:
+            return
+
+        # Batch query: for each symbol, get the latest non-zero values
+        placeholders = ",".join("?" for _ in symbols_to_fix)
+        backfill_rows = self.db.execute(
+            f"""
+            SELECT symbol,
+                   cost_basis_money,
+                   total_unrealized_pnl,
+                   fifo_pnl_unrealized,
+                   average_cost_price,
+                   quantity,
+                   mark_price
+            FROM position_snapshots
+            WHERE symbol IN ({placeholders})
+              AND cost_basis_money > 0
+            GROUP BY symbol
+            HAVING report_date = MAX(report_date)
+            """,
+            tuple(symbols_to_fix),
+        )
+        backfill_map: dict[str, dict] = {r["symbol"]: r for r in backfill_rows}
+
+        # Apply backfill
+        for row in rows:
+            sym = row.get("symbol")
+            if sym not in backfill_map:
+                continue
+            hist = backfill_map[sym]
+
+            # Backfill cost_basis_money
+            if float(row.get("cost_basis_money") or 0) == 0 and hist.get("cost_basis_money"):
+                row["cost_basis_money"] = hist["cost_basis_money"]
+
+            # Backfill average_cost_price from cost_basis / quantity
+            if float(row.get("average_cost_price") or 0) == 0:
+                cost = float(row.get("cost_basis_money") or 0)
+                qty = float(row.get("quantity") or 0)
+                if cost > 0 and qty > 0:
+                    row["average_cost_price"] = cost / qty
+
+            # Backfill unrealized PnL
+            if float(row.get("total_unrealized_pnl") or 0) == 0:
+                cost = float(row.get("cost_basis_money") or 0)
+                value = float(row.get("position_value") or 0)
+                if cost > 0:
+                    row["total_unrealized_pnl"] = value - cost
+                    row["fifo_pnl_unrealized"] = value - cost
 
     def _enrich_realized_pnl(self, rows: list[dict], report_date: str) -> None:
         """Fill in total_realized_pnl from trade_records for positions missing it."""

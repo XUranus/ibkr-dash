@@ -113,7 +113,7 @@ export default function PositionTable({ items, onSelect }: Props) {
                     <span className="table-symbol__desc">{item.description ?? t('positions.noName')}</span>
                   </div>
                 </td>
-                <td className="table-number"><span className="cell-number">{formatNumber(item.quantity, 4)}</span></td>
+                <td className="table-number"><span className="cell-number">{formatNumber(item.quantity, 0)}</span></td>
                 <td className="table-number"><span className="cell-number">{formatNumber(item.average_cost_price, 2)}</span></td>
                 <td className="table-number">
                   <span className={`cell-number ${pnlClass(item.previous_day_change_percent)}`}>
