@@ -114,10 +114,24 @@ class ChartService:
             realized = source.get("cnav_realized")
             daily_mtm = None
             daily_mtm_inferred = False
+            twr = source.get("cnav_twr")
 
-            # Primary: use changeInUnrealized + realized from ChangeInNAV
-            if change_in_unrealized is not None and realized is not None:
-                daily_mtm = float(change_in_unrealized) + float(realized)
+            # Primary: use changeInUnrealized + realized from ChangeInNAV.
+            # Skip when IBKR API zeroes out detail fields but TWR is non-zero.
+            detail_pnl = (float(change_in_unrealized or 0) + float(realized or 0))
+            detail_fields_populated = (
+                change_in_unrealized is not None
+                and realized is not None
+                and not (detail_pnl == 0.0 and twr is not None and float(twr) != 0.0)
+            )
+            if detail_fields_populated:
+                daily_mtm = detail_pnl
+            elif twr is not None and previous_total_equity is not None and previous_total_equity != 0:
+                # Fallback: derive from TWR and previous equity.
+                # More reliable than cumulative subtraction when deposits are unknown
+                # (IBKR real-time API zeroes out depositsWithdrawals).
+                daily_mtm = float(previous_total_equity) * float(twr) / 100.0
+                daily_mtm_inferred = True
             elif cumulative_mtm is not None and previous_cumulative_mtm is not None:
                 # Fallback: cumulative difference minus deposits
                 daily_mtm = float(cumulative_mtm) - float(previous_cumulative_mtm) - float(deposits)
@@ -130,7 +144,7 @@ class ChartService:
 
             daily_twr = None
             if daily_mtm is not None:
-                daily_twr = source.get("cnav_twr")
+                daily_twr = twr
                 if daily_twr is None and previous_total_equity not in (None, 0, 0.0):
                     daily_twr = float(daily_mtm) / abs(float(previous_total_equity)) * 100.0
                 if daily_mtm_inferred and daily_mtm == 0.0:
@@ -383,11 +397,26 @@ class ChartService:
 
             daily_mtm = None
             daily_mtm_inferred = False
+            twr = source.get("cnav_twr")
 
             # Primary: use changeInUnrealized + realized from ChangeInNAV
-            # This is the most reliable source for daily PnL
-            if change_in_unrealized is not None and realized is not None:
-                daily_mtm = float(change_in_unrealized) + float(realized)
+            # This is the most reliable source for daily PnL.
+            # But IBKR's real-time API sometimes zeroes these fields while
+            # leaving TWR non-zero; detect and skip that case.
+            detail_pnl = (float(change_in_unrealized or 0) + float(realized or 0))
+            detail_fields_populated = (
+                change_in_unrealized is not None
+                and realized is not None
+                and not (detail_pnl == 0.0 and twr is not None and float(twr) != 0.0)
+            )
+            if detail_fields_populated:
+                daily_mtm = detail_pnl
+            elif twr is not None and previous_total_equity is not None and previous_total_equity != 0:
+                # Fallback: derive from TWR and previous equity.
+                # More reliable than cumulative subtraction when deposits are unknown
+                # (IBKR real-time API zeroes out depositsWithdrawals).
+                daily_mtm = float(previous_total_equity) * float(twr) / 100.0
+                daily_mtm_inferred = True
             elif cumulative_mtm is not None and previous_cumulative_mtm is not None:
                 # Fallback: cumulative difference minus deposits
                 daily_mtm = float(cumulative_mtm) - float(previous_cumulative_mtm) - float(deposits)
@@ -400,7 +429,7 @@ class ChartService:
 
             daily_twr = None
             if daily_mtm is not None:
-                daily_twr = source.get("cnav_twr")
+                daily_twr = twr
                 if daily_twr is None and previous_total_equity not in (None, 0, 0.0):
                     daily_twr = float(daily_mtm) / abs(float(previous_total_equity)) * 100.0
                 if daily_mtm_inferred and daily_mtm == 0.0:
