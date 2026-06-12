@@ -23,3 +23,25 @@ class DividendListResponse(BaseModel):
     """Paginated dividend list."""
     items: list[DividendItem]
     pagination: PaginationInfo
+
+
+class DividendCurrencySummaryItem(BaseModel):
+    """Summary for a single currency."""
+    currency: str | None = None
+    record_count: int = 0
+    dividend_count: int = 0
+    withholding_tax_count: int = 0
+    gross_dividend_amount: float = 0.0
+    withholding_tax_amount: float = 0.0
+    net_amount: float = 0.0
+
+
+class DividendSummaryResponse(BaseModel):
+    """Aggregated dividend summary."""
+    record_count: int = 0
+    dividend_count: int = 0
+    withholding_tax_count: int = 0
+    gross_dividend_amount: float | None = None
+    withholding_tax_amount: float | None = None
+    net_amount: float | None = None
+    by_currency: list[DividendCurrencySummaryItem] = []

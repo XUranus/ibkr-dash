@@ -1,12 +1,27 @@
-"""Cash flow list endpoint."""
+"""Cash flow list and summary endpoints."""
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.deps import get_cash_flow_service, get_current_user
-from app.schemas.cash_flows import CashFlowListResponse
+from app.schemas.cash_flows import CashFlowListResponse, CashFlowSummaryResponse
 from app.services.cash_flow_service import CashFlowService
 
 router = APIRouter(prefix="/cash-flows", tags=["cash-flows"])
+
+
+@router.get("/summary", response_model=CashFlowSummaryResponse)
+def get_cash_flow_summary(
+    start_date: str | None = Query(default=None),
+    end_date: str | None = Query(default=None),
+    currency: str | None = Query(default=None),
+    service: CashFlowService = Depends(get_cash_flow_service),
+    _user: str | None = Depends(get_current_user),
+) -> CashFlowSummaryResponse:
+    return service.get_summary(
+        start_date=start_date,
+        end_date=end_date,
+        currency=currency,
+    )
 
 
 @router.get("", response_model=CashFlowListResponse)

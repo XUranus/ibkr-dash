@@ -6,7 +6,7 @@ Filters to deposits/withdrawals flow types by default.
 from __future__ import annotations
 
 from app.core.database import Database
-from app.schemas.cash_flows import CashFlowItem, CashFlowListResponse
+from app.schemas.cash_flows import CashFlowItem, CashFlowCurrencySummaryItem, CashFlowListResponse, CashFlowSummaryResponse
 from app.utils.dates import parse_date
 from app.utils.pagination import build_pagination, build_pagination_info
 
@@ -82,4 +82,87 @@ class CashFlowService:
         return CashFlowListResponse(
             items=items,
             pagination=build_pagination_info(page, limit, total),
+        )
+
+    def get_summary(
+        self,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        currency: str | None = None,
+    ) -> CashFlowSummaryResponse:
+        """Return aggregated cash flow summary."""
+        effective_start = parse_date(start_date)
+        effective_end = parse_date(end_date)
+
+        conditions = ["flow_type IN ({})".format(",".join("?" for _ in DEPOSIT_WITHDRAWAL_TYPES))]
+        params: list = list(DEPOSIT_WITHDRAWAL_TYPES)
+
+        if effective_start:
+            conditions.append("date_time >= ?")
+            params.append(effective_start.isoformat())
+        if effective_end:
+            conditions.append("date_time <= ?")
+            params.append(effective_end.isoformat())
+        if currency:
+            conditions.append("currency = ?")
+            params.append(currency)
+
+        where_clause = " AND ".join(conditions)
+
+        # Overall summary
+        row = self.db.execute_one(
+            f"""
+            SELECT
+                COUNT(*) AS record_count,
+                SUM(CASE WHEN amount_in_base > 0 THEN 1 ELSE 0 END) AS deposit_count,
+                SUM(CASE WHEN amount_in_base < 0 THEN 1 ELSE 0 END) AS withdrawal_count,
+                COALESCE(SUM(CASE WHEN amount_in_base > 0 THEN amount_in_base ELSE 0 END), 0) AS total_deposit,
+                COALESCE(SUM(CASE WHEN amount_in_base < 0 THEN amount_in_base ELSE 0 END), 0) AS total_withdrawal,
+                COALESCE(SUM(amount_in_base), 0) AS net_amount
+            FROM cash_flows
+            WHERE {where_clause}
+            """,
+            tuple(params),
+        )
+
+        # Per-currency breakdown
+        currency_rows = self.db.execute(
+            f"""
+            SELECT
+                currency,
+                COUNT(*) AS record_count,
+                SUM(CASE WHEN amount_in_base > 0 THEN 1 ELSE 0 END) AS deposit_count,
+                SUM(CASE WHEN amount_in_base < 0 THEN 1 ELSE 0 END) AS withdrawal_count,
+                COALESCE(SUM(CASE WHEN amount_in_base > 0 THEN amount_in_base ELSE 0 END), 0) AS total_deposit,
+                COALESCE(SUM(CASE WHEN amount_in_base < 0 THEN amount_in_base ELSE 0 END), 0) AS total_withdrawal,
+                COALESCE(SUM(amount_in_base), 0) AS net_amount
+            FROM cash_flows
+            WHERE {where_clause}
+            GROUP BY currency
+            ORDER BY SUM(amount_in_base) DESC
+            """,
+            tuple(params),
+        )
+
+        by_currency = [
+            CashFlowCurrencySummaryItem(
+                currency=r["currency"],
+                record_count=int(r["record_count"] or 0),
+                deposit_count=int(r["deposit_count"] or 0),
+                withdrawal_count=int(r["withdrawal_count"] or 0),
+                total_deposit_amount=float(r["total_deposit"] or 0),
+                total_withdrawal_amount=float(r["total_withdrawal"] or 0),
+                net_amount=float(r["net_amount"] or 0),
+            )
+            for r in currency_rows
+        ]
+
+        return CashFlowSummaryResponse(
+            record_count=int(row["record_count"] or 0) if row else 0,
+            deposit_count=int(row["deposit_count"] or 0) if row else 0,
+            withdrawal_count=int(row["withdrawal_count"] or 0) if row else 0,
+            total_deposit_amount=float(row["total_deposit"] or 0) if row else None,
+            total_withdrawal_amount=float(row["total_withdrawal"] or 0) if row else None,
+            net_amount=float(row["net_amount"] or 0) if row else None,
+            by_currency=by_currency,
         )

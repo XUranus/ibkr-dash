@@ -1,12 +1,29 @@
-"""Dividend list endpoint."""
+"""Dividend list and summary endpoints."""
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.deps import get_current_user, get_dividend_service
-from app.schemas.dividends import DividendListResponse
+from app.schemas.dividends import DividendListResponse, DividendSummaryResponse
 from app.services.dividend_service import DividendService
 
 router = APIRouter(prefix="/dividends", tags=["dividends"])
+
+
+@router.get("/summary", response_model=DividendSummaryResponse)
+def get_dividend_summary(
+    start_date: str | None = Query(default=None),
+    end_date: str | None = Query(default=None),
+    currency: str | None = Query(default=None),
+    symbol: str | None = Query(default=None),
+    service: DividendService = Depends(get_dividend_service),
+    _user: str | None = Depends(get_current_user),
+) -> DividendSummaryResponse:
+    return service.get_summary(
+        start_date=start_date,
+        end_date=end_date,
+        currency=currency,
+        symbol=symbol,
+    )
 
 
 @router.get("", response_model=DividendListResponse)
