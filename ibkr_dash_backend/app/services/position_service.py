@@ -406,10 +406,12 @@ class PositionService:
         backfill_map: dict[str, dict] = {r["symbol"]: r for r in backfill_rows}
 
         # Strategy 2: compute FIFO cost basis from trade records
+        # Filter trades up to the report date to avoid using future trades
+        report_date = rows[0].get("report_date") if rows else None
         still_missing = symbols_to_fix - set(backfill_map.keys())
         fifo_map: dict[str, dict] = {}
         if still_missing:
-            fifo_map = self._compute_fifo_cost_basis(still_missing)
+            fifo_map = self._compute_fifo_cost_basis(still_missing, report_date=report_date)
 
         # Apply backfill
         for row in rows:
@@ -443,27 +445,45 @@ class PositionService:
 
             # Backfill unrealized PnL
             if float(row.get("total_unrealized_pnl") or 0) == 0 and cost > 0:
-                unrealized = value - cost
+                # For long positions: PnL = value - cost
+                # For short positions: PnL = cost + value (value is negative)
+                if qty < 0:
+                    unrealized = cost + value
+                else:
+                    unrealized = value - cost
                 row["total_unrealized_pnl"] = unrealized
                 row["fifo_pnl_unrealized"] = unrealized
 
-    def _compute_fifo_cost_basis(self, symbols: set[str]) -> dict[str, dict]:
+    def _compute_fifo_cost_basis(self, symbols: set[str], report_date: str | None = None) -> dict[str, dict]:
         """Compute FIFO cost basis for symbols from trade records.
 
-        Delegates to the shared FIFO utility.
+        Args:
+            symbols: Set of symbols to compute FIFO for.
+            report_date: If provided, only include trades up to this date.
         """
         if not symbols:
             return {}
         placeholders = ",".join("?" for _ in symbols)
-        trades = self.db.execute(
-            f"""
-            SELECT symbol, asset_class, trade_date, buy_sell, quantity, trade_price
-            FROM trade_records
-            WHERE symbol IN ({placeholders})
-            ORDER BY symbol, trade_date ASC, date_time ASC
-            """,
-            tuple(symbols),
-        )
+        if report_date:
+            trades = self.db.execute(
+                f"""
+                SELECT symbol, asset_class, trade_date, buy_sell, quantity, trade_price
+                FROM trade_records
+                WHERE symbol IN ({placeholders}) AND trade_date <= ?
+                ORDER BY symbol, trade_date ASC, date_time ASC
+                """,
+                tuple(symbols) + (report_date,),
+            )
+        else:
+            trades = self.db.execute(
+                f"""
+                SELECT symbol, asset_class, trade_date, buy_sell, quantity, trade_price
+                FROM trade_records
+                WHERE symbol IN ({placeholders})
+                ORDER BY symbol, trade_date ASC, date_time ASC
+                """,
+                tuple(symbols),
+            )
         return compute_fifo_cost_basis(trades)
 
     def _enrich_realized_pnl(self, rows: list[dict], report_date: str) -> None:
