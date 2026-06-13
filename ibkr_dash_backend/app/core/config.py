@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     # --- LLM ---
     llm_api_key: str = ""
     llm_base_url: str = "https://api.openai.com/v1"
+
+    # --- Market data ---
+    bls_api_key: str = ""
     llm_default_model: str = "gpt-4o"
     llm_temperature: float = 0.1
     llm_max_tokens: int = 8192
