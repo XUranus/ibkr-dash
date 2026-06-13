@@ -353,11 +353,11 @@ export default function PositionsView() {
             </section>
           )}
 
-          {/* AI Analysis + Distribution charts */}
+          {/* Distribution charts + AI Analysis */}
           <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-3)' }}>
-            <PositionAnalysisCard />
             <PieDistributionCard title={t('positions.assetClasses')} subtitle={t('positions.assetClassesDesc')} items={assetPieItems} />
             <PieDistributionCard title={t('positions.industryDistribution')} subtitle={t('positions.industryDistributionDesc')} items={industryPieItems} />
+            <PositionAnalysisCard />
           </section>
 
           {/* Position table */}
