@@ -134,6 +134,7 @@ CREATE INDEX IF NOT EXISTS idx_position_snapshots_symbol ON position_snapshots(s
 CREATE INDEX IF NOT EXISTS idx_trade_records_date ON trade_records(trade_date);
 CREATE INDEX IF NOT EXISTS idx_trade_records_symbol ON trade_records(symbol);
 CREATE INDEX IF NOT EXISTS idx_cash_flows_date ON cash_flows(date_time);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cash_flows_txn_id ON cash_flows(transaction_id) WHERE transaction_id IS NOT NULL AND transaction_id != '';
 CREATE INDEX IF NOT EXISTS idx_price_history_symbol_date ON price_history(symbol, report_date);
 """
 
@@ -529,9 +530,9 @@ class SQLiteWriter:
             conn.execute(sql, row)
 
     def insert_cash_flow(self, doc: dict) -> None:
-        """Insert a single cash flow record."""
+        """Insert a single cash flow record (skip if transaction_id already exists)."""
         sql = """
-            INSERT INTO cash_flows
+            INSERT OR IGNORE INTO cash_flows
                 (account_id, currency, symbol, description, date_time, settle_date,
                  amount, amount_in_base, flow_type, flow_direction, dividend_type,
                  transaction_id, raw_json, ingested_at)

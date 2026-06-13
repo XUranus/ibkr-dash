@@ -266,6 +266,7 @@ _MIGRATIONS = [
     "ALTER TABLE account_snapshots ADD COLUMN cnav_ending_value REAL",
     "ALTER TABLE account_snapshots ADD COLUMN cnav_realized REAL",
     "ALTER TABLE account_snapshots ADD COLUMN cnav_change_in_unrealized REAL",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_cash_flows_txn_id ON cash_flows(transaction_id) WHERE transaction_id IS NOT NULL AND transaction_id != ''",
 ]
 
 
