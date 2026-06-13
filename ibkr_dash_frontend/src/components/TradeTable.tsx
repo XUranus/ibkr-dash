@@ -2,6 +2,20 @@ import { useTranslation } from 'react-i18next'
 import type { TradeItem } from '@/types/trades'
 import { formatNumber, pnlClass } from '@/utils/format'
 
+function extractDate(iso: string | null | undefined): string {
+  if (!iso) return '--'
+  return iso.split('T')[0]
+}
+
+function extractTime(iso: string | null | undefined): string {
+  if (!iso) return '--'
+  const parts = iso.split('T')
+  if (parts.length < 2) return '--'
+  // Handle "2026-06-12T11:33:46" or "2026-06-12;11:33:46"
+  const time = parts[1].split(';')[0].split('.')[0]
+  return time || '--'
+}
+
 interface Props {
   items: TradeItem[]
   sortKey: 'proceeds' | 'fifo_pnl_realized' | null
@@ -63,8 +77,8 @@ export default function TradeTable({ items, sortKey, sortOrder, onSort }: Props)
             <tr key={item.trade_id || item.transaction_id || `${item.date_time}-${item.symbol}`}>
               <td style={{ whiteSpace: 'normal' }}>
                 <div className="table-symbol">
-                  <span className="table-symbol__code">{item.date_time ?? '--'}</span>
-                  <span className="table-symbol__desc">{item.trade_date ?? '--'}</span>
+                  <span className="table-symbol__code">{extractDate(item.date_time) || item.trade_date || '--'}</span>
+                  <span className="table-symbol__desc">{extractTime(item.date_time)}</span>
                 </div>
               </td>
               <td style={{ whiteSpace: 'normal' }}>
