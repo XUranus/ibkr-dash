@@ -15,8 +15,8 @@ type CalendarCell = {
   isCurrentMonth: boolean
 }
 
-const weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const weekdayKeys = ['dashboard.mon', 'dashboard.tue', 'dashboard.wed', 'dashboard.thu', 'dashboard.fri', 'dashboard.sat', 'dashboard.sun']
+const weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+const weekdayKeys = ['dashboard.mon', 'dashboard.tue', 'dashboard.wed', 'dashboard.thu', 'dashboard.fri']
 
 function normalizeNumericValue(value: number | null): number | null {
   if (value === null || !Number.isFinite(value)) return null
@@ -98,16 +98,14 @@ export default function PerformanceCalendar({ latestReportDate }: Props) {
 
   const monthCells = useMemo<CalendarCell[]>(() => {
     if (!response || response.view !== 'month') return []
-    const [yearText, monthText] = response.anchor.split('-')
-    const year = Number(yearText)
-    const month = Number(monthText)
-    const firstDay = new Date(Date.UTC(year, month - 1, 1))
-    const leadingPadding = (firstDay.getUTCDay() + 6) % 7
+    // Filter to weekdays only (Mon-Fri), skip weekends
     const cells: CalendarCell[] = []
-    for (let i = 0; i < leadingPadding; i++) cells.push({ key: `leading-${i}`, label: null, item: null, isCurrentMonth: false })
-    for (const item of response.items) cells.push({ key: item.period_key, label: item.label, item, isCurrentMonth: true })
-    const trailing = (7 - (cells.length % 7)) % 7
-    for (let i = 0; i < trailing; i++) cells.push({ key: `trailing-${i}`, label: null, item: null, isCurrentMonth: false })
+    for (const item of response.items) {
+      const d = new Date(item.period_key + 'T00:00:00Z')
+      const dow = d.getUTCDay() // 0=Sun, 1=Mon, ..., 6=Sat
+      if (dow === 0 || dow === 6) continue // skip weekends
+      cells.push({ key: item.period_key, label: item.label, item, isCurrentMonth: true })
+    }
     return cells
   }, [response])
 
@@ -213,7 +211,7 @@ export default function PerformanceCalendar({ latestReportDate }: Props) {
 
             {/* Month view calendar grid */}
             {activeView === 'month' && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 4 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 4 }}>
                 {weekdayLabels.map((label, i) => (
                   <div key={label} style={{ padding: '0 4px 3px', color: 'var(--color-text-muted)', fontSize: '0.65rem', fontWeight: 600, textAlign: 'center', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t(weekdayKeys[i])}</div>
                 ))}
