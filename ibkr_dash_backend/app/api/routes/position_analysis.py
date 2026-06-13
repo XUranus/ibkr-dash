@@ -72,11 +72,7 @@ async def trigger_analysis(
 
     report_date = account["report_date"]
     try:
-        result = generate_position_analysis(db, llm_service, report_date)
-        # generate_position_analysis is async, await it
-        import asyncio
-        if asyncio.iscoroutine(result):
-            result = await result
+        result = await generate_position_analysis(db, llm_service, report_date)
     except Exception as exc:
         logger.exception("Position analysis failed: %s", exc)
         raise HTTPException(

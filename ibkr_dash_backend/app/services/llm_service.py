@@ -35,7 +35,7 @@ class LLMService:
         self.default_model = settings.llm_default_model
         self.temperature = settings.llm_temperature
         self.max_tokens = settings.llm_max_tokens
-        self.timeout = 60.0
+        self.timeout = 120.0
         self._client = httpx.Client(
             timeout=self.timeout,
             limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
