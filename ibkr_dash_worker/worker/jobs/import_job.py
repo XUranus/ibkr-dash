@@ -16,6 +16,8 @@ from worker.parsers.base import FlexParseResult
 
 logger = logging.getLogger(__name__)
 
+logger = logging.getLogger(__name__)
+
 IMPORTED_FILES_LOG = "imported_files.txt"
 
 
@@ -151,7 +153,19 @@ def import_all_archived(
 
     if all_results:
         logger.info("Imported %d new files", len(all_results))
+        # Trigger position analysis in background (non-blocking)
+        _trigger_position_analysis()
     else:
         logger.info("No new files to import")
 
     return all_results
+
+
+def _trigger_position_analysis() -> None:
+    """Trigger position analysis via backend API (non-blocking)."""
+    try:
+        from worker.clients.position_analysis_client import trigger_position_analysis
+        settings = get_settings()
+        trigger_position_analysis(settings)
+    except Exception as exc:
+        logger.debug("Position analysis trigger skipped: %s", exc)

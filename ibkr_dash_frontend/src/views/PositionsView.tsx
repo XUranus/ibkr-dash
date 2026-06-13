@@ -10,6 +10,7 @@ import { useAccountOverview } from '@/hooks/useAccountOverview'
 import ErrorBlock from '@/components/ErrorBlock'
 import LoadingBlock from '@/components/LoadingBlock'
 import PieDistributionCard, { type PieSegmentItem } from '@/components/PieDistributionCard'
+import PositionAnalysisCard from '@/components/PositionAnalysisCard'
 import PositionTable from '@/components/PositionTable'
 import type { PositionDetailResponse, PositionItem, PositionListResponse, PositionSummaryResponse } from '@/types/positions'
 import { formatNumber } from '@/utils/format'
@@ -357,6 +358,9 @@ export default function PositionsView() {
             <PieDistributionCard title={t('positions.assetClasses')} subtitle={t('positions.assetClassesDesc')} items={assetPieItems} />
             <PieDistributionCard title={t('positions.industryDistribution')} subtitle={t('positions.industryDistributionDesc')} items={industryPieItems} />
           </section>
+
+          {/* AI Analysis */}
+          <PositionAnalysisCard />
 
           {/* Position table */}
           <section className="surface-panel">

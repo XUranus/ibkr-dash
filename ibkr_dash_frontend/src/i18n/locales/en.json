@@ -102,6 +102,7 @@
   "positions": {
     "title": "Positions",
     "subtitle": "Current portfolio positions and asset allocation.",
+    "aiAnalysis": "AI Portfolio Analysis",
     "symbol": "Symbol",
     "description": "Description",
     "quantity": "Qty",

@@ -102,6 +102,7 @@
   "positions": {
     "title": "持仓",
     "subtitle": "当前投资组合持仓与资产配置。",
+    "aiAnalysis": "AI 持仓分析",
     "symbol": "标的",
     "description": "描述",
     "quantity": "数量",

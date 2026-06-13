@@ -87,6 +87,7 @@ def create_app() -> FastAPI:
     from app.api.routes.admin_llm import router as admin_llm_router
     from app.api.routes.admin_ibkr import router as admin_ibkr_router
     from app.api.routes.admin_email import router as admin_email_router
+    from app.api.routes.position_analysis import router as position_analysis_router
 
     app.include_router(health_router, prefix="/api")
     app.include_router(account_router, prefix="/api")
@@ -110,6 +111,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_llm_router, prefix="/api")
     app.include_router(admin_ibkr_router, prefix="/api")
     app.include_router(admin_email_router, prefix="/api")
+    app.include_router(position_analysis_router, prefix="/api")
 
     return app
 

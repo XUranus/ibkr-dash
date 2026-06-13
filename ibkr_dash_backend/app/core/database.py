@@ -268,6 +268,8 @@ _MIGRATIONS = [
     "ALTER TABLE account_snapshots ADD COLUMN cnav_change_in_unrealized REAL",
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_cash_flows_txn_id ON cash_flows(transaction_id) WHERE transaction_id IS NOT NULL AND transaction_id != ''",
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_trade_records_dedup ON trade_records(account_id, trade_date, symbol, buy_sell, quantity, trade_price) WHERE trade_id IS NULL OR trade_id = ''",
+    "CREATE TABLE IF NOT EXISTS position_analysis (id TEXT PRIMARY KEY, report_date TEXT NOT NULL, analysis_zh TEXT NOT NULL, analysis_en TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')))",
+    "CREATE INDEX IF NOT EXISTS idx_position_analysis_date ON position_analysis(report_date)",
 ]
 
 
