@@ -101,14 +101,6 @@ async def generate_position_analysis(
         logger.warning("Failed to generate English report: %s", exc)
         report_en = ""
 
-    # If one language failed, use the other as fallback
-    if not report_zh and report_en:
-        report_zh = report_en
-        logger.info("Chinese report failed, using English as fallback")
-    elif not report_en and report_zh:
-        report_en = report_zh
-        logger.info("English report failed, using Chinese as fallback")
-
     if not report_zh and not report_en:
         logger.warning("Both reports empty, skipping save")
         return None
