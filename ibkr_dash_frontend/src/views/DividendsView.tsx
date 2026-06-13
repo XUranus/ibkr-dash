@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { fetchDividendSummary, fetchDividends } from '@/api/dividends'
-import { useAuth } from '@/hooks/useAuth'
 import DividendTable from '@/components/DividendTable'
 import ErrorBlock from '@/components/ErrorBlock'
 import LoadingBlock from '@/components/LoadingBlock'
@@ -11,7 +10,6 @@ import { formatNumber } from '@/utils/format'
 
 export default function DividendsView() {
   const { t } = useTranslation()
-  const { ensureAuth } = useAuth()
   const [state, setState] = useState({ start_date: '', end_date: '', currency: '', symbol: '', page: 1, page_size: 20 })
   const [dividendResponse, setDividendResponse] = useState<Awaited<ReturnType<typeof fetchDividends>> | null>(null)
   const [dividendSummary, setDividendSummary] = useState<DividendSummaryResponse | null>(null)
@@ -43,7 +41,7 @@ export default function DividendsView() {
     }
   }
 
-  useEffect(() => { void ensureAuth().then(() => loadDividends()) }, [])
+  useEffect(() => { void loadDividends() }, [])
 
   function applyFilters() { setState((s) => ({ ...s, page: 1 })); void loadDividends() }
   function setSort(key: 'date_time' | 'ex_date' | 'amount') {
