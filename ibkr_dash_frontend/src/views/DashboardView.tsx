@@ -5,6 +5,7 @@ import { useAccountOverview } from '@/hooks/useAccountOverview'
 import EquityCurveSimple from '@/components/EquityCurveSimple'
 import ErrorBlock from '@/components/ErrorBlock'
 import LoadingBlock from '@/components/LoadingBlock'
+import MarketEventsPanel from '@/components/MarketEventsPanel'
 import PerformanceCalendar from '@/components/PerformanceCalendar'
 import StatCard from '@/components/StatCard'
 import type { EquityCurvePoint } from '@/types/charts'
@@ -115,8 +116,11 @@ export default function DashboardView() {
             onSelectRange={setCurveRange}
           />
 
-          {/* Performance calendar */}
-          <PerformanceCalendar latestReportDate={overview?.report_date ?? null} />
+          {/* Performance calendar + Market events */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 'var(--space-3)' }}>
+            <PerformanceCalendar latestReportDate={overview?.report_date ?? null} />
+            <MarketEventsPanel />
+          </div>
         </>
       )}
     </section>

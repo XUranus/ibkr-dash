@@ -270,6 +270,8 @@ _MIGRATIONS = [
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_trade_records_dedup ON trade_records(account_id, trade_date, symbol, buy_sell, quantity, trade_price) WHERE trade_id IS NULL OR trade_id = ''",
     "CREATE TABLE IF NOT EXISTS position_analysis (id TEXT PRIMARY KEY, report_date TEXT NOT NULL, analysis_zh TEXT NOT NULL, analysis_en TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')))",
     "CREATE INDEX IF NOT EXISTS idx_position_analysis_date ON position_analysis(report_date)",
+    "CREATE TABLE IF NOT EXISTS market_events (id TEXT PRIMARY KEY, event_type TEXT NOT NULL, category TEXT NOT NULL, title TEXT NOT NULL, title_en TEXT, scheduled_at TEXT NOT NULL, importance TEXT DEFAULT 'MEDIUM', source TEXT DEFAULT 'MANUAL', description TEXT, created_at TEXT DEFAULT (datetime('now')))",
+    "CREATE INDEX IF NOT EXISTS idx_market_events_date ON market_events(scheduled_at)",
 ]
 
 
