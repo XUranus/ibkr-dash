@@ -96,7 +96,10 @@ def compute_fifo_cost_basis(trades: list[dict]) -> dict[str, dict]:
                     break
 
             # Open new position with remaining quantity
-            if abs(remaining) > 0.001:
+            # For stocks (non-OPTION): only allow long positions
+            # For options: allow both long and short
+            is_option = (t.get("asset_class") or "").upper() == "OPT"
+            if abs(remaining) > 0.001 and (is_option or remaining > 0):
                 open_positions.append((remaining, price))
 
         # Compute cost basis from remaining open positions

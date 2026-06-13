@@ -68,8 +68,8 @@ def test_multiple_buys_fifo():
     assert result["AAPL"]["total_qty"] == 3.0
 
 
-def test_short_position():
-    """SELL to open short, BUY to close short."""
+def test_short_position_stock_ignored():
+    """SELL without matching BUY for stocks → short not created."""
     trades = [
         {"symbol": "PUT", "asset_class": "STK", "trade_date": "2026-01-01",
          "buy_sell": "SELL", "quantity": 10.0, "trade_price": 50.0},
@@ -77,24 +77,22 @@ def test_short_position():
          "buy_sell": "BUY", "quantity": 10.0, "trade_price": 30.0},
     ]
     result = compute_fifo_cost_basis(trades)
-    # Short closed: realized = (50 - 30) * 10 = 200
-    # No open positions → no entry
-    assert "PUT" not in result
+    # SELL ignored (no long to close), BUY opens long 10 @ 30
+    assert result["PUT"]["cost_basis"] == 300.0
+    assert result["PUT"]["total_qty"] == 10.0
 
 
-def test_short_position_remaining():
-    """Partial close of short position."""
+def test_sell_exceeds_long_position():
+    """SELL more than long position → excess ignored for stocks."""
     trades = [
-        {"symbol": "PUT", "asset_class": "STK", "trade_date": "2026-01-01",
-         "buy_sell": "SELL", "quantity": 10.0, "trade_price": 50.0},
-        {"symbol": "PUT", "asset_class": "STK", "trade_date": "2026-01-02",
-         "buy_sell": "BUY", "quantity": 4.0, "trade_price": 30.0},
+        {"symbol": "NVDA", "asset_class": "STK", "trade_date": "2026-01-01",
+         "buy_sell": "BUY", "quantity": 10.0, "trade_price": 100.0},
+        {"symbol": "NVDA", "asset_class": "STK", "trade_date": "2026-01-02",
+         "buy_sell": "SELL", "quantity": 15.0, "trade_price": 110.0},
     ]
     result = compute_fifo_cost_basis(trades)
-    # Remaining: -6 @ 50, cost = 6 * 50 = 300
-    assert result["PUT"]["cost_basis"] == 300.0
-    assert result["PUT"]["total_qty"] == -6.0
-    assert result["PUT"]["avg_cost"] == 50.0
+    # SELL 15 with 10 long → closes 10, excess 5 ignored
+    assert "NVDA" not in result
 
 
 def test_options_multiplier():
