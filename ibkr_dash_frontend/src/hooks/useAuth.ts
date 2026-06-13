@@ -56,7 +56,10 @@ function applyState(authenticated: boolean, username: string | null): void {
 }
 
 export async function ensureAuthSession(force = false): Promise<void> {
-  if (!force && globalAuthState.initialized) return
+  if (!force && globalAuthState.initialized) {
+    emitChange()
+    return
+  }
 
   if (!force) {
     const cached = readCache()
@@ -113,6 +116,7 @@ export function useAuth(): AuthState & {
   useEffect(() => {
     const handler = () => setState(globalAuthState)
     listeners.add(handler)
+    handler()
     return () => { listeners.delete(handler) }
   }, [])
 
