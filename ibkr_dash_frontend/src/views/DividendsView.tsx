@@ -25,12 +25,15 @@ export default function DividendsView() {
     setErrorMessage('')
     try {
       const filters = { start_date: state.start_date, end_date: state.end_date, currency: state.currency, symbol: state.symbol }
-      const [summaryRes, listRes] = await Promise.all([
-        includeSummary ? fetchDividendSummary(filters) : Promise.resolve(dividendSummary),
-        fetchDividends({ ...filters, sort_by: currentSortBy, sort_order: sortOrder, page: state.page, page_size: state.page_size }),
-      ])
-      setDividendSummary(summaryRes)
+      // Load list first (critical)
+      const listRes = await fetchDividends({ ...filters, sort_by: currentSortBy, sort_order: sortOrder, page: state.page, page_size: state.page_size })
       setDividendResponse(listRes)
+      // Load summary independently (non-blocking)
+      if (includeSummary) {
+        fetchDividendSummary(filters)
+          .then((res) => setDividendSummary(res))
+          .catch(() => { /* summary failed, list still shows */ })
+      }
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : t('dividends.failedToLoadDividends'))
     } finally {

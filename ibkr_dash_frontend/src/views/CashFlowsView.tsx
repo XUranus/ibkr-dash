@@ -25,12 +25,15 @@ export default function CashFlowsView() {
     setErrorMessage('')
     try {
       const filters = { start_date: state.start_date, end_date: state.end_date, currency: state.currency, flow_direction: state.flow_direction }
-      const [summaryResponse, listResponse] = await Promise.all([
-        includeSummary ? fetchCashFlowSummary(filters) : Promise.resolve(cashFlowSummary),
-        fetchCashFlows({ ...filters, sort_by: currentSortBy, sort_order: sortOrder, page: state.page, page_size: state.page_size }),
-      ])
-      setCashFlowSummary(summaryResponse)
+      // Load list first (critical)
+      const listResponse = await fetchCashFlows({ ...filters, sort_by: currentSortBy, sort_order: sortOrder, page: state.page, page_size: state.page_size })
       setCashFlowResponse(listResponse)
+      // Load summary independently (non-blocking)
+      if (includeSummary) {
+        fetchCashFlowSummary(filters)
+          .then((res) => setCashFlowSummary(res))
+          .catch(() => { /* summary failed, list still shows */ })
+      }
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : t('cashFlows.failedToLoadCashFlows'))
     } finally {
