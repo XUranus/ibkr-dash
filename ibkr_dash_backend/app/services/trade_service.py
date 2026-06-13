@@ -105,12 +105,24 @@ class TradeService:
                 total_commission=0, total_realized_pnl=0, total_proceeds=0, symbols_count=0,
             )
 
+        total_realized = float(row["total_realized_pnl"] or 0.0)
+
+        # Fallback: compute realized PnL from FIFO when API zeroes fifo_pnl_realized
+        if abs(total_realized) < 0.01:
+            from app.utils.fifo import compute_fifo_cost_basis
+            trades = self.db.execute(
+                f"SELECT symbol, asset_class, trade_date, buy_sell, quantity, trade_price FROM trade_records WHERE {where_clause} ORDER BY symbol, trade_date ASC, date_time ASC",
+                tuple(params),
+            )
+            fifo_map = compute_fifo_cost_basis(trades)
+            total_realized = sum(d.get("realized_pnl", 0) for d in fifo_map.values())
+
         return TradeSummaryResponse(
             trade_count=int(row["trade_count"] or 0),
             buy_count=int(row["buy_count"] or 0),
             sell_count=int(row["sell_count"] or 0),
             total_commission=float(row["total_commission"] or 0.0),
-            total_realized_pnl=float(row["total_realized_pnl"] or 0.0),
+            total_realized_pnl=total_realized,
             total_proceeds=float(row["total_proceeds"] or 0.0),
             symbols_count=int(row["symbols_count"] or 0),
         )
