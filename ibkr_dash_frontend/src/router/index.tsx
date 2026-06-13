@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react'
+import React, { lazy, Suspense, useEffect } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import i18n from '@/i18n'
 import App from '@/App'
@@ -12,7 +12,14 @@ const LoadingFallback = () => (
 )
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { authenticated, initialized } = useAuth()
+  const { authenticated, initialized, ensureAuth } = useAuth()
+
+  // Ensure auth is checked on mount (don't wait for AppHeader)
+  useEffect(() => {
+    if (!initialized) {
+      void ensureAuth()
+    }
+  }, [initialized, ensureAuth])
 
   if (!initialized) return <LoadingFallback />
   if (!authenticated) {
