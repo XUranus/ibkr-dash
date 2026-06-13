@@ -220,21 +220,14 @@ class PositionService:
     ) -> PositionDetailResponse:
         """Return position detail with OHLC bars and trade markers."""
         # Fetch price history bars
-        price_conditions = ["symbol = ?"]
-        price_params: list = [symbol]
-        if asset_class:
-            price_conditions.append("asset_class = ?")
-            price_params.append(asset_class)
-        price_where = " AND ".join(price_conditions)
-
         price_rows = self.db.execute(
-            f"""
+            """
             SELECT report_date, open_price, high_price, low_price, close_price
             FROM price_history
-            WHERE {price_where}
+            WHERE symbol = ?
             ORDER BY report_date ASC
             """,
-            tuple(price_params),
+            (symbol,),
         )
 
         # Fetch position snapshots as fallback for bars (no open_price column)
