@@ -7,6 +7,7 @@ export default function AdminTabs() {
   const location = useLocation()
 
   const adminTabs = [
+    { path: '/admin/settings', label: t('admin.settings') },
     { path: '/admin/llm', label: t('admin.llm') },
     { path: '/admin/ibkr', label: t('admin.ibkr') },
     { path: '/admin/email', label: t('admin.email') },

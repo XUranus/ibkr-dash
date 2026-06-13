@@ -377,6 +377,7 @@
   },
   "admin": {
     "title": "Admin",
+    "settings": "Settings",
     "system": "System Status",
     "llm": "LLM Config",
     "ibkr": "IBKR Data",

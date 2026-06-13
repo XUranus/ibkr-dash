@@ -55,6 +55,7 @@ const AdminIbkrView = lazy(() => import('@/views/AdminIbkrView'))
 const AdminEmailView = lazy(() => import('@/views/AdminEmailView'))
 const AdminLongbridgeMcpView = lazy(() => import('@/views/AdminLongbridgeMcpView'))
 const AdminHarnessView = lazy(() => import('@/views/AdminHarnessView'))
+const AdminSettingsView = lazy(() => import('@/views/AdminSettingsView'))
 const BootstrapView = lazy(() => import('@/views/BootstrapView'))
 
 function lazyView(Component: React.LazyExoticComponent<React.ComponentType>) {
@@ -99,6 +100,7 @@ export const router = createBrowserRouter(
       { path: 'admin/harness', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AdminHarnessView)}</ProtectedRoute> },
       { path: 'admin/prompts', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AdminPromptsView)}</ProtectedRoute> },
       { path: 'admin/agent-monitoring', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AdminAgentMonitoringView)}</ProtectedRoute> },
+      { path: 'admin/settings', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AdminSettingsView)}</ProtectedRoute> },
       { path: 'bootstrap', element: lazyViewWithErrorBoundary(BootstrapView) },
       { path: '*', element: <Navigate to="/" replace /> },
     ],

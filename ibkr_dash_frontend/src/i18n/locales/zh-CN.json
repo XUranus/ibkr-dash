@@ -377,6 +377,7 @@
   },
   "admin": {
     "title": "管理",
+    "settings": "统一配置",
     "system": "系统状态",
     "llm": "LLM 配置",
     "ibkr": "IBKR 数据",
