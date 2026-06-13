@@ -506,16 +506,16 @@ class SQLiteWriter:
         self.bulk_upsert_account_snapshots([doc])
 
     def insert_trade(self, doc: dict) -> None:
-        """Insert a single trade record."""
+        """Insert a single trade record (skip if trade_id already exists)."""
         sql = """
-            INSERT INTO trade_records
-                (account_id, symbol, description, asset_class, conid,
+            INSERT OR IGNORE INTO trade_records
+                (account_id, symbol, description, asset_class, conid, trade_id,
                  trade_date, date_time, settle_date, transaction_type, exchange,
                  quantity, trade_price, trade_money, proceeds, taxes,
                  ib_commission, net_cash, fifo_pnl_realized, buy_sell, order_type,
                  raw_json, ingested_at)
             VALUES
-                (:account_id, :symbol, :description, :asset_class, :conid,
+                (:account_id, :symbol, :description, :asset_class, :conid, :trade_id,
                  :trade_date, :date_time, :settle_date, :transaction_type, :exchange,
                  :quantity, :trade_price, :trade_money, :proceeds, :taxes,
                  :ib_commission, :net_cash, :fifo_pnl_realized, :buy_sell, :order_type,
