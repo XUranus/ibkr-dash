@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { fetchRecentTradeReviews, fetchTradeReviewDetail, fetchTradeReviewHealth, fetchTradeReviewReport, startSingleTradeReviewTask, startSymbolReviewTask } from '@/api/tradeReview'
 import type { TradeReviewHealth, TradeReviewResult } from '@/types/tradeReview'
 
@@ -217,7 +218,7 @@ export default function TradeReviewAgentView() {
                     {reportLoading ? (
                       <p style={{ color: 'var(--color-text-muted)' }}>{t('common.loading')}</p>
                     ) : reportContent ? (
-                      <ReactMarkdown>{reportContent}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{reportContent}</ReactMarkdown>
                     ) : (
                       <p style={{ color: 'var(--color-text-muted)' }}>{t('tradeReview.noReportAvailable')}</p>
                     )}

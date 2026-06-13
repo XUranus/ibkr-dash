@@ -98,7 +98,9 @@ async def analyze_trade(
         fallback_builder=lambda ctx, err, raw: _build_fallback_decision(symbol, decision_type, question),
     )
     so_runtime = StructuredOutputRuntime(llm_service)
-    result = so_runtime.generate(messages, contract)
+    # Run LLM call in thread executor to avoid blocking the event loop
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(None, so_runtime.generate, messages, contract)
 
     if result.ok and result.payload:
         validated = _normalize_output(result.payload, symbol, decision_type)

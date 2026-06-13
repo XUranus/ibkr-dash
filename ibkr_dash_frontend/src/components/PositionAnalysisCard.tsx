@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { fetchLatestPositionAnalysis, type PositionAnalysisResult } from '@/api/positionAnalysis'
 
 export default function PositionAnalysisCard() {
@@ -50,7 +51,7 @@ export default function PositionAnalysisCard() {
           <span className="tag tag--accent">{analysis.report_date}</span>
         </div>
         <div className="copilot-markdown" style={{ lineHeight: 1.65 }}>
-          <ReactMarkdown>{analysis.report}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{analysis.report}</ReactMarkdown>
         </div>
       </div>
     </section>
