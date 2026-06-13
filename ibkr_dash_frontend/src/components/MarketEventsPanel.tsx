@@ -51,6 +51,8 @@ export default function MarketEventsPanel() {
     return map[imp] || imp
   }
 
+  const isZh = i18n.language?.startsWith('zh')
+
   if (loading) return null
 
   return (

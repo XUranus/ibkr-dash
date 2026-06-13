@@ -2,13 +2,13 @@ import { useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import * as echarts from 'echarts/core'
 import { LineChart } from 'echarts/charts'
-import { GridComponent, TooltipComponent, DataZoomComponent } from 'echarts/components'
+import { GridComponent, TooltipComponent, DataZoomComponent, LegendComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { EquityCurvePoint } from '@/types/charts'
 import type { EquityCurveRangeKey, EquityCurveRangeOption } from '@/utils/equityCurveRange'
 import { formatNumber } from '@/utils/format'
 
-echarts.use([LineChart, GridComponent, TooltipComponent, DataZoomComponent, CanvasRenderer])
+echarts.use([LineChart, GridComponent, TooltipComponent, DataZoomComponent, LegendComponent, CanvasRenderer])
 
 interface Props {
   items: EquityCurvePoint[]
