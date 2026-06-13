@@ -2,6 +2,14 @@ import { useTranslation } from 'react-i18next'
 import type { CashFlowItem } from '@/types/cashFlows'
 import { formatNumber, pnlClass } from '@/utils/format'
 
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return '--'
+  const datePart = iso.split('T')[0]
+  const [y, m, d] = datePart.split('-')
+  if (!y || !m || !d) return iso
+  return `${y}-${m}-${d}`
+}
+
 interface Props {
   items: CashFlowItem[]
   sortKey: 'date_time' | 'amount' | null
@@ -59,14 +67,14 @@ export default function CashFlowTable({ items, sortKey, sortOrder, onSort }: Pro
             <tr key={item.transaction_id || `${item.date_time}-${item.amount}`}>
               <td style={{ whiteSpace: 'normal' }}>
                 <div className="table-symbol">
-                  <span className="table-symbol__code">{item.date_time ?? '--'}</span>
-                  <span className="table-symbol__desc">{item.report_date ?? item.settle_date ?? '--'}</span>
+                  <span className="table-symbol__code">{formatDate(item.date_time)}</span>
+                  <span className="table-symbol__desc">{formatDate(item.report_date) ?? '--'}</span>
                 </div>
               </td>
               <td style={{ textAlign: 'center' }}><span className="tag tag--accent">{item.currency ?? '--'}</span></td>
               <td style={{ textAlign: 'center' }}><span className={`tag ${directionTagClass(item.flow_direction)}`}>{directionLabel(item.flow_direction, t)}</span></td>
               <td className="table-number"><span className={`cell-number ${pnlClass(item.amount)}`}>{formatNumber(item.amount, 2)}</span></td>
-              <td><span className="terminal-muted">{item.settle_date ?? '--'}</span></td>
+              <td><span className="terminal-muted">{formatDate(item.settle_date)}</span></td>
               <td>
                 <div className="table-symbol">
                   <span className="table-symbol__code">{item.description ?? '--'}</span>

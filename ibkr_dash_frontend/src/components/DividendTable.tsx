@@ -2,6 +2,15 @@ import { useTranslation } from 'react-i18next'
 import type { DividendItem } from '@/types/dividends'
 import { formatNumber, pnlClass } from '@/utils/format'
 
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return '--'
+  // Handle both "2026-06-04" and "2026-06-04T20:20:00"
+  const datePart = iso.split('T')[0]
+  const [y, m, d] = datePart.split('-')
+  if (!y || !m || !d) return iso
+  return `${y}-${m}-${d}`
+}
+
 interface Props {
   items: DividendItem[]
   sortKey: 'date_time' | 'ex_date' | 'amount' | null
@@ -66,8 +75,8 @@ export default function DividendTable({ items, sortKey, sortOrder, onSort }: Pro
             <tr key={item.transaction_id || `${item.date_time}-${item.symbol}-${item.amount}`}>
               <td style={{ whiteSpace: 'normal' }}>
                 <div className="table-symbol">
-                  <span className="table-symbol__code">{item.date_time ?? '--'}</span>
-                  <span className="table-symbol__desc">{item.settle_date ?? item.report_date ?? '--'}</span>
+                  <span className="table-symbol__code">{formatDate(item.date_time)}</span>
+                  <span className="table-symbol__desc">{formatDate(item.settle_date) ?? '--'}</span>
                 </div>
               </td>
               <td><span className="terminal-muted">{item.ex_date ?? '--'}</span></td>
