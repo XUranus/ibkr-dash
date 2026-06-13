@@ -67,7 +67,6 @@ class Settings:
     # --- IBKR Flex Web Service ---
     flex_base_url: str
     flex_token: str
-    flex_query_id_daily: str
     flex_query_ids: str  # comma-separated, e.g. "1532356,1532359"
     flex_poll_interval_seconds: int
     flex_max_poll_retries: int
@@ -101,7 +100,6 @@ def get_settings() -> Settings:
             "https://www.interactivebrokers.com/AccountManagement/FlexWebService",
         ),
         flex_token=os.getenv("FLEX_TOKEN", ""),
-        flex_query_id_daily=os.getenv("FLEX_QUERY_ID_DAILY", ""),
         flex_query_ids=os.getenv("FLEX_QUERY_IDS", "1532356,1532359"),
         flex_poll_interval_seconds=_read_int("FLEX_POLL_INTERVAL_SECONDS", 10),
         flex_max_poll_retries=_read_int("FLEX_MAX_POLL_RETRIES", 60),

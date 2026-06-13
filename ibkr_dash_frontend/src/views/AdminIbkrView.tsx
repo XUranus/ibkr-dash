@@ -14,9 +14,7 @@ export default function AdminIbkrView() {
   const [settings, setSettings] = useState<IbkrSettings | null>(null)
   const [testResult, setTestResult] = useState<IbkrTestResponse | null>(null)
   const [flexToken, setFlexToken] = useState('')
-  const [queryId, setQueryId] = useState('')
   const [queryIds, setQueryIds] = useState('')
-  const [accountId, setAccountId] = useState('')
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -24,9 +22,7 @@ export default function AdminIbkrView() {
     try {
       const s = await fetchIbkrSettings()
       setSettings(s)
-      setQueryId(s.flex_query_id ?? '')
-      setQueryIds(s.flex_query_ids ?? '1532356,1532359')
-      setAccountId(s.account_id ?? '')
+      setQueryIds(s.flex_query_ids ?? '')
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : t('adminIbkr.failedToLoad'))
     } finally {
@@ -43,9 +39,7 @@ export default function AdminIbkrView() {
     try {
       const payload: Record<string, string | null> = {}
       if (flexToken) payload.flex_token = flexToken
-      if (queryId) payload.flex_query_id = queryId
       if (queryIds) payload.flex_query_ids = queryIds
-      if (accountId) payload.account_id = accountId
       const updated = await updateIbkrSettings(payload)
       setSettings(updated)
       setFlexToken('')
@@ -106,8 +100,7 @@ export default function AdminIbkrView() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginTop: 12 }}>
             {[
               { label: t('adminIbkr.flexToken'), value: settings?.flex_token ? '••••••••' : t('adminIbkr.notSet') },
-              { label: t('adminIbkr.queryId'), value: settings?.flex_query_id || t('adminIbkr.notSet') },
-              { label: t('adminIbkr.accountId'), value: settings?.account_id || t('adminIbkr.notSet') },
+              { label: t('adminIbkr.flexQueryIds'), value: settings?.flex_query_ids || t('adminIbkr.notSet') },
             ].map((item) => (
               <div key={item.label} style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border-subtle)', background: 'rgba(10,14,26,0.4)' }}>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--color-text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>{item.label}</div>
@@ -128,16 +121,8 @@ export default function AdminIbkrView() {
               <input className="input" type="password" value={flexToken} onChange={(e) => setFlexToken(e.target.value)} placeholder={t('adminIbkr.flexTokenPlaceholder')} />
             </label>
             <label className="field-stack">
-              <span className="field-stack__label">{t('adminIbkr.flexQueryId')}</span>
-              <input className="input" value={queryId} onChange={(e) => setQueryId(e.target.value)} placeholder="e.g. 1532356" />
-            </label>
-            <label className="field-stack">
               <span className="field-stack__label">{t('adminIbkr.flexQueryIds')}</span>
               <input className="input" value={queryIds} onChange={(e) => setQueryIds(e.target.value)} placeholder="1532356,1532359" />
-            </label>
-            <label className="field-stack">
-              <span className="field-stack__label">{t('adminIbkr.accountId')}</span>
-              <input className="input" value={accountId} onChange={(e) => setAccountId(e.target.value)} placeholder="e.g. U1234567" />
             </label>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button className="btn btn--accent" onClick={handleSave} disabled={saving}>
