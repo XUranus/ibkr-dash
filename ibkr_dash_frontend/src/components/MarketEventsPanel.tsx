@@ -42,6 +42,28 @@ export default function MarketEventsPanel() {
 
   const isZh = i18n.language?.startsWith('zh')
 
+  // i18n importance labels
+  const importanceLabel = (imp: string) => {
+    const map: Record<string, string> = {
+      CRITICAL: isZh ? '极高' : 'Critical',
+      HIGH: isZh ? '高' : 'High',
+      MEDIUM: isZh ? '中' : 'Medium',
+      LOW: isZh ? '低' : 'Low',
+    }
+    return map[imp] || imp
+  }
+
+  // i18n category labels
+  const categoryLabel = (cat: string) => {
+    const map: Record<string, string> = {
+      FED: isZh ? '央行' : 'Fed',
+      MACRO: isZh ? '宏观' : 'Macro',
+      MARKET: isZh ? '市场' : 'Market',
+      COMPANY: isZh ? '公司' : 'Company',
+    }
+    return map[cat] || cat
+  }
+
   if (loading) return null
 
   return (
@@ -59,52 +81,52 @@ export default function MarketEventsPanel() {
             {t('dashboard.noEvents')}
           </p>
         ) : (
-          <div style={{ display: 'grid', gap: 1 }}>
-            {events.slice(0, 12).map((event) => {
-              const { date, time } = formatEventDate(event.scheduled_at)
-              const catColor = CATEGORY_COLORS[event.category] || '#8B949E'
-              const impStyle = IMPORTANCE_STYLES[event.importance] || IMPORTANCE_STYLES.MEDIUM
-              const title = isZh ? event.title : (event.title_en || event.title)
+          <table className="data-table" style={{ minWidth: 'auto' }}>
+            <thead>
+              <tr>
+                <th style={{ width: '50px' }}>{isZh ? '日期' : 'Date'}</th>
+                <th>{isZh ? '事件' : 'Event'}</th>
+                <th style={{ width: '50px', textAlign: 'right' }}>{isZh ? '级别' : 'Level'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {events.slice(0, 12).map((event) => {
+                const { date } = formatEventDate(event.scheduled_at)
+                const catColor = CATEGORY_COLORS[event.category] || '#8B949E'
+                const impStyle = IMPORTANCE_STYLES[event.importance] || IMPORTANCE_STYLES.MEDIUM
+                const title = isZh ? event.title : (event.title_en || event.title)
 
-              return (
-                <div key={event.id} style={{
-                  display: 'grid',
-                  gridTemplateColumns: '48px 1fr',
-                  gap: 8,
-                  padding: '5px 6px',
-                  borderRadius: 'var(--radius-sm)',
-                  background: 'var(--color-bg-elevated)',
-                  borderLeft: `2px solid ${catColor}`,
-                }}>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--color-text-secondary)' }}>{date}</div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--color-text-muted)' }}>{time}</div>
-                  </div>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--color-text-bright)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {title}
-                      </span>
+                return (
+                  <tr key={event.id}>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--color-text-secondary)' }}>
+                      {date}
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                        <span style={{ width: 3, height: 3, borderRadius: '50%', background: catColor, flexShrink: 0 }} />
+                        <span style={{ fontSize: '0.78rem', color: 'var(--color-text-bright)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {title}
+                        </span>
+                      </div>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
                       <span style={{
-                        fontSize: '0.55rem',
+                        fontSize: '0.6rem',
                         fontWeight: 600,
-                        padding: '1px 4px',
+                        padding: '1px 5px',
                         borderRadius: 2,
                         background: impStyle.bg,
                         color: impStyle.color,
-                        flexShrink: 0,
+                        whiteSpace: 'nowrap',
                       }}>
-                        {event.importance}
+                        {importanceLabel(event.importance)}
                       </span>
-                    </div>
-                    <div style={{ fontSize: '0.62rem', color: 'var(--color-text-muted)', marginTop: 1 }}>
-                      {event.category}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         )}
       </div>
     </div>
