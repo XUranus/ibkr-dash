@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.core.database import Database
-from app.utils.fifo import compute_fifo_cost_basis
+from app.utils.fifo import compute_fifo_cost_basis, query_fifo_cost_basis
 from app.schemas.positions import (
     PositionAssetDistributionItem,
     PositionConcentrationItem,
@@ -448,36 +448,8 @@ class PositionService:
                 row["fifo_pnl_unrealized"] = unrealized
 
     def _compute_fifo_cost_basis(self, symbols: set[str], report_date: str | None = None) -> dict[str, dict]:
-        """Compute FIFO cost basis for symbols from trade records.
-
-        Args:
-            symbols: Set of symbols to compute FIFO for.
-            report_date: If provided, only include trades up to this date.
-        """
-        if not symbols:
-            return {}
-        placeholders = ",".join("?" for _ in symbols)
-        if report_date:
-            trades = self.db.execute(
-                f"""
-                SELECT symbol, asset_class, trade_date, buy_sell, quantity, trade_price
-                FROM trade_records
-                WHERE symbol IN ({placeholders}) AND trade_date <= ?
-                ORDER BY symbol, trade_date ASC, date_time ASC
-                """,
-                tuple(symbols) + (report_date,),
-            )
-        else:
-            trades = self.db.execute(
-                f"""
-                SELECT symbol, asset_class, trade_date, buy_sell, quantity, trade_price
-                FROM trade_records
-                WHERE symbol IN ({placeholders})
-                ORDER BY symbol, trade_date ASC, date_time ASC
-                """,
-                tuple(symbols),
-            )
-        return compute_fifo_cost_basis(trades)
+        """Compute FIFO cost basis for symbols from trade records."""
+        return query_fifo_cost_basis(self.db, symbols, report_date)
 
     def _enrich_realized_pnl(self, rows: list[dict], report_date: str) -> None:
         """Fill in total_realized_pnl from trade records.

@@ -7,7 +7,7 @@ day-over-day deltas by comparing with the previous snapshot.
 from __future__ import annotations
 
 from app.core.database import Database
-from app.utils.fifo import compute_fifo_cost_basis
+from app.utils.fifo import query_fifo_cost_basis
 from app.schemas.account import (
     AccountDeltaMetric,
     AccountOverviewResponse,
@@ -190,23 +190,8 @@ class AccountService:
         return total_unrealized
 
     def _compute_fifo_cost_basis(self, symbols: set[str]) -> dict[str, dict]:
-        """Compute FIFO cost basis for symbols from trade records.
-
-        Delegates to the shared FIFO utility.
-        """
-        if not symbols:
-            return {}
-        placeholders = ",".join("?" for _ in symbols)
-        trades = self.db.execute(
-            f"""
-            SELECT symbol, asset_class, trade_date, buy_sell, quantity, trade_price
-            FROM trade_records
-            WHERE symbol IN ({placeholders})
-            ORDER BY symbol, trade_date ASC, date_time ASC
-            """,
-            tuple(symbols),
-        )
-        return compute_fifo_cost_basis(trades)
+        """Compute FIFO cost basis for symbols from trade records."""
+        return query_fifo_cost_basis(self.db, symbols)
 
     def _compute_net_cost(self, report_date: str, total_equity: float, _cash: float) -> float:
         """Compute net cost (total investment) using TWR-based cumulative PnL.

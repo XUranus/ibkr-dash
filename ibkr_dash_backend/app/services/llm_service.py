@@ -35,7 +35,7 @@ class LLMService:
         self.default_model = settings.llm_default_model
         self.temperature = settings.llm_temperature
         self.max_tokens = settings.llm_max_tokens
-        self.timeout = 120.0
+        self.timeout = 60.0
         self._client = httpx.Client(
             timeout=self.timeout,
             limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
@@ -49,6 +49,7 @@ class LLMService:
         temperature: float | None = None,
         max_tokens: int | None = None,
         response_format: dict | None = None,
+        timeout: float | None = None,
     ) -> str:
         """Send a chat completion request and return the assistant content."""
         result = self.chat_with_metadata(
@@ -57,6 +58,7 @@ class LLMService:
             temperature=temperature,
             max_tokens=max_tokens,
             response_format=response_format,
+            timeout=timeout,
         )
         return str(result.get("content") or "")
 
@@ -68,6 +70,7 @@ class LLMService:
         temperature: float | None = None,
         max_tokens: int | None = None,
         response_format: dict | None = None,
+        timeout: float | None = None,
     ) -> dict[str, Any]:
         """Send a chat completion request and return the full response dict.
 
@@ -87,10 +90,11 @@ class LLMService:
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
+        effective_timeout = timeout or self.timeout
 
         started = time.perf_counter()
         try:
-            response = self._client.post(url, headers=headers, json=payload)
+            response = self._client.post(url, headers=headers, json=payload, timeout=effective_timeout)
         except httpx.TimeoutException as exc:
             raise LLMClientError("TIMEOUT", "LLM provider request timed out") from exc
         except httpx.HTTPError as exc:

@@ -115,3 +115,44 @@ def compute_fifo_cost_basis(trades: list[dict]) -> dict[str, dict]:
             }
 
     return result
+
+
+def query_fifo_cost_basis(
+    db,
+    symbols: set[str],
+    report_date: str | None = None,
+) -> dict[str, dict]:
+    """Query trades from DB and compute FIFO cost basis.
+
+    Args:
+        db: Database instance.
+        symbols: Set of symbols to compute FIFO for.
+        report_date: If provided, only include trades up to this date.
+
+    Returns:
+        Dict mapping symbol to {cost_basis, avg_cost, total_qty, realized_pnl}.
+    """
+    if not symbols:
+        return {}
+    placeholders = ",".join("?" for _ in symbols)
+    if report_date:
+        trades = db.execute(
+            f"""
+            SELECT symbol, asset_class, trade_date, buy_sell, quantity, trade_price
+            FROM trade_records
+            WHERE symbol IN ({placeholders}) AND trade_date <= ?
+            ORDER BY symbol, trade_date ASC, date_time ASC
+            """,
+            tuple(symbols) + (report_date,),
+        )
+    else:
+        trades = db.execute(
+            f"""
+            SELECT symbol, asset_class, trade_date, buy_sell, quantity, trade_price
+            FROM trade_records
+            WHERE symbol IN ({placeholders})
+            ORDER BY symbol, trade_date ASC, date_time ASC
+            """,
+            tuple(symbols),
+        )
+    return compute_fifo_cost_basis(trades)

@@ -64,60 +64,82 @@ MONTH_MAP = {
 
 
 def _fetch_fomc_events() -> list[dict]:
-    """Scrape FOMC meeting dates from federalreserve.gov."""
+    """Scrape FOMC meeting dates from federalreserve.gov.
+
+    Returns list of event dicts. Returns empty list on failure
+    (network error, parse failure, or no meetings found).
+    """
     events = []
     try:
         resp = httpx.get(FOMC_CALENDAR_URL, headers=HTTP_HEADERS, timeout=HTTP_TIMEOUT, follow_redirects=True)
         resp.raise_for_status()
         html = resp.text
+    except httpx.HTTPStatusError as exc:
+        logger.warning("FOMC calendar HTTP error %s: %s", exc.response.status_code, exc)
+        return events
+    except httpx.RequestError as exc:
+        logger.warning("FOMC calendar request failed: %s", exc)
+        return events
     except Exception as exc:
-        logger.warning("Failed to fetch FOMC calendar: %s", exc)
+        logger.warning("Unexpected error fetching FOMC calendar: %s", exc)
         return events
 
-    # Strip scripts/styles, extract text
-    text = re.sub(r"<script\b.*?</script>", " ", html, flags=re.IGNORECASE | re.DOTALL)
-    text = re.sub(r"<style\b.*?</style>", " ", text, flags=re.IGNORECASE | re.DOTALL)
-    text = re.sub(r"<[^>]+>", " ", text)
-    text = text.replace("\xa0", " ")
-    text = re.sub(r"\s+", " ", text)
+    if not html or len(html) < 100:
+        logger.warning("FOMC calendar response too short (%d chars), may be blocked", len(html))
+        return events
 
-    # Find year sections and meeting dates
-    year_pattern = re.compile(r"\b(?P<year>20\d{2})\s+FOMC\s+Meetings\b", re.IGNORECASE)
-    date_pattern = re.compile(
-        r"(January|February|March|April|May|June|July|August|September|October|November|December)"
-        r"\s+(\d{1,2})(?:\s*[-–]\s*(\d{1,2}))?",
-        re.IGNORECASE,
-    )
+    try:
+        # Strip scripts/styles, extract text
+        text = re.sub(r"<script\b.*?</script>", " ", html, flags=re.IGNORECASE | re.DOTALL)
+        text = re.sub(r"<style\b.*?</style>", " ", text, flags=re.IGNORECASE | re.DOTALL)
+        text = re.sub(r"<[^>]+>", " ", text)
+        text = text.replace("\xa0", " ")
+        text = re.sub(r"\s+", " ", text)
 
-    for year_match in year_pattern.finditer(text):
-        current_year = int(year_match.group("year"))
-        section_start = year_match.end()
-        next_year = year_pattern.search(text[section_start:])
-        section = text[section_start:section_start + next_year.start()] if next_year else text[section_start:]
+        # Find year sections and meeting dates
+        year_pattern = re.compile(r"\b(?P<year>20\d{2})\s+FOMC\s+Meetings\b", re.IGNORECASE)
+        date_pattern = re.compile(
+            r"(January|February|March|April|May|June|July|August|September|October|November|December)"
+            r"\s+(\d{1,2})(?:\s*[-–]\s*(\d{1,2}))?",
+            re.IGNORECASE,
+        )
 
-        for date_match in date_pattern.finditer(section):
-            month_name = date_match.group(1)
-            day_start = int(date_match.group(2))
-            day_end = int(date_match.group(3)) if date_match.group(3) else day_start
-            month_num = MONTH_MAP.get(month_name.lower())
-            if not month_num:
-                continue
+        for year_match in year_pattern.finditer(text):
+            current_year = int(year_match.group("year"))
+            section_start = year_match.end()
+            next_year = year_pattern.search(text[section_start:])
+            section = text[section_start:section_start + next_year.start()] if next_year else text[section_start:]
 
-            scheduled = datetime(current_year, month_num, day_end, 18, 0, 0, tzinfo=timezone.utc)
+            for date_match in date_pattern.finditer(section):
+                month_name = date_match.group(1)
+                day_start = int(date_match.group(2))
+                day_end = int(date_match.group(3)) if date_match.group(3) else day_start
+                month_num = MONTH_MAP.get(month_name.lower())
+                if not month_num:
+                    continue
 
-            events.append({
-                "id": f"fomc_{current_year}_{month_num:02d}_{day_end:02d}",
-                "event_type": "FOMC_RATE_DECISION",
-                "category": "FED",
-                "title": f"FOMC {month_name} {current_year}",
-                "title_en": f"FOMC Meeting {month_name} {current_year}",
-                "scheduled_at": scheduled.isoformat(),
-                "importance": "CRITICAL",
-                "source": "FED",
-                "description": "美联储公开市场委员会利率决议",
-            })
+                scheduled = datetime(current_year, month_num, day_end, 18, 0, 0, tzinfo=timezone.utc)
 
-    logger.info("Fetched %d FOMC events from Fed", len(events))
+                events.append({
+                    "id": f"fomc_{current_year}_{month_num:02d}_{day_end:02d}",
+                    "event_type": "FOMC_RATE_DECISION",
+                    "category": "FED",
+                    "title": f"FOMC {month_name} {current_year}",
+                    "title_en": f"FOMC Meeting {month_name} {current_year}",
+                    "scheduled_at": scheduled.isoformat(),
+                    "importance": "CRITICAL",
+                    "source": "FED",
+                    "description": "美联储公开市场委员会利率决议",
+                })
+
+    except Exception as exc:
+        logger.warning("Failed to parse FOMC calendar HTML: %s", exc)
+        return []
+
+    if not events:
+        logger.warning("FOMC scraper found 0 events — page structure may have changed")
+    else:
+        logger.info("Fetched %d FOMC events from Fed", len(events))
     return events
 
 

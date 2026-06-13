@@ -61,7 +61,6 @@ async def generate_position_analysis(
         FROM position_snapshots
         WHERE report_date = ?
         ORDER BY position_value DESC
-        LIMIT 15
         """,
         (effective_date,),
     )
@@ -84,7 +83,7 @@ async def generate_position_analysis(
         {"role": "user", "content": prompt_zh},
     ]
     try:
-        report_zh = llm_service.chat(messages_zh)
+        report_zh = llm_service.chat(messages_zh, timeout=120)
     except Exception as exc:
         logger.warning("Failed to generate Chinese report: %s", exc)
         report_zh = ""
@@ -96,7 +95,7 @@ async def generate_position_analysis(
         {"role": "user", "content": prompt_en},
     ]
     try:
-        report_en = llm_service.chat(messages_en)
+        report_en = llm_service.chat(messages_en, timeout=120)
     except Exception as exc:
         logger.warning("Failed to generate English report: %s", exc)
         report_en = ""

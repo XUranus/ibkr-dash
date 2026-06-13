@@ -108,7 +108,9 @@ class TradeService:
         total_realized = float(row["total_realized_pnl"] or 0.0)
 
         # Fallback: compute realized PnL from FIFO when API zeroes fifo_pnl_realized
-        if abs(total_realized) < 0.01:
+        # Only run FIFO when DB has no realized PnL AND there are trades
+        trade_count = int(row["trade_count"] or 0)
+        if abs(total_realized) < 0.01 and trade_count > 0:
             from app.utils.fifo import compute_fifo_cost_basis
             trades = self.db.execute(
                 f"SELECT symbol, asset_class, trade_date, buy_sell, quantity, trade_price FROM trade_records WHERE {where_clause} ORDER BY symbol, trade_date ASC, date_time ASC",

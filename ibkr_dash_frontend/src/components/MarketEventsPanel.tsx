@@ -40,28 +40,15 @@ export default function MarketEventsPanel() {
     return () => { cancelled = true }
   }, [])
 
-  const isZh = i18n.language?.startsWith('zh')
-
   // i18n importance labels
   const importanceLabel = (imp: string) => {
     const map: Record<string, string> = {
-      CRITICAL: isZh ? '极高' : 'Critical',
-      HIGH: isZh ? '高' : 'High',
-      MEDIUM: isZh ? '中' : 'Medium',
-      LOW: isZh ? '低' : 'Low',
+      CRITICAL: t('dashboard.importanceCritical'),
+      HIGH: t('dashboard.importanceHigh'),
+      MEDIUM: t('dashboard.importanceMedium'),
+      LOW: t('dashboard.importanceLow'),
     }
     return map[imp] || imp
-  }
-
-  // i18n category labels
-  const categoryLabel = (cat: string) => {
-    const map: Record<string, string> = {
-      FED: isZh ? '央行' : 'Fed',
-      MACRO: isZh ? '宏观' : 'Macro',
-      MARKET: isZh ? '市场' : 'Market',
-      COMPANY: isZh ? '公司' : 'Company',
-    }
-    return map[cat] || cat
   }
 
   if (loading) return null
@@ -84,9 +71,9 @@ export default function MarketEventsPanel() {
           <table className="data-table" style={{ minWidth: 'auto' }}>
             <thead>
               <tr>
-                <th style={{ width: '50px' }}>{isZh ? '日期' : 'Date'}</th>
-                <th>{isZh ? '事件' : 'Event'}</th>
-                <th style={{ width: '50px', textAlign: 'right' }}>{isZh ? '级别' : 'Level'}</th>
+                <th style={{ width: '50px' }}>{t('dashboard.date')}</th>
+                <th>{t('dashboard.event')}</th>
+                <th style={{ width: '50px', textAlign: 'right' }}>{t('dashboard.level')}</th>
               </tr>
             </thead>
             <tbody>
