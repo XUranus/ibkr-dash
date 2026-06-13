@@ -2,10 +2,12 @@
 
 Queries the account_snapshots table for the latest snapshot and computes
 day-over-day deltas by comparing with the previous snapshot.
+Results are cached since IBKR data updates only once per day.
 """
 
 from __future__ import annotations
 
+from app.core import cache
 from app.core.database import Database
 from app.utils.fifo import query_fifo_cost_basis
 from app.schemas.account import (
@@ -21,7 +23,12 @@ class AccountService:
         self.db = db
 
     def get_overview(self) -> AccountOverviewResponse | None:
-        """Return the latest account overview with deltas vs. previous day."""
+        """Return the latest account overview with deltas vs. previous day. Cached."""
+        cache_key = cache.make_key("account_overview")
+        cached_result = cache.get(cache_key)
+        if cached_result is not None:
+            return cached_result
+
         snapshots = self.db.execute(
             """
             SELECT * FROM account_snapshots
@@ -101,6 +108,7 @@ class AccountService:
             overview.fifo_total_unrealized_pnl_delta = self._build_delta(unrealized_pnl, prev_unrealized)
             overview.fifo_total_pnl_delta = self._build_delta(total_pnl, prev_total_pnl)
 
+        cache.put(cache_key, overview)
         return overview
 
     def get_snapshots(self, limit: int = 30) -> AccountSnapshotListResponse:

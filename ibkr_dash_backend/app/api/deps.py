@@ -30,7 +30,14 @@ security = HTTPBasic(auto_error=False)
 
 def get_db() -> Database:
     """Return the singleton Database instance."""
-    return get_database()
+    db = get_database()
+    # Check if data has changed (cheap single-row query, invalidates cache if needed)
+    try:
+        from app.core.cache import check_data_freshness
+        check_data_freshness(db)
+    except Exception:
+        pass  # don't break the request if cache check fails
+    return db
 
 
 def get_app_settings() -> Settings:

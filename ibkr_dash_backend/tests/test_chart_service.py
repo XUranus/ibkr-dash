@@ -4,9 +4,18 @@ from __future__ import annotations
 
 import pytest
 
+from app.core import cache
 from app.core.config import Settings
 from app.core.database import Database, init_database
 from app.services.chart_service import ChartService
+
+
+@pytest.fixture(autouse=True)
+def clear_cache():
+    """Clear cache before each test to avoid cross-test pollution."""
+    cache.invalidate_all()
+    yield
+    cache.invalidate_all()
 
 
 @pytest.fixture

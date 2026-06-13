@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from app.core import cache
 from app.core.database import Database
 from app.schemas.trades import TradeItem, TradeListResponse, TradeSummaryResponse
 from app.utils.dates import parse_date
@@ -78,7 +79,12 @@ class TradeService:
         asset_class: str | None,
         buy_sell: str | None,
     ) -> TradeSummaryResponse:
-        """Return aggregate trade statistics."""
+        """Return aggregate trade statistics. Cached."""
+        cache_key = cache.make_key("trade_summary", start_date or "", end_date or "", symbol or "", asset_class or "", buy_sell or "")
+        cached_result = cache.get(cache_key)
+        if cached_result is not None:
+            return cached_result
+
         effective_start, effective_end = self._resolve_date_window(start_date, end_date)
         conditions, params = self._build_filters(effective_start, effective_end, symbol, asset_class, buy_sell)
         where_clause = " AND ".join(conditions) if conditions else "1=1"
@@ -119,7 +125,7 @@ class TradeService:
             fifo_map = compute_fifo_cost_basis(trades)
             total_realized = sum(d.get("realized_pnl", 0) for d in fifo_map.values())
 
-        return TradeSummaryResponse(
+        result = TradeSummaryResponse(
             trade_count=int(row["trade_count"] or 0),
             buy_count=int(row["buy_count"] or 0),
             sell_count=int(row["sell_count"] or 0),
@@ -128,6 +134,8 @@ class TradeService:
             total_proceeds=float(row["total_proceeds"] or 0.0),
             symbols_count=int(row["symbols_count"] or 0),
         )
+        cache.put(cache_key, result)
+        return result
 
     # ------------------------------------------------------------------
     # Internal helpers

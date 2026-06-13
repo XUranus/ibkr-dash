@@ -1,6 +1,7 @@
 """Chart service: equity curve and performance calendar.
 
 Builds time-series data from account_snapshots, trade_records, and cash_flows.
+Results are cached since IBKR data updates only once per day.
 """
 
 from __future__ import annotations
@@ -8,6 +9,8 @@ from __future__ import annotations
 from calendar import monthrange
 from dataclasses import dataclass
 from datetime import date, timedelta
+
+from app.core import cache
 
 from app.core.database import Database
 from app.schemas.charts import (
@@ -42,7 +45,12 @@ class ChartService:
     # ------------------------------------------------------------------
 
     def get_equity_curve(self, start_date: str | None, end_date: str | None) -> EquityCurveResponse:
-        """Build the equity curve time series."""
+        """Build the equity curve time series. Cached for performance."""
+        cache_key = cache.make_key("equity_curve", start_date or "", end_date or "")
+        cached_result = cache.get(cache_key)
+        if cached_result is not None:
+            return cached_result
+
         latest_report_date = self._get_latest_report_date()
         if latest_report_date is None:
             return EquityCurveResponse(items=[])
@@ -191,7 +199,9 @@ class ChartService:
                 ))
             previous_total_equity = float(total_equity) if total_equity is not None else previous_total_equity
 
-        return EquityCurveResponse(items=items)
+        result = EquityCurveResponse(items=items)
+        cache.put(cache_key, result)
+        return result
 
     # ------------------------------------------------------------------
     # Performance calendar
