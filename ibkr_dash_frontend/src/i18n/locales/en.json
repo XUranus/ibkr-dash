@@ -453,6 +453,7 @@
     "saving": "Saving...",
     "adminLabel": "ADMIN",
     "flexQueryId": "Flex Query ID",
+    "flexQueryIds": "Flex Query IDs (comma-separated)",
     "settingsSaved": "Settings saved successfully.",
     "failedToLoad": "Failed to load IBKR settings",
     "failedToSave": "Failed to save settings",

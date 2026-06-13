@@ -453,6 +453,7 @@
     "saving": "保存中...",
     "adminLabel": "管理",
     "flexQueryId": "Flex Query ID",
+    "flexQueryIds": "Flex Query IDs（逗号分隔）",
     "settingsSaved": "配置保存成功。",
     "failedToLoad": "加载 IBKR 配置失败",
     "failedToSave": "保存配置失败",

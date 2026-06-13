@@ -15,6 +15,7 @@ export default function AdminIbkrView() {
   const [testResult, setTestResult] = useState<IbkrTestResponse | null>(null)
   const [flexToken, setFlexToken] = useState('')
   const [queryId, setQueryId] = useState('')
+  const [queryIds, setQueryIds] = useState('')
   const [accountId, setAccountId] = useState('')
 
   const loadData = useCallback(async () => {
@@ -24,6 +25,7 @@ export default function AdminIbkrView() {
       const s = await fetchIbkrSettings()
       setSettings(s)
       setQueryId(s.flex_query_id ?? '')
+      setQueryIds(s.flex_query_ids ?? '1532356,1532359')
       setAccountId(s.account_id ?? '')
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : t('adminIbkr.failedToLoad'))
@@ -42,6 +44,7 @@ export default function AdminIbkrView() {
       const payload: Record<string, string | null> = {}
       if (flexToken) payload.flex_token = flexToken
       if (queryId) payload.flex_query_id = queryId
+      if (queryIds) payload.flex_query_ids = queryIds
       if (accountId) payload.account_id = accountId
       const updated = await updateIbkrSettings(payload)
       setSettings(updated)
@@ -127,6 +130,10 @@ export default function AdminIbkrView() {
             <label className="field-stack">
               <span className="field-stack__label">{t('adminIbkr.flexQueryId')}</span>
               <input className="input" value={queryId} onChange={(e) => setQueryId(e.target.value)} placeholder="e.g. 1532356" />
+            </label>
+            <label className="field-stack">
+              <span className="field-stack__label">{t('adminIbkr.flexQueryIds')}</span>
+              <input className="input" value={queryIds} onChange={(e) => setQueryIds(e.target.value)} placeholder="1532356,1532359" />
             </label>
             <label className="field-stack">
               <span className="field-stack__label">{t('adminIbkr.accountId')}</span>

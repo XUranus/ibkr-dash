@@ -18,10 +18,6 @@ from worker.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-# Default query IDs to pull
-DEFAULT_QUERY_IDS = ["1532356", "1532359"]
-
-
 def fetch_flex_statements(
     data_dir: Path | str | None = None,
     query_ids: list[str] | None = None,
@@ -33,7 +29,7 @@ def fetch_flex_statements(
 
     Args:
         data_dir: Directory to save files. Defaults to settings.data_dir.
-        query_ids: Query IDs to pull. Defaults to DEFAULT_QUERY_IDS.
+        query_ids: Query IDs to pull. Defaults to settings.flex_query_ids (comma-separated).
 
     Returns:
         List of paths to fetched (or already-existing) files.
@@ -46,7 +42,8 @@ def fetch_flex_statements(
         logger.warning("FLEX_TOKEN not configured, skipping fetch")
         return []
 
-    query_ids = query_ids or DEFAULT_QUERY_IDS
+    if query_ids is None:
+        query_ids = [q.strip() for q in settings.flex_query_ids.split(",") if q.strip()]
     today = date.today().isoformat()  # YYYY-MM-DD
     flex_client = FlexClient(settings)
 
