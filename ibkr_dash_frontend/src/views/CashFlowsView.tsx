@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { fetchCashFlows, fetchCashFlowSummary } from '@/api/cashFlows'
+import { useAuth } from '@/hooks/useAuth'
 import CashFlowTable from '@/components/CashFlowTable'
 import ErrorBlock from '@/components/ErrorBlock'
 import LoadingBlock from '@/components/LoadingBlock'
@@ -10,6 +11,7 @@ import { formatNumber } from '@/utils/format'
 
 export default function CashFlowsView() {
   const { t } = useTranslation()
+  const { ensureAuth } = useAuth()
   const [state, setState] = useState({ start_date: '', end_date: '', currency: '', flow_direction: '', page: 1, page_size: 20 })
   const [cashFlowResponse, setCashFlowResponse] = useState<Awaited<ReturnType<typeof fetchCashFlows>> | null>(null)
   const [cashFlowSummary, setCashFlowSummary] = useState<CashFlowSummaryResponse | null>(null)
@@ -41,7 +43,7 @@ export default function CashFlowsView() {
     }
   }
 
-  useEffect(() => { void loadCashFlows() }, [])
+  useEffect(() => { void ensureAuth().then(() => loadCashFlows()) }, [])
 
   function applyFilters() { setState((s) => ({ ...s, page: 1 })); void loadCashFlows() }
   function setDirection(dir: 'deposit' | 'withdrawal') { setState((s) => ({ ...s, flow_direction: s.flow_direction === dir ? '' : dir, page: 1 })); void loadCashFlows() }
