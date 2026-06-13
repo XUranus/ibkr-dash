@@ -75,8 +75,7 @@ export default function DividendTable({ items, sortKey, sortOrder, onSort }: Pro
             <tr key={item.transaction_id || `${item.date_time}-${item.symbol}-${item.amount}`}>
               <td style={{ whiteSpace: 'normal' }}>
                 <div className="table-symbol">
-                  <span className="table-symbol__code">{formatDate(item.date_time)}</span>
-                  <span className="table-symbol__desc">{formatDate(item.settle_date) ?? '--'}</span>
+                  <span className="table-symbol__code">{formatDate(item.settle_date || item.date_time)}</span>
                 </div>
               </td>
               <td><span className="terminal-muted">{item.ex_date ?? '--'}</span></td>

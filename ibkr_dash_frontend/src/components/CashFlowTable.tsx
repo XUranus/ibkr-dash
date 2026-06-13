@@ -67,8 +67,7 @@ export default function CashFlowTable({ items, sortKey, sortOrder, onSort }: Pro
             <tr key={item.transaction_id || `${item.date_time}-${item.amount}`}>
               <td style={{ whiteSpace: 'normal' }}>
                 <div className="table-symbol">
-                  <span className="table-symbol__code">{formatDate(item.date_time)}</span>
-                  <span className="table-symbol__desc">{formatDate(item.report_date) ?? '--'}</span>
+                  <span className="table-symbol__code">{formatDate(item.settle_date || item.date_time)}</span>
                 </div>
               </td>
               <td style={{ textAlign: 'center' }}><span className="tag tag--accent">{item.currency ?? '--'}</span></td>
