@@ -83,7 +83,7 @@ export default function AppHeader() {
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 16,
-          height: 40,
+          minHeight: 40,
           flexWrap: 'wrap',
         }}>
           {/* Left: title */}

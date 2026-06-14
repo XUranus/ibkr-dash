@@ -636,9 +636,10 @@ button, input, textarea, select { font: inherit; }
   .grid-2col { grid-template-columns: 1fr; }
   .grid-3col { grid-template-columns: 1fr; }
 
-  /* Header: hide account metrics strip, scrollable nav */
+  /* Header: compact top bar, hide metrics strip, scrollable nav */
+  header > div:first-child { gap: 8; }
   header > div > div:nth-child(2) { display: none; }
-  header nav { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  header nav { overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
   header nav::-webkit-scrollbar { display: none; }
 }
 
