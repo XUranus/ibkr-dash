@@ -62,6 +62,12 @@ class Settings:
     backend_base_url: str
     daily_review_internal_token: str
 
+    # --- Market Events ---
+    market_events_sync_interval_hours: int
+
+    # --- LLM (for BLS API key) ---
+    bls_api_key: str
+
 
 def get_settings() -> Settings:
     """Build Settings from the shared JSON config.
@@ -92,4 +98,6 @@ def get_settings() -> Settings:
         flex_max_poll_retries=int(ibkr.get("flex_max_poll_retries", 60)),
         backend_base_url=str(worker.get("backend_base_url", "http://localhost:8000")),
         daily_review_internal_token=str(worker.get("daily_review_internal_token", "")),
+        market_events_sync_interval_hours=int(scheduler.get("market_events_sync_interval_hours", 24)),
+        bls_api_key=str(cfg.get("llm", {}).get("bls_api_key", "")),
     )

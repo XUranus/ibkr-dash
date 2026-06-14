@@ -171,6 +171,12 @@ class Settings:
         """Return the in-memory cache TTL in seconds."""
         return int(get_manager().get("advanced.cache_ttl_seconds", 86400))
 
+    # -- Market Events --
+    @property
+    def market_events_sync_interval_hours(self) -> int:
+        """Return the market events sync interval in hours."""
+        return int(get_manager().get("scheduler.market_events_sync_interval_hours", 24))
+
 
 # ---------------------------------------------------------------------------
 # Singleton (no lru_cache — values are live from JSON)

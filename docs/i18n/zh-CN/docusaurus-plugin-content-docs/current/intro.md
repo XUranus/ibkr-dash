@@ -340,7 +340,7 @@ ibkr-dash/
 
 如果遇到问题：
 
-1. 查看 **[故障排除](./getting-started.md#troubleshooting)** 部分
+1. 查看 **[故障排除](./getting-started.md#故障排除)** 部分
 2. 探索 **Swagger UI** (`http://localhost:8000/docs`) 测试 API 端点
 3. 检查**浏览器控制台** (F12) 查看前端错误
 4. 检查**终端输出** 查看后端/Worker 错误

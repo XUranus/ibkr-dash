@@ -18,9 +18,21 @@ from app.core.logger import setup_logging
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifecycle: initialize DB on startup."""
+    import logging
     settings = get_settings()
     setup_logging()
     init_database(settings)
+
+    # Auto-seed market events on first startup (harmless if already seeded)
+    try:
+        from app.core.database import Database
+        from app.services.market_event_service import seed_market_events
+        db = Database(settings.sqlite_path)
+        count = seed_market_events(db)
+        logging.getLogger(__name__).info("Auto-seeded %d market events", count)
+    except Exception as exc:
+        logging.getLogger(__name__).warning("Market events auto-seed failed: %s", exc)
+
     yield
 
 
