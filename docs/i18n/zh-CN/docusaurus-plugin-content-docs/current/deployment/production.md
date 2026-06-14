@@ -261,7 +261,7 @@ SQLite 数据库存储在 Docker 卷中。请定期备份。
 
 ```bash
 # 将数据库从容器中复制出来
-docker compose exec backend cp /app/backend/data/ibkr_dash.db /tmp/backup.db
+docker compose exec backend cp /app/data/ibkr_dash.db /tmp/backup.db
 docker compose cp backend:/tmp/backup.db ./backup-$(date +%Y%m%d).db
 ```
 
@@ -280,7 +280,7 @@ mkdir -p "$BACKUP_DIR"
 DATE=$(date +%Y%m%d_%H%M%S)
 
 docker compose -f /opt/ibkr-dash/docker-compose.yml \
-  exec -T backend cp /app/backend/data/ibkr_dash.db /tmp/backup.db
+  exec -T backend cp /app/data/ibkr_dash.db /tmp/backup.db
 
 docker compose -f /opt/ibkr-dash/docker-compose.yml \
   cp backend:/tmp/backup.db "$BACKUP_DIR/backup_$DATE.db"
@@ -301,7 +301,7 @@ crontab -e
 
 ```bash
 docker compose stop backend worker
-docker compose cp ./backup.db backend:/app/backend/data/ibkr_dash.db
+docker compose cp ./backup.db backend:/app/data/ibkr_dash.db
 docker compose start backend worker
 ```
 
@@ -398,12 +398,12 @@ docker compose exec worker python -m worker.main init-db
 
 ```bash
 # 检查数据库大小
-docker compose exec backend ls -lh /app/backend/data/ibkr_dash.db
+docker compose exec backend ls -lh /app/data/ibkr_dash.db
 
 # 运行 VACUUM 回收空间
 docker compose exec backend python -c "
 import sqlite3
-conn = sqlite3.connect('/app/backend/data/ibkr_dash.db')
+conn = sqlite3.connect('/app/data/ibkr_dash.db')
 conn.execute('VACUUM')
 conn.close()
 "

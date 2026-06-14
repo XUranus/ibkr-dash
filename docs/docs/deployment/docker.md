@@ -29,7 +29,7 @@ graph TB
         subgraph Worker["Worker Container"]
             SCHEDULER["APScheduler"]
         end
-        VOLUME[("backend-data volume<br/>(SQLite DB)")]
+        VOLUME[("backend-data volume<br/>(SQLite DB + config.json)")]
     end
 
     P8080 --> NGINX
@@ -68,7 +68,7 @@ graph TB
 - **Frontend** -- Nginx serves the built React app and proxies `/api/*` to the backend.
 - **Backend** -- FastAPI serves the REST API on port 8000.
 - **Worker** -- Runs the IBKR Flex scheduler to import data daily.
-- **Shared volume** -- `backend-data` holds the SQLite database, shared between backend and worker.
+- **Shared volume** -- `backend-data` holds the SQLite database and `config.json`, shared between backend and worker.
 
 ---
 
@@ -97,63 +97,44 @@ Open **http://localhost:8080/admin/settings** and set your LLM API key, Flex tok
 
 ## Docker Compose Services
 
-### Backend
-
 ```yaml
-# docker-compose.yml (backend section)
-backend:
-  build:
-    context: .
-    dockerfile: docker/backend.Dockerfile
-  ports:
-    - "${BACKEND_PORT:-8000}:8000"
-  volumes:
-    - backend-data:/app/backend/data
-  environment:
-    - SQLITE_PATH=/app/backend/data/ibkr_dash.db
-    - APP_ENV=${APP_ENV:-docker}
-  restart: unless-stopped
+# docker-compose.yml
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - backend-data:/app/data
+    environment:
+      - SQLITE_PATH=/app/data/ibkr_dash.db
+      - APP_ENV=${APP_ENV:-docker}
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+    volumes:
+      - backend-data:/app/data
+    environment:
+      - SQLITE_PATH=/app/data/ibkr_dash.db
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      - backend
+
+volumes:
+  backend-data:
 ```
-
-- Runs `uvicorn app.main:app --host 0.0.0.0 --port 8000`.
-- Uses Python 3.12 slim image.
-- Data is persisted in the `backend-data` volume.
-
-### Worker
-
-```yaml
-# docker-compose.yml (worker section)
-worker:
-  build:
-    context: .
-    dockerfile: docker/worker.Dockerfile
-  volumes:
-    - backend-data:/app/backend/data
-  environment:
-    - SQLITE_PATH=/app/backend/data/ibkr_dash.db
-  restart: unless-stopped
-```
-
-- Runs `python -m worker.main run-scheduler`.
-- Shares the same SQLite database via the `backend-data` volume.
-- Imports IBKR Flex data on the configured schedule.
-
-### Frontend
-
-```yaml
-# docker-compose.yml (frontend section)
-frontend:
-  build:
-    context: .
-    dockerfile: docker/frontend.Dockerfile
-  ports:
-    - "${FRONTEND_PORT:-8080}:80"
-  depends_on:
-    - backend
-```
-
-- Multi-stage build: Node.js compiles the React app, then Nginx serves the static files.
-- Nginx proxies `/api/*` requests to the backend service.
 
 ---
 
@@ -198,6 +179,12 @@ COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 
 ---
 
+## .dockerignore
+
+A `.dockerignore` file at the project root excludes unnecessary files from the build context (node_modules, .venv, docs, etc.), reducing the context from ~196MB to ~5MB.
+
+---
+
 ## Nginx Configuration
 
 The frontend uses Nginx to serve the SPA and proxy API requests:
@@ -224,33 +211,37 @@ server {
 }
 ```
 
-Key points:
-- `/api/*` requests are forwarded to the backend container.
-- All other routes serve `index.html` (SPA routing).
-- `client_max_body_size` is set to 100 MB.
-
 ---
 
 ## Volumes
 
 | Volume | Purpose |
 |--------|---------|
-| `backend-data` | SQLite database and Flex CSV exports |
+| `backend-data` | SQLite database, config.json, and Flex CSV exports |
 
-The volume is shared between backend and worker so they can read/write the same database.
-
-To inspect the volume:
-
-```bash
-docker volume inspect ibkr-dash_backend-data
-```
+The volume is shared between backend and worker so they can read/write the same database and config.
 
 To back up the database:
 
 ```bash
-docker compose exec backend cp /app/backend/data/ibkr_dash.db /tmp/backup.db
+docker compose exec backend cp /app/data/ibkr_dash.db /tmp/backup.db
 docker compose cp backend:/tmp/backup.db ./backup.db
 ```
+
+---
+
+## Configuration
+
+All configuration is managed via the Admin Settings UI at `http://localhost:8080/admin/settings`. The config is stored in `data/config.json` inside the `backend-data` Docker volume.
+
+Docker-specific overrides in `docker-compose.yml`:
+
+| Variable | Docker Default | Description |
+|----------|---------------|-------------|
+| `SQLITE_PATH` | `/app/data/ibkr_dash.db` | Path inside the container |
+| `APP_ENV` | `docker` | Environment name |
+| `BACKEND_PORT` | `8000` | Host port for the backend |
+| `FRONTEND_PORT` | `8080` | Host port for the frontend |
 
 ---
 
@@ -283,27 +274,12 @@ docker compose exec backend bash
 
 ---
 
-## Configuration
-
-All configuration is managed via the Admin Settings UI at `http://localhost:8080/admin/settings`. The config is stored in `data/config.json` inside the `backend-data` Docker volume.
-
-Docker-specific overrides in `docker-compose.yml`:
-
-| Variable | Docker Default | Description |
-|----------|---------------|-------------|
-| `SQLITE_PATH` | `/app/backend/data/ibkr_dash.db` | Path inside the container |
-| `APP_ENV` | `docker` | Environment name |
-| `BACKEND_PORT` | `8000` | Host port for the backend |
-| `FRONTEND_PORT` | `8080` | Host port for the frontend |
-
----
-
 ## Troubleshooting
 
 ### Containers keep restarting
 
 Check logs: `docker compose logs backend`. Common causes:
-- Port conflicts on the host
+- Port conflicts on the host (use `BACKEND_PORT` / `FRONTEND_PORT` to change)
 - Invalid configuration values
 
 ### Database not persisting

@@ -677,13 +677,13 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - backend-data:/app/backend/data
+      - backend-data:/app/data
 
   worker:
     build:
       dockerfile: docker/worker.Dockerfile
     volumes:
-      - backend-data:/app/backend/data
+      - backend-data:/app/data
 
   frontend:
     build:

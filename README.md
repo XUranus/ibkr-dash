@@ -122,6 +122,10 @@ docker compose up -d --build
 # Configure at http://localhost:8080/admin/settings
 ```
 
+If port 8080 is in use, override with `FRONTEND_PORT=8081 docker compose up -d`.
+
+See [Docker Deployment docs](docs/docs/deployment/docker.md) for details.
+
 ## Configuration
 
 All configuration is stored in `data/config.json` and managed via the **Admin Settings** UI. See [Configuration docs](docs/docs/backend/config.md) for the full reference.
@@ -168,9 +172,11 @@ ibkr-dash/
 │   │   └── jobs/               # Scheduled jobs
 │   └── tests/
 ├── data/                       # SQLite DB + config.json + Flex exports
-├── docker/                     # Docker configs
+├── docker/                     # Dockerfiles + nginx.conf
+├── config.example.json         # Config template (data/config.json is gitignored)
 ├── scripts/                    # Utility scripts
-└── docs/                       # Documentation
+├── .dockerignore               # Docker build context exclusions
+└── docs/                       # Documentation (Docusaurus)
 ```
 
 ## License
