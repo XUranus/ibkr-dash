@@ -1,0 +1,43 @@
+# Version control
+.git
+.gitignore
+
+# IDE / Editor
+.claude
+.vscode
+.idea
+
+# Documentation
+docs
+
+# Python
+**/__pycache__
+**/*.pyc
+**/.venv
+**/venv
+**/.mypy_cache
+**/.pytest_cache
+**/.ruff_cache
+
+# Node
+**/node_modules
+
+# Build artifacts
+**/dist
+**/build
+**/*.egg-info
+
+# Data (runtime, not build)
+data
+
+# Docker
+docker-compose.yml
+
+# Misc
+*.md
+!README.md
+scripts
+.env
+.env.*
+config.example.json
+.mcp.json

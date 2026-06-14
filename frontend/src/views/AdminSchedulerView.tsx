@@ -36,7 +36,7 @@ export default function AdminSchedulerView() {
       setImportResult(result)
       await loadImportHistory()
     } catch (err) {
-      setImportResult({ success: false, files: {}, errors: [err instanceof Error ? err.message : t('common.error')] })
+      setImportResult({ success: false, files: {}, errors: [err instanceof Error ? err.message : t('common.error')], started_at: '', duration_ms: 0 })
     } finally {
       setImportRunning(false)
     }

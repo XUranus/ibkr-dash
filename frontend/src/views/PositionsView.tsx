@@ -54,14 +54,14 @@ export default function PositionsView() {
     setLoading(true)
     setErrorMessage('')
     try {
-      const [listResponse, realtimeResponse] = await Promise.all([
+      const [listResponse, , realtimeResult] = await Promise.all([
         fetchPositions({ include_summary: true, sort_by: 'position_value', sort_order: 'desc', page: 1, page_size: 200 }),
         ensureLoaded(),
-        fetchRealtimePositions().catch(() => ({ items: [], count: 0 })),
+        fetchRealtimePositions().catch(() => ({ items: [] as RealtimePosition[], count: 0 })),
       ])
       setResponse(listResponse)
-      if (realtimeResponse.items?.length) {
-        setRealtimePositions(realtimeResponse.items)
+      if (realtimeResult.items?.length) {
+        setRealtimePositions(realtimeResult.items)
       }
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : t('positions.failedToLoadPositions'))

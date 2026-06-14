@@ -257,7 +257,7 @@ export default function AdminSettingsView() {
               <p className="panel-subtitle">{t('adminSettings.subtitle')}</p>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn btn--sm" onClick={() => { resetSettings().then(() => { setEdits(); void loadData() }) }}>
+              <button className="btn btn--sm" onClick={() => { resetSettings(undefined).then(() => { setEdits({}); void loadData() }) }}>
                 {t('adminSettings.resetAll')}
               </button>
               <button className="btn btn--sm btn--accent" onClick={handleSaveAll} disabled={!hasAnyEdits || !!savingCats._all}>
