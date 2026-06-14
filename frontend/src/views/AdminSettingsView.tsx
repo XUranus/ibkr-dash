@@ -127,7 +127,7 @@ export default function AdminSettingsView() {
     }
     if (Object.keys(catEdits).length === 0) return
 
-    const passwordChanged = 'AUTH_PASSWORD' in catEdits
+    const authChanged = 'AUTH_PASSWORD' in catEdits || 'AUTH_USERNAME' in catEdits
 
     setSavingCats((prev) => ({ ...prev, [cat]: true }))
     setErrorMessage('')
@@ -135,7 +135,7 @@ export default function AdminSettingsView() {
     try {
       await updateSettings(catEdits)
 
-      if (passwordChanged) {
+      if (authChanged) {
         try { await logout() } catch { /* expected */ }
         window.location.href = '/'
         return
@@ -149,8 +149,7 @@ export default function AdminSettingsView() {
       setNoticeMessage(t('adminSettings.saved'))
       await loadData()
     } catch (err) {
-      // If password was changed, save may have succeeded but session is now invalid — redirect
-      if (passwordChanged) {
+      if (authChanged) {
         try { await logout() } catch { /* expected */ }
         window.location.href = '/'
         return
@@ -169,7 +168,7 @@ export default function AdminSettingsView() {
       allEdits[key] = edit.value
     }
 
-    const passwordChanged = 'AUTH_PASSWORD' in allEdits
+    const authChanged = 'AUTH_PASSWORD' in allEdits || 'AUTH_USERNAME' in allEdits
 
     setSavingCats({ _all: true })
     setErrorMessage('')
@@ -177,7 +176,7 @@ export default function AdminSettingsView() {
     try {
       await updateSettings(allEdits)
 
-      if (passwordChanged) {
+      if (authChanged) {
         try { await logout() } catch { /* expected */ }
         window.location.href = '/'
         return
@@ -188,7 +187,7 @@ export default function AdminSettingsView() {
       await loadData()
     } catch (err) {
       // If password was changed, save may have succeeded but session is now invalid — redirect
-      if (passwordChanged) {
+      if (authChanged) {
         try { await logout() } catch { /* expected */ }
         window.location.href = '/'
         return
