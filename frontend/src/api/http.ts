@@ -42,9 +42,10 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
     headers,
   })
 
-  // Handle 401 Unauthorized — clear auth state, let the page handle the error
+  // Handle 401 Unauthorized — clear auth state and redirect to home
   if (response.status === 401) {
     localStorage.removeItem('ibkr-dash.auth-session')
+    window.location.href = '/'
     throw new ApiError('Authentication required.', 401)
   }
 
