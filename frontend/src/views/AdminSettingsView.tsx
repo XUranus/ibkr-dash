@@ -4,7 +4,7 @@ import { fetchAllSettings, updateSettings, resetSettings, type SettingItem, type
 import { testIbkrConnection } from '@/api/adminIbkr'
 import { testLlmProvider } from '@/api/adminLlm'
 import { fetchEmailSettings, updateEmailSettings, sendEmailTest } from '@/api/adminEmail'
-import { logout } from '@/api/auth'
+import { useAuth } from '@/hooks/useAuth'
 import AdminTabs from '@/components/AdminTabs'
 import type { IbkrTestResponse } from '@/types/adminIbkr'
 import type { LlmProviderTestResponse } from '@/types/adminLlm'
@@ -31,6 +31,7 @@ function useAccordion(initial: string | null = null) {
 
 export default function AdminSettingsView() {
   const { t } = useTranslation()
+  const { logout } = useAuth()
   const { expanded, toggle } = useAccordion()
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')

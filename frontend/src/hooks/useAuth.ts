@@ -95,11 +95,12 @@ export async function loginWithCredentials(username: string, password: string): 
 }
 
 export async function logoutCurrentSession(): Promise<void> {
+  // Reset auth state immediately so nav updates before API completes
+  applyState(false, null)
   globalAuthState = { ...globalAuthState, loading: true }
   emitChange()
   try {
     await logout()
-    applyState(false, null)
   } finally {
     globalAuthState = { ...globalAuthState, loading: false }
     emitChange()
