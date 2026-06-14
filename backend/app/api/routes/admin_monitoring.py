@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import json
+import logging
 
 from fastapi import APIRouter, Depends
+
+logger = logging.getLogger(__name__)
 
 from app.api.deps import get_current_user, get_db
 from app.core.database import Database
@@ -71,7 +74,7 @@ def monitoring_overview(
                 llm_by_model[model]["completionTokens"] += llm_info.get("completion_tokens", 0)
                 llm_by_model[model]["totalLatencyMs"] += llm_info.get("total_latency_ms", 0)
         except (json.JSONDecodeError, TypeError, AttributeError):
-            pass
+            logger.debug("Failed to parse progress for task %s", task.get("id"), exc_info=True)
 
     tool_metrics = [
         {

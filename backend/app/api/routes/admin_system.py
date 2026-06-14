@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 import platform
 import sys
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends
+
+logger = logging.getLogger(__name__)
 
 from app.api.deps import get_current_user, get_db
 from app.core.database import Database
@@ -26,6 +29,7 @@ def system_status(
         db.execute("SELECT 1")
         db_healthy = True
     except Exception:
+        logger.warning("DB health check failed", exc_info=True)
         db_healthy = False
 
     # Count records in key tables
@@ -35,6 +39,7 @@ def system_status(
             row = db.execute_one(f"SELECT COUNT(*) as cnt FROM {table}")
             counts[table] = row["cnt"] if row else 0
         except Exception:
+            logger.warning("Failed to count rows in %s", table, exc_info=True)
             counts[table] = -1
 
     # IBKR status

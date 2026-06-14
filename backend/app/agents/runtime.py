@@ -7,10 +7,15 @@ Uses plain Python with ThreadPoolExecutor for parallel tool execution.
 from __future__ import annotations
 
 import json
+import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from typing import Any, Callable
+
+from app.services.llm_audit import log_llm_call
+
+logger = logging.getLogger(__name__)
 
 
 class AgentRuntimeError(RuntimeError):
@@ -145,6 +150,7 @@ class ToolCallingRuntime:
                 "created_at_ms": int(time.time() * 1000),
             })
 
+            llm_latency = 0
             try:
                 message = self._chat_with_optional_tools(
                     conversation=conversation,
@@ -152,7 +158,12 @@ class ToolCallingRuntime:
                     response_format=response_format,
                     tool_choice="none" if is_final_round else "auto",
                 )
+                llm_latency = int((time.perf_counter() - started) * 1000)
+                log_llm_call(agent_name=self.agent_name or "", model="", latency_ms=llm_latency, ok=True)
             except Exception as exc:
+                llm_latency = int((time.perf_counter() - started) * 1000)
+                log_llm_call(agent_name=self.agent_name or "", model="", latency_ms=llm_latency, ok=False, error=str(exc)[:500])
+                logger.warning("LLM call failed (agent=%s, round=%d): %s", self.agent_name, round_index, exc)
                 if not is_final_round:
                     raise
                 # Final round tool_choice=none may not be supported; try plain chat
@@ -167,7 +178,7 @@ class ToolCallingRuntime:
             trace.append({
                 "event": "llm_finish",
                 "round": round_index,
-                "latency_ms": int((time.perf_counter() - started) * 1000),
+                "latency_ms": llm_latency,
                 "created_at_ms": int(time.time() * 1000),
             })
 

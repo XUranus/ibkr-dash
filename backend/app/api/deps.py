@@ -35,7 +35,7 @@ def get_db() -> Database:
         from app.core.cache import check_data_freshness
         check_data_freshness(db)
     except Exception:
-        pass  # don't break the request if cache check fails
+        logger.debug("Cache freshness check failed (non-critical)", exc_info=True)
     return db
 
 

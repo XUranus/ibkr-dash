@@ -33,7 +33,8 @@ def is_enabled() -> bool:
     try:
         from app.core.settings_manager import get_manager
         return bool(get_manager().get("advanced.audit_llm_calls", False))
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to read audit_llm_calls setting: %s", exc)
         return False
 
 

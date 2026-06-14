@@ -13,6 +13,7 @@ from typing import Any
 import httpx
 
 from app.core.config import Settings
+from app.services.llm_audit import log_llm_call
 
 logger = logging.getLogger(__name__)
 
@@ -92,19 +93,30 @@ class LLMService:
         }
         effective_timeout = timeout or self.timeout
 
+        model_name = payload["model"]
         started = time.perf_counter()
         try:
             response = self._client.post(url, headers=headers, json=payload, timeout=effective_timeout)
         except httpx.TimeoutException as exc:
+            latency_ms = int((time.perf_counter() - started) * 1000)
+            logger.error("LLM request timed out after %dms (model=%s)", latency_ms, model_name)
+            log_llm_call(model=model_name, latency_ms=latency_ms, ok=False, error="TIMEOUT")
             raise LLMClientError("TIMEOUT", "LLM provider request timed out") from exc
         except httpx.HTTPError as exc:
+            latency_ms = int((time.perf_counter() - started) * 1000)
+            logger.error("LLM request failed after %dms (model=%s): %s", latency_ms, model_name, exc)
+            log_llm_call(model=model_name, latency_ms=latency_ms, ok=False, error=str(exc)[:500])
             raise LLMClientError("PROVIDER_ERROR", "Failed to call LLM provider") from exc
 
         latency_ms = int((time.perf_counter() - started) * 1000)
 
         if response.status_code in {401, 403}:
+            logger.error("LLM auth failed (model=%s, status=%d)", model_name, response.status_code)
+            log_llm_call(model=model_name, latency_ms=latency_ms, ok=False, error="AUTH_FAILED")
             raise LLMClientError("AUTH_FAILED", "LLM provider authentication failed")
         if response.status_code == 429:
+            logger.warning("LLM rate limited (model=%s)", model_name)
+            log_llm_call(model=model_name, latency_ms=latency_ms, ok=False, error="RATE_LIMITED")
             raise LLMClientError("RATE_LIMITED", "LLM provider rate limit exceeded")
         if response.status_code >= 400:
             detail = ""
@@ -113,6 +125,8 @@ class LLMService:
                 detail = err.get("error", {}).get("message", "") if isinstance(err, dict) else ""
             except ValueError:
                 detail = response.text[:200]
+            logger.error("LLM provider error (model=%s, status=%d): %s", model_name, response.status_code, detail)
+            log_llm_call(model=model_name, latency_ms=latency_ms, ok=False, error=f"HTTP {response.status_code}: {detail}")
             raise LLMClientError(
                 "PROVIDER_ERROR",
                 f"LLM provider error ({response.status_code}): {detail}",
@@ -121,21 +135,41 @@ class LLMService:
         try:
             data = response.json()
         except ValueError as exc:
+            logger.error("LLM returned invalid JSON (model=%s)", model_name)
+            log_llm_call(model=model_name, latency_ms=latency_ms, ok=False, error="INVALID_JSON")
             raise LLMClientError("PROVIDER_ERROR", "LLM provider returned invalid JSON") from exc
 
         try:
             content = data["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError) as exc:
+            logger.error("LLM unexpected response structure (model=%s): %s", model_name, list(data.keys()))
+            log_llm_call(model=model_name, latency_ms=latency_ms, ok=False, error="UNEXPECTED_STRUCTURE")
             raise LLMClientError("PROVIDER_ERROR", "Unexpected response structure") from exc
 
         usage = data.get("usage") or {}
+        prompt_tokens = usage.get("prompt_tokens", 0)
+        completion_tokens = usage.get("completion_tokens", 0)
+        total_tokens = usage.get("total_tokens", 0)
+
+        logger.info(
+            "LLM call ok (model=%s, latency=%dms, tokens=%d/%d/%d)",
+            model_name, latency_ms, prompt_tokens, completion_tokens, total_tokens,
+        )
+        log_llm_call(
+            model=model_name,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            latency_ms=latency_ms,
+            ok=True,
+        )
 
         return {
             "content": content,
             "usage": {
-                "prompt_tokens": usage.get("prompt_tokens", 0),
-                "completion_tokens": usage.get("completion_tokens", 0),
-                "total_tokens": usage.get("total_tokens", 0),
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": total_tokens,
             },
             "latency_ms": latency_ms,
         }
