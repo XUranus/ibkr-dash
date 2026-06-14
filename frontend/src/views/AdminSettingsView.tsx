@@ -4,6 +4,7 @@ import { fetchAllSettings, updateSettings, resetSettings, type SettingItem, type
 import { testIbkrConnection } from '@/api/adminIbkr'
 import { testLlmProvider } from '@/api/adminLlm'
 import { fetchEmailSettings, updateEmailSettings, sendEmailTest } from '@/api/adminEmail'
+import { logout } from '@/api/auth'
 import AdminTabs from '@/components/AdminTabs'
 import type { IbkrTestResponse } from '@/types/adminIbkr'
 import type { LlmProviderTestResponse } from '@/types/adminLlm'
@@ -126,6 +127,8 @@ export default function AdminSettingsView() {
     }
     if (Object.keys(catEdits).length === 0) return
 
+    const passwordChanged = 'AUTH_PASSWORD' in catEdits
+
     setSavingCats((prev) => ({ ...prev, [cat]: true }))
     setErrorMessage('')
     setNoticeMessage('')
@@ -138,6 +141,14 @@ export default function AdminSettingsView() {
         return next
       })
       setNoticeMessage(t('adminSettings.saved'))
+
+      // If password changed, logout and redirect — the old session is invalid
+      if (passwordChanged) {
+        try { await logout() } catch { /* cookie may already be invalid */ }
+        window.location.href = '/'
+        return
+      }
+
       await loadData()
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : t('common.error'))
@@ -153,6 +164,9 @@ export default function AdminSettingsView() {
     for (const [key, edit] of Object.entries(edits)) {
       allEdits[key] = edit.value
     }
+
+    const passwordChanged = 'AUTH_PASSWORD' in allEdits
+
     setSavingCats({ _all: true })
     setErrorMessage('')
     setNoticeMessage('')
@@ -160,6 +174,14 @@ export default function AdminSettingsView() {
       await updateSettings(allEdits)
       setEdits({})
       setNoticeMessage(t('adminSettings.saved'))
+
+      // If password changed, logout and redirect — the old session is invalid
+      if (passwordChanged) {
+        try { await logout() } catch { /* cookie may already be invalid */ }
+        window.location.href = '/'
+        return
+      }
+
       await loadData()
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : t('common.error'))

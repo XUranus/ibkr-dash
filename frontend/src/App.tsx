@@ -3,13 +3,14 @@ import { Outlet } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import AppHeader from '@/components/AppHeader'
 import ErrorBoundary from '@/components/ErrorBoundary'
-import { ensureAuthSession } from '@/hooks/useAuth'
+import { useAuth } from '@/hooks/useAuth'
 
 export default function App() {
   const { t } = useTranslation()
+  const { initialized, ensureAuth } = useAuth()
 
   useEffect(() => {
-    void ensureAuthSession()
+    void ensureAuth()
   }, [])
 
   return (
@@ -24,7 +25,13 @@ export default function App() {
       <AppHeader />
       <main className="app-content">
         <ErrorBoundary>
-          <Outlet />
+          {!initialized ? (
+            <div style={{ display: 'grid', placeItems: 'center', minHeight: '40vh', color: '#adc0df' }}>
+              {t('common.loading')}
+            </div>
+          ) : (
+            <Outlet />
+          )}
         </ErrorBoundary>
       </main>
 
