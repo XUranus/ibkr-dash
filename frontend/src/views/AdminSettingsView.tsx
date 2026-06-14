@@ -133,12 +133,10 @@ export default function AdminSettingsView() {
     setErrorMessage('')
     setNoticeMessage('')
     try {
-      // Save new password while current session is still valid
       await updateSettings(catEdits)
 
       if (passwordChanged) {
-        // Session is now invalid — clear cookie and redirect to login
-        try { await logout() } catch { /* session invalid, expected */ }
+        try { await logout() } catch { /* expected */ }
         window.location.href = '/'
         return
       }
@@ -151,6 +149,12 @@ export default function AdminSettingsView() {
       setNoticeMessage(t('adminSettings.saved'))
       await loadData()
     } catch (err) {
+      // If password was changed, save may have succeeded but session is now invalid — redirect
+      if (passwordChanged) {
+        try { await logout() } catch { /* expected */ }
+        window.location.href = '/'
+        return
+      }
       setErrorMessage(err instanceof Error ? err.message : t('common.error'))
     } finally {
       setSavingCats((prev) => ({ ...prev, [cat]: false }))
@@ -171,12 +175,10 @@ export default function AdminSettingsView() {
     setErrorMessage('')
     setNoticeMessage('')
     try {
-      // Save new password while current session is still valid
       await updateSettings(allEdits)
 
       if (passwordChanged) {
-        // Session is now invalid — clear cookie and redirect to login
-        try { await logout() } catch { /* session invalid, expected */ }
+        try { await logout() } catch { /* expected */ }
         window.location.href = '/'
         return
       }
@@ -185,6 +187,12 @@ export default function AdminSettingsView() {
       setNoticeMessage(t('adminSettings.saved'))
       await loadData()
     } catch (err) {
+      // If password was changed, save may have succeeded but session is now invalid — redirect
+      if (passwordChanged) {
+        try { await logout() } catch { /* expected */ }
+        window.location.href = '/'
+        return
+      }
       setErrorMessage(err instanceof Error ? err.message : t('common.error'))
     } finally {
       setSavingCats({})
