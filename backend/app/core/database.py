@@ -276,6 +276,9 @@ _MIGRATIONS = [
     "CREATE INDEX IF NOT EXISTS idx_import_history_run_at ON import_history(run_at DESC)",
     "ALTER TABLE import_history ADD COLUMN started_at TEXT",
     "ALTER TABLE import_history ADD COLUMN duration_ms INTEGER DEFAULT 0",
+    "CREATE TABLE IF NOT EXISTS agent_replays (replay_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, agent_name TEXT NOT NULL, final_status TEXT DEFAULT 'success', created_at TEXT, payload_json TEXT NOT NULL)",
+    "CREATE INDEX IF NOT EXISTS idx_agent_replays_run_id ON agent_replays(run_id)",
+    "CREATE INDEX IF NOT EXISTS idx_agent_replays_agent ON agent_replays(agent_name, created_at DESC)",
 ]
 
 
