@@ -118,8 +118,9 @@ export default function PositionsView() {
       tooltip: {
         formatter: (params: { data: { name: string; value: number; changePct: number; description: string } }) => {
           const d = params.data
-          const changeSign = d.changePct >= 0 ? '+' : ''
-          const changeColorHex = d.changePct >= 0 ? '#3dd68c' : '#f25c5c'
+          const pct = d.changePct ?? 0
+          const changeSign = pct >= 0 ? '+' : ''
+          const changeColorHex = pct >= 0 ? '#3dd68c' : '#f25c5c'
           return [
             `<div style="font-family: 'JetBrains Mono', monospace; min-width: 200px;">`,
             `<div style="font-weight:700; font-size:14px; margin-bottom:2px;">${d.name}</div>`,
@@ -130,7 +131,7 @@ export default function PositionsView() {
             `</div>`,
             `<div style="display:flex; justify-content:space-between; font-size:13px; margin-top:2px;">`,
             `<span style="color:#8a8d9e">Daily Change</span>`,
-            `<span style="color:${changeColorHex}">${changeSign}${d.changePct.toFixed(2)}%</span>`,
+            `<span style="color:${changeColorHex}">${changeSign}${pct.toFixed(2)}%</span>`,
             `</div>`,
             `</div>`,
           ].join('')

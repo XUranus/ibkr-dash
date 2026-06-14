@@ -85,9 +85,9 @@ export default function PieDistributionCard({ title, subtitle, items }: Props) {
               )}
               <svg viewBox={`0 0 ${chartSize} ${chartSize}`} style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
                 <circle cx={chartSize / 2} cy={chartSize / 2} r={radius} fill="none" stroke="rgba(129, 160, 207, 0.12)" strokeWidth={strokeWidth} />
-                {chartSegments.map((seg) => (
+                {chartSegments.map((seg, index) => (
                   <circle
-                    key={seg.label}
+                    key={`${seg.label}-${index}`}
                     cx={chartSize / 2}
                     cy={chartSize / 2}
                     r={radius}
@@ -120,8 +120,8 @@ export default function PieDistributionCard({ title, subtitle, items }: Props) {
             </div>
 
             <div style={{ display: 'grid', gap: 12 }}>
-              {chartSegments.map((seg) => (
-                <div key={seg.label} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 'var(--space-4)', alignItems: 'start', padding: '14px 16px', borderRadius: 14, border: '1px solid rgba(129, 160, 207, 0.1)', background: 'rgba(15, 26, 45, 0.72)' }}>
+              {chartSegments.map((seg, index) => (
+                <div key={`${seg.label}-${index}`} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 'var(--space-4)', alignItems: 'start', padding: '14px 16px', borderRadius: 14, border: '1px solid rgba(129, 160, 207, 0.1)', background: 'rgba(15, 26, 45, 0.72)' }}>
                   <div style={{ display: 'flex', gap: 12, minWidth: 0, alignItems: 'flex-start' }}>
                     <span style={{ width: 12, height: 12, borderRadius: 999, marginTop: '0.35rem', flexShrink: 0, backgroundColor: seg.color }} />
                     <div>
