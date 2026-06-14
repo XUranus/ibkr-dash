@@ -133,22 +133,22 @@ export default function AdminSettingsView() {
     setErrorMessage('')
     setNoticeMessage('')
     try {
+      // Save new password while current session is still valid
       await updateSettings(catEdits)
-      // remove saved keys from edits
+
+      if (passwordChanged) {
+        // Session is now invalid — clear cookie and redirect to login
+        try { await logout() } catch { /* session invalid, expected */ }
+        window.location.href = '/'
+        return
+      }
+
       setEdits((prev) => {
         const next = { ...prev }
         for (const key of Object.keys(catEdits)) delete next[key]
         return next
       })
       setNoticeMessage(t('adminSettings.saved'))
-
-      // If password changed, logout and redirect — the old session is invalid
-      if (passwordChanged) {
-        try { await logout() } catch { /* cookie may already be invalid */ }
-        window.location.href = '/'
-        return
-      }
-
       await loadData()
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : t('common.error'))
@@ -171,17 +171,18 @@ export default function AdminSettingsView() {
     setErrorMessage('')
     setNoticeMessage('')
     try {
+      // Save new password while current session is still valid
       await updateSettings(allEdits)
-      setEdits({})
-      setNoticeMessage(t('adminSettings.saved'))
 
-      // If password changed, logout and redirect — the old session is invalid
       if (passwordChanged) {
-        try { await logout() } catch { /* cookie may already be invalid */ }
+        // Session is now invalid — clear cookie and redirect to login
+        try { await logout() } catch { /* session invalid, expected */ }
         window.location.href = '/'
         return
       }
 
+      setEdits({})
+      setNoticeMessage(t('adminSettings.saved'))
       await loadData()
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : t('common.error'))
