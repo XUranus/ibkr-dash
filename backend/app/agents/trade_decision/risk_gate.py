@@ -98,6 +98,16 @@ def _clamp_confidence(current: str | None, cap: str | None) -> str:
     return CONFIDENCE_ORDER[min(cur_idx, cap_idx)]
 
 
+@dataclass
+class _GateContext:
+    """Mutable state passed through gate rule groups."""
+    action: str
+    reasons: list[str]
+    flags: list[str]
+    disclosures: list[str]
+    constraints: dict[str, Any]
+
+
 class RiskGate:
     """Deterministic risk gate applied to a composed trade decision."""
 
@@ -108,11 +118,10 @@ class RiskGate:
         user_question: str | None = None,
     ) -> RiskGateResult:
         original_action = str(decision_output.get("action") or "watchlist")
-        final_action = original_action
-        reasons: list[str] = []
-        flags: list[str] = []
-        disclosures: list[str] = []
-        constraints: dict[str, Any] = {}
+        ctx = _GateContext(
+            action=original_action, reasons=[], flags=[],
+            disclosures=[], constraints={},
+        )
 
         acc = card_pack.account_fit_card
         mkt = card_pack.market_trend_card
@@ -120,190 +129,51 @@ class RiskGate:
         evt = card_pack.event_catalyst_card
         rr = card_pack.risk_reward_card
 
-        public_fallback_count = _count_public_fallback(card_pack)
-
         position_advice = decision_output.get("position_advice") or {}
         max_pct = _safe_float(position_advice.get("max_position_pct"))
         current_pct = _safe_float(position_advice.get("current_position_pct"))
         suggested_target_pct = _safe_float(position_advice.get("suggested_target_position_pct"))
+        invalid_conditions = list((decision_output.get("execution_plan") or {}).get("invalid_conditions") or [])
+        public_fallback_count = _count_public_fallback(card_pack)
+        trend_break_level = _get_trend_break_level(mkt)
+        holding = _is_holding(card_pack)
 
-        execution_plan = decision_output.get("execution_plan") or {}
-        invalid_conditions = list(execution_plan.get("invalid_conditions") or [])
-
-        # -- 0. Panic detection
+        # -- 0. Panic detection (short-circuits all other rules)
         panic = self._detect_panic(user_question, decision_output, card_pack)
         if panic:
-            final_action = "panic_blocked"
-            reasons.append("用户问题或决策摘要含恐慌/清仓意图，但基本面、趋势、仓位、风险收益均不支持卖出")
-            flags.append("panic_sell_blocked")
-            disclosures.append("已识别为情绪化卖出请求并拦截；继续按原计划持有并观察")
-            return RiskGateResult(
-                original_action=original_action, final_action=final_action,
-                blocked=True, downgraded=True,
-                gate_reasons=reasons, required_disclosures=disclosures,
-                risk_flags=flags, action_constraints={"panic_match": panic},
-                confidence_cap="low",
-            )
+            return self._panic_result(original_action, panic)
 
-        # -- 1. Missing position limit blocks add-style
-        if final_action in ADD_LIKE_ACTIONS and (max_pct is None or max_pct <= 0):
-            final_action = "hold_no_add" if _is_holding(card_pack) else "wait"
-            reasons.append("缺少最大仓位上限，不能输出加仓建议")
-            flags.append("missing_position_limit")
-            constraints["required"] = ["max_position_pct"]
+        # -- 1-5. Position & data quality gates
+        self._check_position_limits(ctx, card_pack, max_pct, current_pct, invalid_conditions, holding)
+        self._check_data_quality(ctx, card_pack, rr, mkt, fund, evt, public_fallback_count, holding)
 
-        # -- 2. Strong add without invalidation conditions
-        if final_action in STRONG_ADD_ACTIONS and not invalid_conditions:
-            final_action = "add_on_pullback" if not _is_holding(card_pack) else "hold_no_add"
-            reasons.append("缺少失效条件，强加仓已降级")
-            flags.append("missing_invalidation_conditions")
+        # -- 6. Technical trend-break gates
+        self._check_trend_break(ctx, trend_break_level, holding)
 
-        # -- 3. Data insufficiency
-        insufficient_data = public_fallback_count >= 2 or _low_quality_evidence(rr) or _low_quality_evidence(mkt) or _low_quality_evidence(fund)
-        if insufficient_data and final_action in ADD_LIKE_ACTIONS:
-            final_action = "hold_no_add" if _is_holding(card_pack) else "wait"
-            reasons.append("公开市场数据不足/质量偏低，禁止输出加仓")
-            flags.append("insufficient_data")
+        # -- 6b. Investment thesis gates
+        self._check_investment_thesis(ctx, card_pack, current_pct, trend_break_level, fund, holding)
 
-        # -- 4. Weak catalyst
-        weak_catalyst = _is_weak_catalyst(evt)
-        if final_action in ADD_LIKE_ACTIONS and weak_catalyst:
-            final_action = "wait" if not _is_holding(card_pack) else "hold_no_add"
-            reasons.append("催化偏弱，加仓已降级")
-            flags.append("weak_catalyst_downgrade")
+        # -- 6c. Fundamental status gates
+        self._check_fundamental(ctx, fund, holding)
 
-        # -- 5. Already at/above max position
-        if final_action in ADD_LIKE_ACTIONS:
-            at_limit = max_pct is not None and current_pct is not None and max_pct > 0 and current_pct >= max_pct
-            poor_fit = bool(acc and acc.account_fit_level in ("concentrated", "poor"))
-            if at_limit or poor_fit:
-                final_action = "hold_no_add"
-                reasons.append("已达仓位上限或账户适配度低，禁止继续加仓")
-                flags.append("position_limit_reached")
+        # -- 6d. Risk/reward R-multiple gates
+        self._check_rr_ratio(ctx, rr, holding)
 
-        # -- 6. Trend-break level
-        trend_break_level = _get_trend_break_level(mkt)
-        if trend_break_level == "severe" and final_action in ADD_LIKE_ACTIONS:
-            final_action = "hold_no_add" if _is_holding(card_pack) else "wait"
-            reasons.append("技术面 severe trend break，禁止加仓")
-            flags.append("trend_break_severe_blocked")
-        if trend_break_level == "broken" and final_action in ADD_LIKE_ACTIONS:
-            final_action = "hold_no_add" if _is_holding(card_pack) else "wait"
-            reasons.append("技术面 broken trend，禁止加仓")
-            flags.append("trend_break_broken_blocked")
-        if trend_break_level == "warning" and final_action in {"add", "add_batch", "add_right_side"}:
-            final_action = "add_on_pullback" if not _is_holding(card_pack) else "hold_no_add"
-            reasons.append("技术面 trend break warning，禁止追涨加仓")
-            flags.append("trend_break_warning_downgrade")
-
-        # -- 6b. Investment Thesis gates
-        thesis = card_pack.investment_thesis or {}
-        thesis_max = _safe_float(thesis.get("max_position_pct")) if isinstance(thesis, dict) else None
-        thesis_risk = str(thesis.get("risk_class") or "unknown") if isinstance(thesis, dict) else "unknown"
-
-        if final_action in ADD_LIKE_ACTIONS and thesis_max and current_pct is not None and thesis_max > 0 and current_pct >= thesis_max:
-            final_action = "hold_no_add"
-            reasons.append("已达到投资假设最大仓位，禁止继续加仓")
-            flags.append("thesis_position_limit")
-
-        if thesis_risk == "extreme" and final_action in {"add", "add_batch", "add_right_side"}:
-            final_action = "add_on_pullback" if not _is_holding(card_pack) else "hold_no_add"
-            reasons.append("高波动/极端标的，禁止强加仓")
-            flags.append("thesis_extreme_risk_blocked")
-
-        # -- 6b.3 sell_triggers
-        try:
-            from app.services.investment_thesis import evaluate_sell_triggers, InvestmentThesis
-            sell_triggers_hit = evaluate_sell_triggers(
-                _thesis_from_dict(thesis),
-                trend_break_level=trend_break_level,
-                fundamental_red=_is_fundamental_red(fund),
-            )
-        except Exception:
-            sell_triggers_hit = []
-        if sell_triggers_hit and final_action in {"hold", "watchlist", "wait", "add_on_pullback", "hold_no_add"} and _is_holding(card_pack):
-            final_action = "sell_thesis_broken" if thesis_risk in {"extreme", "high_growth"} else "reduce_now"
-            reasons.append(f"投资假设 sell_triggers 命中: {'; '.join(sell_triggers_hit[:2])}")
-            flags.append("thesis_sell_trigger_hit")
-
-        # -- 6b.4 no_add_triggers
-        try:
-            from app.services.investment_thesis import evaluate_no_add_triggers
-            no_add_hit = evaluate_no_add_triggers(
-                _thesis_from_dict(thesis),
-                position_pct=current_pct,
-                trend_break_level=trend_break_level,
-            )
-        except Exception:
-            no_add_hit = []
-        if no_add_hit and final_action in ADD_LIKE_ACTIONS:
-            final_action = "hold_no_add" if _is_holding(card_pack) else "wait"
-            reasons.append(f"投资假设 no_add_triggers 命中: {'; '.join(no_add_hit[:2])}")
-            flags.append("thesis_no_add_trigger_hit")
-
-        # -- 6c. FundamentalChangeEngine status
-        fundamental_status = _get_fundamental_status(fund)
-        thesis_broken = bool(getattr(fund, "thesis_broken", False)) if fund else False
-
-        if (fundamental_status == "red" or thesis_broken) and _is_holding(card_pack):
-            target = "sell_thesis_broken" if thesis_broken or thesis_risk in {"extreme", "high_growth"} else "reduce_now"
-            if final_action in {"hold", "watchlist", "wait", "add_on_pullback", "hold_no_add", "add", "add_batch", "add_right_side", "add_small"}:
-                final_action = target
-            reasons.append("基本面 red 或投资假设被破坏，已转为减仓/退出")
-            flags.append("fundamental_red_action")
-        elif (fundamental_status == "red" or thesis_broken) and not _is_holding(card_pack):
-            if final_action in ADD_LIKE_ACTIONS:
-                final_action = "wait"
-                reasons.append("基本面 red，禁止建仓")
-                flags.append("fundamental_red_blocked")
-
-        if fundamental_status == "orange" and final_action in ADD_LIKE_ACTIONS:
-            final_action = "hold_no_add" if _is_holding(card_pack) else "wait"
-            reasons.append("基本面 orange，禁止加仓")
-            flags.append("fundamental_orange_blocked")
-
-        if fundamental_status == "yellow" and final_action in {"add", "add_batch", "add_right_side"}:
-            final_action = "add_on_pullback" if not _is_holding(card_pack) else "hold_no_add"
-            reasons.append("基本面 yellow，禁止强加仓")
-            flags.append("fundamental_yellow_downgrade")
-
-        # -- 6d. RiskReward R-multiple
-        rr_ratio = _safe_float(getattr(rr, "reward_risk_ratio", None)) if rr else None
-        rr_downside = _safe_float(getattr(rr, "downside_risk_pct", None)) if rr else None
-        if rr_ratio is not None and rr_ratio < 1.0 and final_action in ADD_LIKE_ACTIONS:
-            final_action = "reduce_now" if _is_holding(card_pack) else "wait"
-            reasons.append(f"风险收益比 {rr_ratio:.2f} < 1.0，禁止加仓")
-            flags.append("rr_below_one")
-        elif rr_ratio is not None and rr_ratio < 1.5 and final_action in ADD_LIKE_ACTIONS:
-            final_action = "hold_no_add" if _is_holding(card_pack) else "wait"
-            reasons.append(f"风险收益比 {rr_ratio:.2f} 偏低，暂不加仓")
-            flags.append("rr_below_one_five")
-        if rr_downside is not None and rr_downside > 30 and final_action in {"add", "add_batch", "add_right_side"}:
-            final_action = "add_on_pullback" if not _is_holding(card_pack) else "hold_no_add"
-            reasons.append(f"下行风险 {rr_downside:.1f}% 过高，禁止强加仓")
-            flags.append("rr_downside_too_high")
-
-        # -- 7. Severe trend breakdown
-        severe_breakdown = _is_severe_breakdown(mkt, evt, fund)
-        if severe_breakdown and final_action in {"hold", "watchlist", "wait", "add_on_pullback"} and _is_holding(card_pack):
-            final_action = "reduce_now"
-            reasons.append("趋势/事件/基本面出现严重破坏，已转为减仓")
-            flags.append("thesis_breakdown_detected")
-
-        # -- 8. Target above max position
+        # -- 7-8. Severe breakdown & target validation
+        self._check_severe_breakdown(ctx, mkt, evt, fund, holding)
         if max_pct is not None and suggested_target_pct is not None and max_pct > 0 and suggested_target_pct > max_pct + 1e-6:
-            flags.append("target_above_max_position")
+            ctx.flags.append("target_above_max_position")
 
         return RiskGateResult(
             original_action=original_action,
-            final_action=final_action,
-            blocked=original_action != final_action and final_action in {"panic_blocked", "sell_thesis_broken"},
-            downgraded=original_action != final_action,
-            gate_reasons=reasons,
-            required_disclosures=disclosures,
-            risk_flags=flags,
+            final_action=ctx.action,
+            blocked=original_action != ctx.action and ctx.action in {"panic_blocked", "sell_thesis_broken"},
+            downgraded=original_action != ctx.action,
+            gate_reasons=ctx.reasons,
+            required_disclosures=ctx.disclosures,
+            risk_flags=ctx.flags,
             action_constraints={
-                **constraints,
+                **ctx.constraints,
                 "snapshot": {
                     "current_position_pct": current_pct,
                     "max_position_pct": max_pct,
@@ -312,9 +182,148 @@ class RiskGate:
                     "trend_break_level": trend_break_level,
                 },
             },
-            confidence_cap=_compute_confidence_cap(public_fallback_count=public_fallback_count, mkt=mkt, fund=fund, rr=rr, flags=flags),
+            confidence_cap=_compute_confidence_cap(public_fallback_count=public_fallback_count, mkt=mkt, fund=fund, rr=rr, flags=ctx.flags),
         )
 
+    # -- Rule group: position limits & invalidation --
+    def _check_position_limits(self, ctx: _GateContext, card_pack, max_pct, current_pct, invalid_conditions, holding):
+        if ctx.action in ADD_LIKE_ACTIONS and (max_pct is None or max_pct <= 0):
+            ctx.action = "hold_no_add" if holding else "wait"
+            ctx.reasons.append("缺少最大仓位上限，不能输出加仓建议")
+            ctx.flags.append("missing_position_limit")
+            ctx.constraints["required"] = ["max_position_pct"]
+        if ctx.action in STRONG_ADD_ACTIONS and not invalid_conditions:
+            ctx.action = "add_on_pullback" if not holding else "hold_no_add"
+            ctx.reasons.append("缺少失效条件，强加仓已降级")
+            ctx.flags.append("missing_invalidation_conditions")
+        if ctx.action in ADD_LIKE_ACTIONS:
+            acc = card_pack.account_fit_card
+            at_limit = max_pct is not None and current_pct is not None and max_pct > 0 and current_pct >= max_pct
+            poor_fit = bool(acc and acc.account_fit_level in ("concentrated", "poor"))
+            if at_limit or poor_fit:
+                ctx.action = "hold_no_add"
+                ctx.reasons.append("已达仓位上限或账户适配度低，禁止继续加仓")
+                ctx.flags.append("position_limit_reached")
+
+    # -- Rule group: data quality & catalyst --
+    def _check_data_quality(self, ctx: _GateContext, card_pack, rr, mkt, fund, evt, public_fallback_count, holding):
+        insufficient = public_fallback_count >= 2 or _low_quality_evidence(rr) or _low_quality_evidence(mkt) or _low_quality_evidence(fund)
+        if insufficient and ctx.action in ADD_LIKE_ACTIONS:
+            ctx.action = "hold_no_add" if holding else "wait"
+            ctx.reasons.append("公开市场数据不足/质量偏低，禁止输出加仓")
+            ctx.flags.append("insufficient_data")
+        if ctx.action in ADD_LIKE_ACTIONS and _is_weak_catalyst(evt):
+            ctx.action = "wait" if not holding else "hold_no_add"
+            ctx.reasons.append("催化偏弱，加仓已降级")
+            ctx.flags.append("weak_catalyst_downgrade")
+
+    # -- Rule group: technical trend-break --
+    def _check_trend_break(self, ctx: _GateContext, trend_break_level: str, holding: bool):
+        if trend_break_level == "severe" and ctx.action in ADD_LIKE_ACTIONS:
+            ctx.action = "hold_no_add" if holding else "wait"
+            ctx.reasons.append("技术面 severe trend break，禁止加仓")
+            ctx.flags.append("trend_break_severe_blocked")
+        if trend_break_level == "broken" and ctx.action in ADD_LIKE_ACTIONS:
+            ctx.action = "hold_no_add" if holding else "wait"
+            ctx.reasons.append("技术面 broken trend，禁止加仓")
+            ctx.flags.append("trend_break_broken_blocked")
+        if trend_break_level == "warning" and ctx.action in {"add", "add_batch", "add_right_side"}:
+            ctx.action = "add_on_pullback" if not holding else "hold_no_add"
+            ctx.reasons.append("技术面 trend break warning，禁止追涨加仓")
+            ctx.flags.append("trend_break_warning_downgrade")
+
+    # -- Rule group: investment thesis --
+    def _check_investment_thesis(self, ctx: _GateContext, card_pack, current_pct, trend_break_level, fund, holding):
+        thesis = card_pack.investment_thesis or {}
+        thesis_max = _safe_float(thesis.get("max_position_pct")) if isinstance(thesis, dict) else None
+        thesis_risk = str(thesis.get("risk_class") or "unknown") if isinstance(thesis, dict) else "unknown"
+
+        if ctx.action in ADD_LIKE_ACTIONS and thesis_max and current_pct is not None and thesis_max > 0 and current_pct >= thesis_max:
+            ctx.action = "hold_no_add"
+            ctx.reasons.append("已达到投资假设最大仓位，禁止继续加仓")
+            ctx.flags.append("thesis_position_limit")
+        if thesis_risk == "extreme" and ctx.action in {"add", "add_batch", "add_right_side"}:
+            ctx.action = "add_on_pullback" if not holding else "hold_no_add"
+            ctx.reasons.append("高波动/极端标的，禁止强加仓")
+            ctx.flags.append("thesis_extreme_risk_blocked")
+
+        # sell_triggers
+        try:
+            from app.services.investment_thesis import evaluate_sell_triggers
+            sell_triggers_hit = evaluate_sell_triggers(
+                _thesis_from_dict(thesis), trend_break_level=trend_break_level,
+                fundamental_red=_is_fundamental_red(fund),
+            )
+        except Exception:
+            sell_triggers_hit = []
+        if sell_triggers_hit and ctx.action in {"hold", "watchlist", "wait", "add_on_pullback", "hold_no_add"} and holding:
+            ctx.action = "sell_thesis_broken" if thesis_risk in {"extreme", "high_growth"} else "reduce_now"
+            ctx.reasons.append(f"投资假设 sell_triggers 命中: {'; '.join(sell_triggers_hit[:2])}")
+            ctx.flags.append("thesis_sell_trigger_hit")
+
+        # no_add_triggers
+        try:
+            from app.services.investment_thesis import evaluate_no_add_triggers
+            no_add_hit = evaluate_no_add_triggers(
+                _thesis_from_dict(thesis), position_pct=current_pct,
+                trend_break_level=trend_break_level,
+            )
+        except Exception:
+            no_add_hit = []
+        if no_add_hit and ctx.action in ADD_LIKE_ACTIONS:
+            ctx.action = "hold_no_add" if holding else "wait"
+            ctx.reasons.append(f"投资假设 no_add_triggers 命中: {'; '.join(no_add_hit[:2])}")
+            ctx.flags.append("thesis_no_add_trigger_hit")
+
+    # -- Rule group: fundamental status --
+    def _check_fundamental(self, ctx: _GateContext, fund, holding: bool):
+        fundamental_status = _get_fundamental_status(fund)
+        thesis_broken = bool(getattr(fund, "thesis_broken", False)) if fund else False
+        if (fundamental_status == "red" or thesis_broken) and holding:
+            target = "sell_thesis_broken" if thesis_broken else "reduce_now"
+            if ctx.action in {"hold", "watchlist", "wait", "add_on_pullback", "hold_no_add", "add", "add_batch", "add_right_side", "add_small"}:
+                ctx.action = target
+            ctx.reasons.append("基本面 red 或投资假设被破坏，已转为减仓/退出")
+            ctx.flags.append("fundamental_red_action")
+        elif (fundamental_status == "red" or thesis_broken) and not holding:
+            if ctx.action in ADD_LIKE_ACTIONS:
+                ctx.action = "wait"
+                ctx.reasons.append("基本面 red，禁止建仓")
+                ctx.flags.append("fundamental_red_blocked")
+        if fundamental_status == "orange" and ctx.action in ADD_LIKE_ACTIONS:
+            ctx.action = "hold_no_add" if holding else "wait"
+            ctx.reasons.append("基本面 orange，禁止加仓")
+            ctx.flags.append("fundamental_orange_blocked")
+        if fundamental_status == "yellow" and ctx.action in {"add", "add_batch", "add_right_side"}:
+            ctx.action = "add_on_pullback" if not holding else "hold_no_add"
+            ctx.reasons.append("基本面 yellow，禁止强加仓")
+            ctx.flags.append("fundamental_yellow_downgrade")
+
+    # -- Rule group: risk/reward R-multiple --
+    def _check_rr_ratio(self, ctx: _GateContext, rr, holding: bool):
+        rr_ratio = _safe_float(getattr(rr, "reward_risk_ratio", None)) if rr else None
+        rr_downside = _safe_float(getattr(rr, "downside_risk_pct", None)) if rr else None
+        if rr_ratio is not None and rr_ratio < 1.0 and ctx.action in ADD_LIKE_ACTIONS:
+            ctx.action = "reduce_now" if holding else "wait"
+            ctx.reasons.append(f"风险收益比 {rr_ratio:.2f} < 1.0，禁止加仓")
+            ctx.flags.append("rr_below_one")
+        elif rr_ratio is not None and rr_ratio < 1.5 and ctx.action in ADD_LIKE_ACTIONS:
+            ctx.action = "hold_no_add" if holding else "wait"
+            ctx.reasons.append(f"风险收益比 {rr_ratio:.2f} 偏低，暂不加仓")
+            ctx.flags.append("rr_below_one_five")
+        if rr_downside is not None and rr_downside > 30 and ctx.action in {"add", "add_batch", "add_right_side"}:
+            ctx.action = "add_on_pullback" if not holding else "hold_no_add"
+            ctx.reasons.append(f"下行风险 {rr_downside:.1f}% 过高，禁止强加仓")
+            ctx.flags.append("rr_downside_too_high")
+
+    # -- Rule group: severe breakdown --
+    def _check_severe_breakdown(self, ctx: _GateContext, mkt, evt, fund, holding: bool):
+        if _is_severe_breakdown(mkt, evt, fund) and ctx.action in {"hold", "watchlist", "wait", "add_on_pullback"} and holding:
+            ctx.action = "reduce_now"
+            ctx.reasons.append("趋势/事件/基本面出现严重破坏，已转为减仓")
+            ctx.flags.append("thesis_breakdown_detected")
+
+    # -- Panic detection --
     def _detect_panic(self, user_question: str | None, decision_output: dict, card_pack: TradeDecisionCardPack) -> list[str]:
         text = " ".join(str(x or "") for x in [
             user_question or "",
@@ -330,17 +339,24 @@ class RiskGate:
         for tok in PANIC_TOKENS_EN:
             if tok in text.lower():
                 matched.append(tok)
-        if not matched:
+        if not matched or not _is_holding(card_pack):
             return []
-        if not _is_holding(card_pack):
-            return []
-        # Only treat as panic if fundamentals/trend don't justify selling
         fund = card_pack.fundamental_valuation_card
         mkt = card_pack.market_trend_card
-        trend_break = _get_trend_break_level(mkt)
-        if _is_severe_breakdown_for(fund) or _is_severe_breakdown_for(mkt) or trend_break in {"broken", "severe"}:
+        if _is_severe_breakdown_for(fund) or _is_severe_breakdown_for(mkt) or _get_trend_break_level(mkt) in {"broken", "severe"}:
             return []
         return matched[:3]
+
+    def _panic_result(self, original_action: str, panic: list[str]) -> RiskGateResult:
+        return RiskGateResult(
+            original_action=original_action, final_action="panic_blocked",
+            blocked=True, downgraded=True,
+            gate_reasons=["用户问题或决策摘要含恐慌/清仓意图，但基本面、趋势、仓位、风险收益均不支持卖出"],
+            required_disclosures=["已识别为情绪化卖出请求并拦截；继续按原计划持有并观察"],
+            risk_flags=["panic_sell_blocked"],
+            action_constraints={"panic_match": panic},
+            confidence_cap="low",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -383,6 +399,8 @@ def _is_fundamental_red(fund: FundamentalValuationCard | None) -> bool:
 
 def _is_holding(card_pack: TradeDecisionCardPack) -> bool:
     facts = card_pack.account_facts
+    if isinstance(facts, AccountFactSnapshot):
+        return facts.is_holding
     if isinstance(facts, dict):
         pos = facts.get("position_context") or {}
         return bool(pos.get("has_position"))

@@ -6,7 +6,6 @@ High-density summary cards consumed by the Composer and RiskGate.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from typing import Any
 
 from app.utils.dates import now_iso

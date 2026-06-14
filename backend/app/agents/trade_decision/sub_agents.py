@@ -227,6 +227,11 @@ def analyze_risk_reward(
     """Analyze risk/reward using deterministic engines (no LLM).
 
     Uses TechnicalSignalEngine, RiskRewardEngine, and InvestmentThesis.
+
+    Note: `last_close` is resolved from account_facts.position_context.mark_price.
+    For symbols the user does not hold, this will be None, causing the
+    RiskRewardEngine to fall back to MA20 from technical signals. This is
+    acceptable for a conservative estimate but less precise than a real quote.
     """
     try:
         from app.services.risk_reward_engine import RiskRewardEngine
