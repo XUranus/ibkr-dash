@@ -57,11 +57,11 @@ An interactive chat agent that answers questions about your portfolio. It uses a
 
 ### 2. Trade Decision Agent
 
-Analyzes whether to enter, hold, or exit a position. It runs **four parallel sub-analyses** (account fit, market trend, fundamental valuation, event catalyst), then synthesizes them into a final decision with scores and recommendations.
+Analyzes whether to enter, hold, or exit a position. It runs **five sub-analyses** (4 LLM + 1 deterministic), synthesizes them via LLM composer, then applies a **deterministic Risk Gate** for safety.
 
 - **Input**: Symbol, decision type (entry/holding), optional question
-- **Output**: Structured decision with action, confidence, score breakdown
-- **Key feature**: Parallel sub-agent architecture
+- **Output**: Structured decision with action, confidence, score breakdown, risk gate result
+- **Key feature**: 5-way parallel analysis + deterministic Risk Gate safety layer
 
 ### 3. Trade Review Agent
 
@@ -91,17 +91,18 @@ Assesses portfolio risk across concentration, sector/theme exposure, and stress 
 
 | Feature | Copilot | Trade Decision | Trade Review | Daily Review | Risk Assessment |
 |---|---|---|---|---|---|
-| **Runtime type** | ReAct loop (multi-turn) | Structured output (single-shot) | Structured output (single-shot) | Structured output (single-shot) | Structured output (single-shot) |
+| **Runtime type** | ReAct loop (multi-turn) | 5 sub-analyses + composer + risk gate | Structured output (single-shot) | Structured output (single-shot) | Structured output (single-shot) |
 | **LLM calls per run** | 2-8 rounds | 5 (4 sub-agents + 1 compose) | 1 | 1 + N cards | 1 |
-| **Deterministic work** | Minimal | Account fit scoring | Trade fact loading | Attribution, focus selection | All risk computations |
+| **Deterministic work** | Minimal | Tech signals, risk/reward, thesis, risk gate | Trade fact loading | Attribution, focus selection | All risk computations |
 | **Tool calling** | Yes (9 IBKR tools) | Yes (Longbridge MCP) | No | No | No |
 | **Skill system** | Yes (5 skills) | No | No | No | No |
-| **Parallel execution** | Tool calls in parallel | 4 sub-analyses in parallel | No | Card generation in parallel | No |
+| **Parallel execution** | Tool calls in parallel | 4 LLM sub-analyses in parallel | No | Card generation in parallel | No |
+| **Risk gate** | No | Yes (deterministic post-composer) | No | No | No |
 | **User approval** | Yes (for skills) | No | No | No | No |
 | **Fallback strategy** | Graceful message | `watchlist` + `low` confidence | Score 50, `neutral` | Deterministic-only report | Risk cards without narrative |
 | **Score dimensions** | N/A | 7 dimensions (100 pts) | 8 dimensions (100 pts) | N/A | 3 cards (65 pts) |
 | **Output format** | Conversational text | JSON decision document | JSON review document | JSON review document | JSON risk report |
-| **Memory/context** | Conversation memory | Evidence pack | Evidence pack | Evidence pack | Portfolio snapshot |
+| **Memory/context** | Conversation memory | Evidence pack + investment thesis | Evidence pack | Evidence pack | Portfolio snapshot |
 
 ## Architecture Diagram
 
@@ -177,6 +178,19 @@ flowchart LR
 - **Graceful degradation**: If the LLM is unavailable or returns invalid output, every agent has a deterministic fallback that returns a conservative result.
 - **Traceability**: Every agent run produces a trace of LLM calls, tool calls, latencies, and errors for debugging and monitoring.
 
+## Deterministic Engines
+
+The Trade Decision agent is enhanced with four pure-Python engines that run **without LLM calls**, providing reliable and auditable analysis:
+
+| Engine | Purpose | Key Outputs |
+|--------|---------|-------------|
+| **TechnicalSignalEngine** | Computes MA, ATR, volume ratio, relative strength, support/resistance | `trend_break_level` (none/warning/broken/severe), `support_levels`, `resistance_levels` |
+| **RiskRewardEngine** | Estimates upside/downside, R-multiple, action guidance | `reward_risk_ratio`, `action_guidance`, `stop_add_level`, `invalidation_level` |
+| **InvestmentThesis** | Per-symbol playbooks with add/hold/sell rules | `max_position_pct`, `risk_class`, `sell_triggers`, `no_add_triggers` |
+| **FundamentalChangeEngine** | Detects revenue/margin/cash-flow deterioration | `fundamental_status` (green/yellow/orange/red), `thesis_broken` |
+
+These engines feed into both the LLM composer (as evidence) and the Risk Gate (as gating rules).
+
 ## Source Code Layout
 
 ```
@@ -191,13 +205,32 @@ app/agents/
     evidence.py                   # Evidence pack builders
     context_budget.py             # Context budget enforcement
     invariants.py                 # Domain invariants and normalizers
+    eval_harness.py               # Eval case/result dataclasses
+    eval_judge.py                 # LLM-as-judge evaluation
+    eval_correctness_rubrics.py   # 8 global + per-agent rubrics
     eval_checks.py                # Generic eval checks
     eval_domain_checks.py         # Agent-specific eval checks
+    run_replay.py                 # Agent replay snapshot builder
+    agent_run_trace.py            # Runtime trace capture
     account_copilot/              # Copilot agent
     trade_decision/               # Trade Decision agent
+        agent.py                  # Main entry point
+        cards.py                  # 5 card dataclasses + TradeDecisionCardPack
+        risk_gate.py              # Deterministic post-composer safety
+        sub_agents.py             # 5 sub-analysis implementations
+        prompts.py                # System prompts
     trade_review/                 # Trade Review agent
     daily_review/                 # Daily Review agent
     risk_assessment/              # Risk Assessment agent
+
+app/services/
+    technical_signal_engine.py    # MA/ATR/RS/support-resistance/trend-break
+    risk_reward_engine.py         # Upside/downside/R-multiple/action guidance
+    investment_thesis.py          # Per-symbol thesis with trigger evaluation
+    fundamental_change_engine.py  # Revenue/margin/cashflow deterioration
+    email_service.py              # SMTP email for daily reviews
+    agent_replay_service.py       # Replay snapshot CRUD (SQLite)
+    llm_service.py                # LLM HTTP client with audit logging
 ```
 
 ## Next Steps

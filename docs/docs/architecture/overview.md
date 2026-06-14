@@ -119,7 +119,7 @@ backend/app/
 │   ├── deps.py                # Shared dependencies (get_current_user)
 │   └── routes/
 │       ├── health.py          # GET /api/health
-│       ├── auth.py            # POST /api/auth/login, logout (SQLite-backed rate limiting)
+│       ├── auth.py            # POST /api/auth/login, logout
 │       ├── account.py         # Account overview endpoints
 │       ├── positions.py       # Position data endpoints
 │       ├── trades.py          # Trade history endpoints
@@ -146,18 +146,33 @@ backend/app/
 │   ├── cash_flow_service.py   # Cash flow queries
 │   ├── dividend_service.py    # Dividend queries
 │   ├── chart_service.py       # Chart data generation
-│   ├── llm_service.py         # LLM HTTP client
+│   ├── llm_service.py         # LLM HTTP client with audit logging
 │   ├── settings_service.py    # Settings management
 │   ├── import_service.py      # Data import orchestration
-│   └── agent_services.py      # Agent orchestration
+│   ├── agent_services.py      # Agent orchestration
+│   ├── technical_signal_engine.py  # MA/ATR/RS/trend-break (deterministic)
+│   ├── risk_reward_engine.py       # Upside/downside/R-multiple (deterministic)
+│   ├── investment_thesis.py        # Per-symbol thesis with triggers
+│   ├── fundamental_change_engine.py # Revenue/margin/cashflow trends
+│   ├── email_service.py       # SMTP email for daily reviews
+│   └── agent_replay_service.py # Replay snapshot CRUD
 ├── agents/
 │   ├── runtime.py             # ReAct tool-calling runtime
 │   ├── structured_output/     # JSON parse/validate/repair pipeline
 │   ├── account_copilot/       # Chat-based copilot agent
 │   ├── daily_review/          # Daily position review agent
 │   ├── trade_decision/        # Trade decision agent
+│   │   ├── agent.py           # Main entry (5 sub-analyses + risk gate)
+│   │   ├── cards.py           # 5 card dataclasses + CardPack
+│   │   ├── risk_gate.py       # Deterministic post-composer safety
+│   │   └── sub_agents.py      # 5 sub-analysis implementations
 │   ├── trade_review/          # Trade review agent
 │   ├── risk_assessment/       # Risk assessment agent
+│   ├── eval_harness.py        # Eval case/result dataclasses
+│   ├── eval_judge.py          # LLM-as-judge evaluation
+│   ├── eval_correctness_rubrics.py # 8 global + per-agent rubrics
+│   ├── run_replay.py          # Agent replay snapshot builder
+│   ├── agent_run_trace.py     # Runtime trace capture
 │   ├── prompt_registry.py     # Prompt versioning
 │   └── evidence.py            # Evidence collection
 ├── schemas/                   # Pydantic request/response models
@@ -405,6 +420,15 @@ erDiagram
         TEXT updated_at
     }
 
+    agent_replays {
+        TEXT replay_id PK
+        TEXT run_id
+        TEXT agent_name
+        TEXT final_status
+        TEXT created_at
+        TEXT payload_json
+    }
+
     account_snapshots ||--o{ position_snapshots : "account_id + report_date"
     position_snapshots ||--o{ trade_records : "symbol"
     copilot_sessions ||--o{ copilot_messages : "session_id"
@@ -438,6 +462,7 @@ erDiagram
 |-------|-------------|
 | `agent_prompts` | Versioned prompt templates |
 | `agent_tasks` | Agent execution history |
+| `agent_replays` | Agent replay snapshots for debugging and eval |
 | `copilot_sessions` | Chat session metadata |
 | `copilot_messages` | Chat message history |
 | `copilot_memories` | Copilot memory facts |

@@ -23,12 +23,14 @@
 
 ## Overview
 
-IBKR Dash is a self-hosted investment portfolio dashboard that pulls data from Interactive Brokers via the Flex Web Service, stores it in SQLite, and presents it through a modern web UI. It includes five AI agents powered by any OpenAI-compatible LLM for portfolio analysis, trade decisions, and risk assessment.
+IBKR Dash is a self-hosted investment portfolio dashboard that pulls data from Interactive Brokers via the Flex Web Service, stores it in SQLite, and presents it through a modern web UI. It includes five AI agents powered by any OpenAI-compatible LLM, enhanced with deterministic investment analysis engines for reliable, auditable trade decisions.
 
 **Key highlights:**
 
 - 📊 **Real-time portfolio dashboard** — equity curves, position tables, performance calendars
 - 🤖 **5 AI agents** — copilot, daily review, trade decisions, trade reviews, risk assessment
+- 🧠 **Deterministic analysis engines** — technical signals, risk/reward, investment thesis, fundamental change detection
+- 🛡️ **Risk Gate** — post-composer safety layer that blocks unsafe trade actions
 - 🔒 **HMAC session auth** — cookie-based sessions with optional password protection
 - 🌐 **i18n support** — English and Chinese (Simplified)
 - 🐳 **Docker ready** — single `docker compose up` to run everything
@@ -55,9 +57,21 @@ IBKR Dash is a self-hosted investment portfolio dashboard that pulls data from I
 |-------|----------|-------------|
 | **Account Copilot** | `POST /api/copilot/chat` | Chat-based portfolio assistant with tool use |
 | **Daily Position Review** | `POST /api/daily-position-review/generate` | AI-generated daily portfolio analysis |
-| **Trade Decision** | `POST /api/trade-decision/analyze` | Entry/exit/hold analysis for positions |
+| **Trade Decision** | `POST /api/trade-decision/analyze` | Entry/exit/hold analysis with 5 sub-analyses + risk gate |
 | **Trade Review** | `POST /api/trade-review/review` | Post-trade evaluation and lessons |
 | **Risk Assessment** | `POST /api/risk-assessment/assess` | Portfolio risk analysis and alerts |
+
+### Deterministic Engines
+
+These pure-Python engines run without LLM calls, providing reliable and auditable analysis:
+
+| Engine | File | Description |
+|--------|------|-------------|
+| **Technical Signal** | `technical_signal_engine.py` | MA20/50/200, ATR14, volume ratio, relative strength, support/resistance, trend-break classification |
+| **Risk/Reward** | `risk_reward_engine.py` | Upside/downside estimation, R-multiple, action guidance, position sizing |
+| **Investment Thesis** | `investment_thesis.py` | Per-symbol playbooks with add/hold/sell rules, trigger evaluation |
+| **Fundamental Change** | `fundamental_change_engine.py` | Revenue/margin/cash-flow trend detection, guidance change, thesis-broken check |
+| **Risk Gate** | `trade_decision/risk_gate.py` | Post-composer safety: panic detection, trend-break gating, thesis gating, R-multiple gating |
 
 ### Administration
 
@@ -90,6 +104,11 @@ IBKR Dash is a self-hosted investment portfolio dashboard that pulls data from I
 │  │ Copilot  │ │  Daily   │ │  Trade   │ │   Risk   │        │
 │  │  Agent   │ │  Review  │ │ Decision │ │Assessment│        │
 │  └──────────┘ └──────────┘ └──────────┘ └──────────┘        │
+│  ┌──────────────────────────────────────────────────┐       │
+│  │     Deterministic Engines (no LLM)                │       │
+│  │  Tech Signals · Risk/Reward · Investment Thesis   │       │
+│  │  Fundamental Change · Risk Gate                    │       │
+│  └──────────────────────────────────────────────────┘       │
 │  ┌──────────────────────────────────────────────────┐       │
 │  │         Structured Output Pipeline                │       │
 │  │    parse → validate → repair → fallback           │       │
@@ -353,15 +372,24 @@ ibkr-dash/
 │   │   ├── agents/             # AI agent system (5 agents)
 │   │   │   ├── account_copilot/
 │   │   │   ├── daily_review/
-│   │   │   ├── trade_decision/
+│   │   │   ├── trade_decision/ # Includes risk_gate.py
 │   │   │   ├── trade_review/
 │   │   │   ├── risk_assessment/
-│   │   │   └── structured_output/
+│   │   │   ├── structured_output/
+│   │   │   ├── eval_harness.py # Eval case/result dataclasses
+│   │   │   ├── eval_judge.py   # LLM-as-judge evaluation
+│   │   │   └── eval_correctness_rubrics.py
 │   │   ├── api/routes/         # 25 route modules
 │   │   ├── services/           # Business logic
+│   │   │   ├── technical_signal_engine.py
+│   │   │   ├── risk_reward_engine.py
+│   │   │   ├── investment_thesis.py
+│   │   │   ├── fundamental_change_engine.py
+│   │   │   ├── email_service.py
+│   │   │   └── agent_replay_service.py
 │   │   ├── schemas/            # Pydantic models
 │   │   └── core/               # Config, DB, auth, cache
-│   └── tests/                  # 16 test files
+│   └── tests/                  # 21 test files, 211 tests
 ├── frontend/                   # React + TypeScript
 │   ├── src/
 │   │   ├── views/              # 19 page components
@@ -394,7 +422,7 @@ ibkr-dash/
 ### Running Tests
 
 ```bash
-# Backend (16 test files)
+# Backend (211 tests across 21 test files)
 cd backend && python -m pytest tests/ -v
 
 # Frontend (10 test files)
