@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
@@ -15,6 +15,8 @@ export default function AppHeader() {
   const [showLogin, setShowLogin] = useState(false)
   const [loginForm, setLoginForm] = useState({ username: '', password: '' })
   const [loginError, setLoginError] = useState('')
+
+  const handleCloseLogin = useCallback(() => setShowLogin(false), [])
 
   const baseNavItems = [
     { label: t('nav.dashboard'), to: '/' },
@@ -199,7 +201,7 @@ export default function AppHeader() {
       </header>
 
       {/* Login modal */}
-      <Modal open={showLogin} onClose={() => setShowLogin(false)} title={t('auth.loginTitle')} width="min(380px, 100%)">
+      <Modal open={showLogin} onClose={handleCloseLogin} title={t('auth.loginTitle')} width="min(380px, 100%)">
         <form style={{ display: 'grid', gap: 10 }} onSubmit={handleLogin}>
           <label className="field-stack">
             <span className="field-stack__label">{t('auth.username')}</span>
@@ -211,7 +213,7 @@ export default function AppHeader() {
           </label>
           {loginError && <p style={{ margin: 0, color: 'var(--color-negative)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{loginError}</p>}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4 }}>
-            <button type="button" className="btn btn--ghost" onClick={() => setShowLogin(false)}>{t('auth.cancel')}</button>
+            <button type="button" className="btn btn--ghost" onClick={handleCloseLogin}>{t('auth.cancel')}</button>
             <button type="submit" className="btn btn--accent" disabled={authLoading}>{t('auth.login')}</button>
           </div>
         </form>
