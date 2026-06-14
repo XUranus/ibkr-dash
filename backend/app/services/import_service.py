@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
 import time
 from datetime import datetime, timezone
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 # Project root: backend/ -> ibkr-dash/
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
-_WORKER_DIR = _PROJECT_ROOT / "worker"
+_WORKER_DIR = Path(os.environ.get("WORKER_DIR", str(_PROJECT_ROOT / "worker")))
 
 
 def _ensure_worker_importable() -> None:

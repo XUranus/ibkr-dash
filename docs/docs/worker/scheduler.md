@@ -286,5 +286,5 @@ The `data_dir` should be mounted as a volume so that CSV files can be dropped in
 
 ```yaml
 volumes:
-  - ./data:/app/data
+  - ./data:/app/backend/data
 ```

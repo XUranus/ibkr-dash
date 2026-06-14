@@ -84,9 +84,9 @@ services:
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
-      - backend-data:/app/data
+      - backend-data:/app/backend/data
     environment:
-      - SQLITE_PATH=/app/data/ibkr_dash.db
+      - SQLITE_PATH=/app/backend/data/ibkr_dash.db
       - APP_ENV=${APP_ENV:-docker}
     restart: unless-stopped
 
@@ -95,9 +95,9 @@ services:
       context: .
       dockerfile: docker/worker.Dockerfile
     volumes:
-      - backend-data:/app/data
+      - backend-data:/app/backend/data
     environment:
-      - SQLITE_PATH=/app/data/ibkr_dash.db
+      - SQLITE_PATH=/app/backend/data/ibkr_dash.db
     restart: unless-stopped
 
   frontend:
@@ -199,7 +199,7 @@ server {
 备份数据库：
 
 ```bash
-docker compose exec backend cp /app/data/ibkr_dash.db /tmp/backup.db
+docker compose exec backend cp /app/backend/data/ibkr_dash.db /tmp/backup.db
 docker compose cp backend:/tmp/backup.db ./backup.db
 ```
 
@@ -213,7 +213,7 @@ Docker 特定的环境变量覆盖：
 
 | 变量 | Docker 默认值 | 说明 |
 |------|---------------|------|
-| `SQLITE_PATH` | `/app/data/ibkr_dash.db` | 容器内的路径 |
+| `SQLITE_PATH` | `/app/backend/data/ibkr_dash.db` | 容器内的路径 |
 | `APP_ENV` | `docker` | 环境名称 |
 | `BACKEND_PORT` | `8000` | 后端的宿主机端口 |
 | `FRONTEND_PORT` | `8080` | 前端的宿主机端口 |

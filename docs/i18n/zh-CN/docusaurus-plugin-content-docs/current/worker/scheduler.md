@@ -267,5 +267,5 @@ CMD ["python", "-m", "worker.main", "run-scheduler"]
 
 ```yaml
 volumes:
-  - ./data:/app/data
+  - ./data:/app/backend/data
 ```

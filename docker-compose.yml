@@ -2,24 +2,13 @@ services:
   backend:
     build:
       context: .
-      dockerfile: docker/backend.Dockerfile
+      dockerfile: docker/Dockerfile
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
-      - backend-data:/app/data
+      - backend-data:/app/backend/data
     environment:
-      - SQLITE_PATH=/app/data/ibkr_dash.db
       - APP_ENV=${APP_ENV:-docker}
-    restart: unless-stopped
-
-  worker:
-    build:
-      context: .
-      dockerfile: docker/worker.Dockerfile
-    volumes:
-      - backend-data:/app/data
-    environment:
-      - SQLITE_PATH=/app/data/ibkr_dash.db
     restart: unless-stopped
 
   frontend:

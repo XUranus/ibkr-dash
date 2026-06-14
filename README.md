@@ -98,19 +98,17 @@ IBKR Dash is a self-hosted investment portfolio dashboard that pulls data from I
 │  │              ReAct Runtime                        │       │
 │  │       plan → tool_call → observe → answer         │       │
 │  └──────────────────────────────────────────────────┘       │
+│  ┌──────────────────────────────────────────────────┐       │
+│  │         Worker Scheduler (background)             │       │
+│  │    APScheduler · IBKR Flex Web Service            │       │
+│  │    Fetch → Parse (CSV/XML) → Transform → Write    │       │
+│  └──────────────────────────────────────────────────┘       │
 └────────────────────────┬────────────────────────────────────┘
                          │
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    SQLite (WAL mode)                          │
-│            data/ibkr_dash.db (shared with Worker)            │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│                     Worker (Python)                           │
-│            APScheduler · IBKR Flex Web Service               │
-│           Fetch → Parse (CSV/XML) → Transform → Write        │
+│                   data/ibkr_dash.db                          │
 └─────────────────────────────────────────────────────────────┘
 ```
 

@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 # Path to the JSON config file
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]  # ibkr-dash/
-CONFIG_PATH = _PROJECT_ROOT / "data" / "config.json"
+CONFIG_PATH = Path(os.environ.get("CONFIG_PATH", str(_PROJECT_ROOT / "data" / "config.json")))
 
 # ---------------------------------------------------------------------------
 # Defaults — canonical structure of config.json

@@ -66,9 +66,8 @@ graph TB
 ```
 
 - **Frontend** -- Nginx serves the built React app and proxies `/api/*` to the backend.
-- **Backend** -- FastAPI serves the REST API on port 8000.
-- **Worker** -- Runs the IBKR Flex scheduler to import data daily.
-- **Shared volume** -- `backend-data` holds the SQLite database and `config.json`, shared between backend and worker.
+- **Backend** -- FastAPI serves the REST API on port 8000, with the worker scheduler running in the background.
+- **Shared volume** -- `backend-data` holds the SQLite database and `config.json`.
 
 ---
 
@@ -103,24 +102,13 @@ services:
   backend:
     build:
       context: .
-      dockerfile: docker/backend.Dockerfile
+      dockerfile: docker/Dockerfile
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
-      - backend-data:/app/data
+      - backend-data:/app/backend/data
     environment:
-      - SQLITE_PATH=/app/data/ibkr_dash.db
       - APP_ENV=${APP_ENV:-docker}
-    restart: unless-stopped
-
-  worker:
-    build:
-      context: .
-      dockerfile: docker/worker.Dockerfile
-    volumes:
-      - backend-data:/app/data
-    environment:
-      - SQLITE_PATH=/app/data/ibkr_dash.db
     restart: unless-stopped
 
   frontend:
@@ -140,27 +128,24 @@ volumes:
 
 ## Dockerfiles
 
-### Backend (`docker/backend.Dockerfile`)
+### Backend + Worker (`docker/Dockerfile`)
 
 ```dockerfile
 FROM python:3.12-slim
 WORKDIR /app
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY backend/ .
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+COPY backend/requirements.txt ./backend/requirements.txt
+RUN pip install --no-cache-dir -r backend/requirements.txt
+COPY worker/requirements.txt ./worker/requirements.txt
+RUN pip install --no-cache-dir -r worker/requirements.txt
+COPY backend/ ./backend/
+COPY worker/ ./worker/
+ENV PYTHONPATH=/app/backend:/app/worker
+COPY docker/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+CMD ["/app/entrypoint.sh"]
 ```
 
-### Worker (`docker/worker.Dockerfile`)
-
-```dockerfile
-FROM python:3.12-slim
-WORKDIR /app
-COPY worker/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY worker/ .
-CMD ["python", "-m", "worker.main", "run-scheduler"]
-```
+The entrypoint starts the worker scheduler in the background, then runs uvicorn in the foreground.
 
 ### Frontend (`docker/frontend.Dockerfile`)
 
@@ -219,12 +204,12 @@ server {
 |--------|---------|
 | `backend-data` | SQLite database, config.json, and Flex CSV exports |
 
-The volume is shared between backend and worker so they can read/write the same database and config.
+The volume is mounted at `/app/backend/data` inside the container.
 
 To back up the database:
 
 ```bash
-docker compose exec backend cp /app/data/ibkr_dash.db /tmp/backup.db
+docker compose exec backend cp /app/backend/data/ibkr_dash.db /tmp/backup.db
 docker compose cp backend:/tmp/backup.db ./backup.db
 ```
 
@@ -238,7 +223,6 @@ Docker-specific overrides in `docker-compose.yml`:
 
 | Variable | Docker Default | Description |
 |----------|---------------|-------------|
-| `SQLITE_PATH` | `/app/data/ibkr_dash.db` | Path inside the container |
 | `APP_ENV` | `docker` | Environment name |
 | `BACKEND_PORT` | `8000` | Host port for the backend |
 | `FRONTEND_PORT` | `8080` | Host port for the frontend |

@@ -285,9 +285,9 @@ services:
     build: ./worker
     command: python -m worker.main run-scheduler
     volumes:
-      - ./data:/app/data
+      - ./data:/app/backend/data
     environment:
-      - SQLITE_PATH=/app/data/ibkr_dash.db
+      - SQLITE_PATH=/app/backend/data/ibkr_dash.db
 ```
 
 共享的 `data/` 卷包含：

@@ -2,6 +2,11 @@
 .git
 .gitignore
 
+# Runtime data (mounted as Docker volume)
+backend/data
+worker/data
+data
+
 # IDE / Editor
 .claude
 .vscode
