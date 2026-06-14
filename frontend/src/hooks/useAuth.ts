@@ -106,6 +106,14 @@ export async function logoutCurrentSession(): Promise<void> {
   }
 }
 
+/** Listen for 401 events from the HTTP layer — clears auth state without redirect. */
+if (typeof window !== 'undefined') {
+  window.addEventListener('auth:unauthorized', () => {
+    localStorage.removeItem(AUTH_CACHE_KEY)
+    applyState(false, null)
+  })
+}
+
 export function useAuth(): AuthState & {
   ensureAuth: (force?: boolean) => Promise<void>
   loginWithCredentials: (username: string, password: string) => Promise<void>
