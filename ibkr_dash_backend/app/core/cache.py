@@ -74,7 +74,9 @@ def cached(prefix: str, ttl: float | None = None):
             ...
     """
     def decorator(func: Callable) -> Callable:
+        """Wrap func with TTL-based caching."""
         def wrapper(*args, **kwargs) -> Any:
+            """Execute func or return cached result if available."""
             # Build key from function name + args (skip 'self')
             key_parts = [prefix, func.__name__]
             for a in args[1:]:  # skip self

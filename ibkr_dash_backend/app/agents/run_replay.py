@@ -22,6 +22,7 @@ DEFAULT_SECTION_MAX_CHARS = 30000
 
 
 def new_replay_id(agent_name: str) -> str:
+    """Generate a unique replay ID for the given agent."""
     safe_name = re.sub(r"[^a-zA-Z0-9_]+", "_", agent_name.strip().lower()).strip("_") or "agent"
     return f"{safe_name}_replay_{uuid4().hex[:16]}"
 
@@ -51,6 +52,7 @@ class AgentReplaySnapshot:
     metadata: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a sanitized dict representation of the replay snapshot."""
         return sanitize_replay_payload(asdict(self))
 
 

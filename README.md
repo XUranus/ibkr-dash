@@ -24,39 +24,14 @@ A personal investment portfolio dashboard with AI agent capabilities, powered by
 
 ## Quick Start
 
-### 1. Clone and configure
+### 1. Clone
 
 ```bash
 git clone <repo-url>
 cd ibkr-dash
-
-# Copy example configs
-cp .env.example .env
-cp ibkr_dash_backend/.env.example ibkr_dash_backend/.env 2>/dev/null || cp .env ibkr_dash_backend/.env
-cp ibkr_dash_worker/.env.example ibkr_dash_worker/.env 2>/dev/null || cp .env ibkr_dash_worker/.env
 ```
 
-### 2. Edit configuration
-
-Edit `ibkr_dash_backend/.env`:
-```env
-# Required for AI features
-LLM_API_KEY=your-api-key
-LLM_BASE_URL=https://api.openai.com/v1    # or your provider
-LLM_DEFAULT_MODEL=gpt-4o                   # or mimo-v2.5, deepseek-chat, etc.
-
-# Login password (leave empty to disable auth)
-AUTH_PASSWORD=your-password
-```
-
-Edit `ibkr_dash_worker/.env`:
-```env
-# IBKR Flex Web Service token (for automatic data pull)
-FLEX_TOKEN=your-flex-token
-FLEX_QUERY_ID_DAILY=your-query-id
-```
-
-### 3. Start services
+### 2. Start services
 
 **Terminal 1 — Backend:**
 ```bash
@@ -82,19 +57,23 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+### 3. Configure
+
+Open **http://localhost:5173/admin/settings** and set:
+- **LLM API Key** — required for AI features
+- **Auth Password** — leave empty for open access
+- **Flex Token** — for automatic IBKR data pulls
+
 ### 4. Access
 
 | URL | Description |
 |-----|-------------|
 | http://localhost:5173 | Frontend dashboard |
+| http://localhost:5173/admin/settings | Configuration |
 | http://localhost:8000/docs | Backend API docs (Swagger) |
 | http://localhost:8000/api/health | Health check |
 
-Login with the credentials you set in `AUTH_PASSWORD`.
-
 ## Importing Data
-
-The dashboard shows IBKR account data. To get data in:
 
 ### Option A: Import a Flex CSV file
 
@@ -108,7 +87,7 @@ python -m worker.main import ../data/flex_exports/your_file.csv
 
 ### Option B: Automatic pull from IBKR Flex Web Service
 
-Configure `FLEX_TOKEN` and `FLEX_QUERY_ID_DAILY` in the worker `.env`, then:
+Configure the Flex token in Admin Settings, then:
 ```bash
 cd ibkr_dash_worker
 python -m worker.main run-scheduler
@@ -131,7 +110,7 @@ python -m worker.main import worker/fixtures/daily_sample.csv
 | Trade Review | `POST /api/trade-review/review` | Post-trade evaluation |
 | Risk Assessment | `POST /api/risk-assessment/assess` | Portfolio risk analysis |
 
-All agents require `LLM_API_KEY` to be configured. Without it, the data dashboard still works but AI features are disabled.
+All agents require an LLM API key to be configured in Admin Settings. Without it, the data dashboard still works but AI features are disabled.
 
 ## Docker Deployment
 
@@ -140,7 +119,12 @@ All agents require `LLM_API_KEY` to be configured. Without it, the data dashboar
 docker compose up -d --build
 
 # Access at http://localhost:8080
+# Configure at http://localhost:8080/admin/settings
 ```
+
+## Configuration
+
+All configuration is stored in `data/config.json` and managed via the **Admin Settings** UI. See [Configuration docs](docs/docs/backend/config.md) for the full reference.
 
 ## Testing
 
@@ -151,33 +135,6 @@ cd ibkr_dash_backend && .venv/bin/python -m pytest tests/ -v
 # Frontend tests (74 tests)
 cd ibkr_dash_frontend && npx vitest run
 ```
-
-## Environment Variables
-
-See `.env.example` for all available configuration options.
-
-### Backend (`ibkr_dash_backend/.env`)
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SQLITE_PATH` | `data/ibkr_dash.db` | SQLite database path |
-| `LLM_API_KEY` | (empty) | OpenAI-compatible API key |
-| `LLM_BASE_URL` | `https://api.openai.com/v1` | LLM endpoint |
-| `LLM_DEFAULT_MODEL` | `gpt-4o` | Model name |
-| `AUTH_USERNAME` | `admin` | Login username |
-| `AUTH_PASSWORD` | (empty) | Login password (empty = no auth) |
-| `CORS_ORIGINS` | `http://localhost:5173` | Allowed CORS origins |
-
-### Worker (`ibkr_dash_worker/.env`)
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATA_DIR` | `data/flex_exports` | CSV import directory |
-| `FLEX_TOKEN` | (empty) | IBKR Flex Web Service token |
-| `FLEX_QUERY_ID_DAILY` | (empty) | Daily snapshot query ID |
-| `SCHEDULER_HOUR` | `12` | Daily import hour |
-| `SCHEDULER_MINUTE` | `30` | Daily import minute |
-| `SCHEDULER_TIMEZONE` | `Asia/Shanghai` | Scheduler timezone |
 
 ## Project Structure
 
@@ -191,8 +148,7 @@ ibkr-dash/
 │   │   │   ├── trade_decision/ # Trade decision analysis
 │   │   │   ├── trade_review/   # Trade review
 │   │   │   ├── risk_assessment/# Risk assessment
-│   │   │   ├── structured_output/ # Output validation
-│   │   │   └── eval_cases/     # Evaluation framework
+│   │   │   └── structured_output/ # Output validation
 │   │   ├── api/routes/         # API endpoints (20 routes)
 │   │   ├── services/           # Business logic
 │   │   ├── schemas/            # Pydantic models
@@ -211,6 +167,7 @@ ibkr-dash/
 │   │   ├── clients/            # DB and API clients
 │   │   └── jobs/               # Scheduled jobs
 │   └── tests/
+├── data/                       # SQLite DB + config.json + Flex exports
 ├── docker/                     # Docker configs
 ├── scripts/                    # Utility scripts
 └── docs/                       # Documentation

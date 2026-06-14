@@ -28,7 +28,7 @@ graph TB
         Pydantic["Pydantic v2"]
         Httpx["httpx"]
         SQLite["sqlite3 (stdlib)"]
-        PydanticSettings["pydantic-settings"]
+        JSONConfig["JSON Config<br/>(settings_manager)"]
     end
 
     subgraph Worker ["Worker Stack"]
@@ -63,9 +63,7 @@ graph TB
 | `fastapi` | ^0.115.0 | Web framework with async support |
 | `uvicorn` | ^0.34.0 | ASGI server for FastAPI |
 | `pydantic` | ^2.10.0 | Data validation and JSON Schema generation |
-| `pydantic-settings` | ^2.7.0 | Environment variable configuration |
 | `httpx` | ^0.28.0 | HTTP client for LLM API calls |
-| `python-dotenv` | ^1.0.0 | .env file loading |
 
 ### Frontend Dependencies
 
@@ -89,7 +87,6 @@ graph TB
 |---------|---------|---------|
 | `apscheduler` | ^3.10.0 | Cron-like job scheduling |
 | `requests` | ^2.32.0 | IBKR Flex API HTTP client |
-| `python-dotenv` | ^1.0.0 | .env file loading |
 
 :::info
 The worker has the fewest dependencies. The CSV parser uses Python's built-in `csv` module, and the XML parser uses `xml.etree.ElementTree` from the standard library. The `sqlite3` module is also part of the standard library.
@@ -224,15 +221,16 @@ class PositionSnapshot(BaseModel):
 
 ```python
 # From app/core/config.py -- Settings management
-from pydantic_settings import BaseSettings
+from app.core.settings_manager import get_manager
 
-class Settings(BaseSettings):
-    app_name: str = "IBKR Dash"
-    sqlite_path: str = "data/ibkr_dash.db"
-    llm_api_key: str = ""
-    llm_base_url: str = "https://api.openai.com/v1"
+class Settings:
+    @property
+    def llm_api_key(self) -> str:
+        return str(get_manager().get("llm.api_key", ""))
 
-    model_config = {"env_prefix": "", "env_file": ".env"}
+    @property
+    def llm_base_url(self) -> str:
+        return str(get_manager().get("llm.base_url", "https://api.openai.com/v1"))
 ```
 
 ---
@@ -501,18 +499,18 @@ IBKR Dash does not depend on any specific AI provider. It uses the OpenAI chat c
 | Ollama | llama3, mistral | `http://localhost:11434/v1` |
 | LiteLLM | Any model via proxy | `http://localhost:4000/v1` |
 
-The LLM configuration is managed through environment variables:
+The LLM configuration is managed through the Admin Settings UI (`/admin/settings`):
 
-```env
-LLM_API_KEY=your-api-key
-LLM_BASE_URL=https://api.openai.com/v1
-LLM_DEFAULT_MODEL=gpt-4o
-LLM_TEMPERATURE=0.1
-LLM_MAX_TOKENS=8192
-```
+| Setting | Default |
+|---------|---------|
+| `llm.api_key` | `""` |
+| `llm.base_url` | `https://api.openai.com/v1` |
+| `llm.default_model` | `gpt-4o` |
+| `llm.temperature` | `0.1` |
+| `llm.max_tokens` | `8192` |
 
 :::tip
-You can change the LLM provider at any time by updating the `.env` file. No code changes are needed. The backend uses a single HTTP client that works with any OpenAI-compatible endpoint.
+You can change the LLM provider at any time via Admin Settings. No code changes needed. The backend uses a single HTTP client that works with any OpenAI-compatible endpoint.
 :::
 
 ---
@@ -741,28 +739,28 @@ Vitest is used instead of Jest because it is faster (native ESM support), has a 
 
 ## Configuration Architecture
 
-All configuration is managed through environment variables, loaded from `.env` files:
+All configuration is stored in a single JSON file (`data/config.json`) and managed through the Admin Settings UI. No `.env` files.
 
 ```mermaid
 flowchart TD
-    EnvFile[".env File"] --> BackendSettings["Backend Settings<br/>(pydantic-settings)"]
-    EnvFile --> WorkerSettings["Worker Settings<br/>(dataclass + os.getenv)"]
+    UI["Admin Settings UI"] --> API["/api/admin/settings"]
+    API --> SM["SettingsManager<br/>(thread-safe singleton)"]
+    SM <--> JSON["data/config.json"]
 
-    BackendSettings --> AppConfig["App Config<br/>APP_ENV, DEBUG"]
-    BackendSettings --> DBConfig["Database Config<br/>SQLITE_PATH"]
-    BackendSettings --> LLMConfig["LLM Config<br/>API_KEY, BASE_URL, MODEL"]
-    BackendSettings --> AuthConfig["Auth Config<br/>USERNAME, PASSWORD"]
-    BackendSettings --> CORSConfig["CORS Config<br/>CORS_ORIGINS"]
+    SM --> BackendSettings["Backend Settings<br/>(config.py)"]
+    SM --> WorkerSettings["Worker Settings<br/>(config.py)"]
 
-    WorkerSettings --> WorkerAppConfig["App Config<br/>APP_ENV, DEBUG"]
-    WorkerSettings --> WorkerDBConfig["Database Config<br/>SQLITE_PATH"]
-    WorkerSettings --> FlexConfig["IBKR Flex Config<br/>TOKEN, QUERY_ID"]
-    WorkerSettings --> SchedConfig["Scheduler Config<br/>HOUR, MINUTE, TZ"]
+    BackendSettings --> AppConfig["App Config<br/>app_env, debug"]
+    BackendSettings --> DBConfig["Database Config<br/>sqlite_path"]
+    BackendSettings --> LLMConfig["LLM Config<br/>api_key, base_url, model"]
+    BackendSettings --> AuthConfig["Auth Config<br/>username, password"]
+    BackendSettings --> CORSConfig["CORS Config<br/>cors_origins"]
+
+    WorkerSettings --> FlexConfig["IBKR Flex Config<br/>token, query_ids"]
+    WorkerSettings --> SchedConfig["Scheduler Config<br/>hour, minute, tz"]
 ```
 
-The backend uses `pydantic-settings` for type-safe configuration with validation. The worker uses a plain `dataclass` with `os.getenv()` for simplicity.
-
-Both modules load their own `.env` file from their respective directories, and both resolve the `SQLITE_PATH` to the project root's `data/` directory.
+Both backend and worker read from the same `data/config.json` file via their own `Settings` classes. Changes made through the Admin Settings UI take effect immediately — no restart required.
 
 ---
 

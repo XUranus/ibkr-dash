@@ -9,6 +9,8 @@ from app.utils.dates import now_iso
 
 
 class CardStance:
+    """Constants representing the directional stance of an analysis card."""
+
     BULLISH = "bullish"
     NEUTRAL = "neutral"
     BEARISH = "bearish"
@@ -41,6 +43,7 @@ class AccountFitCard:
     created_at: str = ""
 
     def to_dict(self) -> dict:
+        """Return a plain dict of all card fields."""
         return {k: v for k, v in self.__dict__.items()}
 
 
@@ -68,6 +71,7 @@ class MarketTrendCard:
     created_at: str = ""
 
     def to_dict(self) -> dict:
+        """Return a plain dict of all card fields."""
         return {k: v for k, v in self.__dict__.items()}
 
 
@@ -96,6 +100,7 @@ class FundamentalValuationCard:
     created_at: str = ""
 
     def to_dict(self) -> dict:
+        """Return a plain dict of all card fields."""
         return {k: v for k, v in self.__dict__.items()}
 
 
@@ -122,10 +127,21 @@ class EventCatalystCard:
     created_at: str = ""
 
     def to_dict(self) -> dict:
+        """Return a plain dict of all card fields."""
         return {k: v for k, v in self.__dict__.items()}
 
 
 def build_fallback_account_fit_card(symbol: str, decision_type: str, reason: str) -> AccountFitCard:
+    """Build an AccountFitCard with conservative defaults when data is unavailable.
+
+    Args:
+        symbol: Ticker symbol.
+        decision_type: Type of trade decision (e.g. "buy", "sell").
+        reason: Explanation of why the fallback is being used.
+
+    Returns:
+        An AccountFitCard with zeroed scores and the reason recorded as a data limitation.
+    """
     return AccountFitCard(
         symbol=symbol, decision_type=decision_type,
         summary="Account fit assessment unavailable; using conservative defaults.",
@@ -137,6 +153,16 @@ def build_fallback_account_fit_card(symbol: str, decision_type: str, reason: str
 
 
 def build_fallback_market_trend_card(symbol: str, decision_type: str, reason: str) -> MarketTrendCard:
+    """Build a MarketTrendCard with conservative defaults when data is unavailable.
+
+    Args:
+        symbol: Ticker symbol.
+        decision_type: Type of trade decision (e.g. "buy", "sell").
+        reason: Explanation of why the fallback is being used.
+
+    Returns:
+        A MarketTrendCard with zeroed scores and the reason recorded as a data limitation.
+    """
     return MarketTrendCard(
         symbol=symbol, decision_type=decision_type,
         summary="Public market data insufficient; using conservative trend judgment.",
@@ -148,6 +174,16 @@ def build_fallback_market_trend_card(symbol: str, decision_type: str, reason: st
 
 
 def build_fallback_fundamental_card(symbol: str, decision_type: str, reason: str) -> FundamentalValuationCard:
+    """Build a FundamentalValuationCard with conservative defaults when data is unavailable.
+
+    Args:
+        symbol: Ticker symbol.
+        decision_type: Type of trade decision (e.g. "buy", "sell").
+        reason: Explanation of why the fallback is being used.
+
+    Returns:
+        A FundamentalValuationCard with zeroed scores and the reason recorded as a data limitation.
+    """
     return FundamentalValuationCard(
         symbol=symbol, decision_type=decision_type,
         summary="Fundamental and valuation data insufficient; using conservative defaults.",
@@ -159,6 +195,16 @@ def build_fallback_fundamental_card(symbol: str, decision_type: str, reason: str
 
 
 def build_fallback_event_card(symbol: str, decision_type: str, reason: str) -> EventCatalystCard:
+    """Build an EventCatalystCard with conservative defaults when data is unavailable.
+
+    Args:
+        symbol: Ticker symbol.
+        decision_type: Type of trade decision (e.g. "buy", "sell").
+        reason: Explanation of why the fallback is being used.
+
+    Returns:
+        An EventCatalystCard with zeroed scores and the reason recorded as a data limitation.
+    """
     return EventCatalystCard(
         symbol=symbol, decision_type=decision_type,
         summary="Public news and event data insufficient; using conservative analysis.",

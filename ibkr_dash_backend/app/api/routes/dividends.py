@@ -18,6 +18,7 @@ def get_dividend_summary(
     service: DividendService = Depends(get_dividend_service),
     _user: str | None = Depends(get_current_user),
 ) -> DividendSummaryResponse:
+    """Return aggregated dividend income totals grouped by currency and symbol."""
     return service.get_summary(
         start_date=start_date,
         end_date=end_date,
@@ -39,6 +40,7 @@ def list_dividends(
     service: DividendService = Depends(get_dividend_service),
     _user: str | None = Depends(get_current_user),
 ) -> DividendListResponse:
+    """Return a paginated list of dividend payment records."""
     try:
         return service.list_dividends(
             start_date=start_date,

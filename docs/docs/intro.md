@@ -53,12 +53,15 @@ The dashboard provides a comprehensive view of your investment portfolio:
 |---------|-------------|
 | **Portfolio Overview** | Total equity, cash balance, stock value, options value, and P&L at a glance |
 | **Position Table** | Detailed view of all holdings with quantity, cost basis, market value, unrealized P&L, and % of NAV |
+| **Treemap Visualization** | Interactive treemap showing position sizes with daily change color coding |
 | **Trade History** | Complete log of buy/sell transactions with dates, prices, commissions, and realized P&L |
 | **Cash Flow Tracking** | Deposits, withdrawals, dividends, interest, and other cash movements |
 | **Dividend History** | Track dividend payments across all holdings with dates and amounts |
-| **Equity Curve** | Interactive line chart showing portfolio value over time with zoom and pan |
+| **Equity Curve** | Interactive line chart showing portfolio value over time with range selection |
 | **Performance Calendar** | Daily P&L heatmap calendar to quickly spot winning and losing days |
-| **Asset Distribution** | Pie charts showing allocation by asset class and sector |
+| **Market Events** | Upcoming market events (FOMC, economic data releases) with importance levels |
+| **Asset Distribution** | Pie charts showing allocation by asset class and industry sector |
+| **AI Portfolio Analysis** | AI-generated portfolio analysis with sector allocation and risk assessment |
 
 ### AI Agents
 
@@ -70,7 +73,7 @@ IBKR Dash includes five AI agents, each specialized for a different analysis tas
 | **Daily Position Review** | Automated review of all open positions with buy/hold/sell signals and reasoning | Once per day, after market close |
 | **Trade Decision Analysis** | Pre-trade analysis for potential entries with risk/reward evaluation and entry/exit targets | Before opening a new position |
 | **Trade Review** | Post-trade evaluation of executed trades with lessons learned and grade | After closing a position |
-| **Risk Assessment** | Portfolio-level risk analysis including concentration risk, volatility, and diversification score | Weekly or monthly review |
+| **Risk Assessment** | Portfolio-level risk analysis including concentration risk, sector exposure, liquidity risk, and stress testing | Weekly or monthly review |
 
 All agents use a **structured output pipeline** that ensures reliable JSON output. If the LLM produces malformed JSON, the system automatically attempts repair before returning a result.
 
@@ -82,13 +85,11 @@ The structured output pipeline (defined in `app/agents/structured_output/runtime
 
 The admin panel gives you control over the system configuration:
 
-- **LLM Configuration** (`/admin/llm`) -- Switch between AI providers (OpenAI, DeepSeek, MiMo) without code changes
-- **Prompt Management** (`/admin/prompts`) -- View and edit version-controlled prompts for each agent
-- **Agent Monitoring** (`/admin/agent-monitoring`) -- View agent task history, execution traces, and performance metrics
-- **IBKR Settings** (`/admin/ibkr`) -- Configure Flex Web Service tokens and query IDs
-- **Email Notifications** (`/admin/email`) -- Optional email alerts for daily reviews
-- **Evaluation Harness** (`/admin/harness`) -- Test agent outputs against expected results for quality assurance
+- **Unified Settings** (`/admin/settings`) -- All configuration in one place (IBKR, LLM, Auth, Scheduler, Email, etc.)
 - **System Status** (`/admin/system`) -- View database size, uptime, and system health
+- **Agent Monitoring** (`/admin/agent-monitoring`) -- View agent task history, execution traces, and performance metrics
+- **Scheduler** (`/admin/scheduler`) -- Manually trigger IBKR data imports and view import history
+- **Prompt Management** (`/admin/prompts`) -- View and edit version-controlled prompts for each agent
 
 ---
 
@@ -277,19 +278,20 @@ ibkr-dash/
 │   │   ├── api/routes/         # REST API endpoints (20+ routes)
 │   │   ├── services/           # Business logic layer
 │   │   ├── schemas/            # Pydantic request/response models
-│   │   ├── core/               # Config, database, auth
+│   │   ├── core/               # Config, database, auth, cache, rate limiting
 │   │   └── utils/              # Date, pagination, JSON helpers
-│   └── tests/                  # Backend test suite (43 tests)
+│   └── tests/                  # Backend test suite
 │
 ├── ibkr_dash_frontend/         # React + TypeScript dashboard
 │   ├── src/
-│   │   ├── views/              # Page components (19 views)
-│   │   ├── components/         # Reusable UI components
+│   │   ├── views/              # Page components
+│   │   ├── components/         # Reusable UI components (Modal, StatCard, etc.)
 │   │   ├── api/                # API client functions
 │   │   ├── types/              # TypeScript type definitions
 │   │   ├── hooks/              # Custom React hooks
 │   │   ├── router/             # Route configuration
-│   │   ├── i18n/               # Internationalization
+│   │   ├── i18n/               # Internationalization (zh-CN, en)
+│   │   ├── styles/             # CSS (theme.css, base.css)
 │   │   └── utils/              # Formatting helpers
 │   └── package.json
 │
@@ -305,12 +307,12 @@ ibkr-dash/
 │
 ├── data/                       # Runtime data directory
 │   ├── ibkr_dash.db            # SQLite database (created at runtime)
+│   ├── config.json             # Settings (admin UI managed)
 │   └── flex_exports/           # IBKR Flex CSV files
 │
+├── docs/                       # This documentation (Docusaurus)
 ├── docker/                     # Docker build configs
 ├── scripts/                    # Utility scripts
-├── wiki/                       # This documentation (Docusaurus)
-├── .env.example                # Example environment config
 ├── docker-compose.yml          # Docker Compose config
 └── README.md                   # Project README
 ```
@@ -361,8 +363,8 @@ IBKR Dash is an active personal project under continuous development.
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Data Import (Worker) | Stable | CSV parsing, Flex API client, scheduler |
-| REST API (Backend) | Stable | 20+ endpoints, auth, admin panel |
-| Dashboard (Frontend) | Stable | 19 views, charts, i18n |
+| Data Import (Worker) | Stable | CSV/XML parsing, Flex API client, scheduler |
+| REST API (Backend) | Stable | 20+ endpoints, auth, admin panel, rate limiting |
+| Dashboard (Frontend) | Stable | Charts, i18n, responsive design, keyboard navigation |
 | AI Agents | Active development | 5 agent types, structured output pipeline |
 | Documentation | In progress | You're reading it! |

@@ -184,7 +184,7 @@ The client checks for a configured token before making any request:
 def _require_token(self) -> str:
     if not self.settings.flex_token:
         raise FlexClientError(
-            "FLEX_TOKEN is missing. Please fill FLEX_TOKEN in .env."
+            "FLEX_TOKEN is missing. Please configure it in Admin Settings → IBKR Flex."
         )
     return self.settings.flex_token
 ```
@@ -196,11 +196,7 @@ def _require_token(self) -> str:
 1. Log in to [IBKR Account Management](https://www.interactivebrokers.com/AccountManagement).
 2. Navigate to **Settings** > **Flex Web Service**.
 3. Generate a new token (or copy an existing one).
-4. Set it in your `.env` file:
-
-```bash
-FLEX_TOKEN=your-flex-token-here
-```
+4. Set it in **Admin Settings → IBKR Flex → Flex Token**.
 
 ### Creating a Flex Query
 
@@ -236,16 +232,17 @@ The Flex Web Service has rate limits. Do not poll more frequently than every 10 
 | `FLEX_POLL_INTERVAL_SECONDS` | `10` | Seconds between poll retries. |
 | `FLEX_MAX_POLL_RETRIES` | `60` | Maximum number of poll attempts. |
 
-### Environment File Example
+### Admin Settings Example
 
-```bash
-# .env file
-FLEX_TOKEN=your-flex-token-here
-FLEX_QUERY_ID_DAILY=1532356
-FLEX_BASE_URL=https://www.interactivebrokers.com/AccountManagement/FlexWebService
-FLEX_POLL_INTERVAL_SECONDS=10
-FLEX_MAX_POLL_RETRIES=60
-```
+Configure in **Admin Settings → IBKR Flex**:
+
+| Setting | Example Value |
+|---------|---------------|
+| Flex Token | `your-flex-token-here` |
+| Flex Query IDs | `1532356,1532359` |
+| Flex Base URL | `https://www.interactivebrokers.com/AccountManagement/FlexWebService` |
+| Poll Interval Seconds | `10` |
+| Max Poll Retries | `60` |
 
 :::info
 The worker's default `daily_incremental_job.py` uses a hardcoded list of query IDs (`DEFAULT_QUERY_IDS = ["1532356", "1532359"]`). Update this list to match your Flex Query IDs.

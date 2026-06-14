@@ -22,6 +22,8 @@ DEPOSIT_WITHDRAWAL_TYPES = ("Deposits/Withdrawals",)
 
 
 class CashFlowService:
+    """Service for querying and filtering cash flow records."""
+
     def __init__(self, db: Database) -> None:
         self.db = db
 

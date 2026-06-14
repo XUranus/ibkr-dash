@@ -19,8 +19,6 @@ SESSION_URL="http://localhost:${FRONTEND_PORT}/api/auth/session"
 FRONTEND_URL="http://localhost:${FRONTEND_PORT}/"
 
 COOKIE_JAR="$(mktemp)"
-ENV_BACKUP=""
-ORIGINAL_ENV_EXISTS=0
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -48,19 +46,6 @@ cleanup_compose() {
   COMPOSE_PROJECT_NAME="$VERIFY_PROJECT" docker compose down -v --remove-orphans 2>/dev/null || true
 }
 
-cleanup_env() {
-  if [ "$ORIGINAL_ENV_EXISTS" -eq 1 ]; then
-    if [ -n "$ENV_BACKUP" ] && [ -f "$ENV_BACKUP" ]; then
-      cp "$ENV_BACKUP" .env
-      rm -f "$ENV_BACKUP"
-      echo "  Restored original .env"
-    fi
-  else
-    rm -f .env
-    echo "  Removed temporary .env"
-  fi
-}
-
 wait_for_health() {
   local max_wait=120
   local elapsed=0
@@ -85,34 +70,15 @@ command -v docker >/dev/null 2>&1 || fail "docker is not installed"
 docker compose version >/dev/null 2>&1 || fail "docker compose is not available"
 
 # ---------------------------------------------------------------------------
-# Prepare .env
+# Export environment variables for docker-compose
 # ---------------------------------------------------------------------------
 
-if [ -f .env ]; then
-  ORIGINAL_ENV_EXISTS=1
-  ENV_BACKUP="$(mktemp)"
-  cp .env "$ENV_BACKUP"
-  echo "  Backed up existing .env"
-fi
+export COMPOSE_PROJECT_NAME="$VERIFY_PROJECT"
+export FRONTEND_PORT
+export BACKEND_PORT
+export APP_ENV=docker
 
-if [ "${CLEANUP:-0}" = "1" ]; then
-  trap 'cleanup_compose; cleanup_env; rm -f "$COOKIE_JAR"' EXIT
-else
-  trap 'cleanup_env; rm -f "$COOKIE_JAR"' EXIT
-fi
-
-cat > .env <<EOF
-COMPOSE_PROJECT_NAME=${VERIFY_PROJECT}
-FRONTEND_PORT=${FRONTEND_PORT}
-BACKEND_PORT=${BACKEND_PORT}
-APP_ENV=docker
-AUTH_USERNAME=admin
-AUTH_PASSWORD=change-me
-AUTH_SESSION_SECRET=verify-session-secret
-DAILY_REVIEW_INTERNAL_TOKEN=verify-internal-token
-DEMO_MODE=true
-EOF
-echo "  Wrote verification .env"
+trap 'cleanup_compose; rm -f "$COOKIE_JAR"' EXIT
 
 # ---------------------------------------------------------------------------
 # Docker Compose lifecycle
@@ -144,7 +110,6 @@ log "Checking backend data API..."
 data_response="$(curl -sf "${HEALTH_URL}" 2>/dev/null || echo '{}')"
 echo "  Health response: $data_response"
 
-# Verify the backend API is responding with valid JSON
 if echo "$data_response" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
   echo "  Backend API returns valid JSON."
 else
@@ -208,7 +173,6 @@ else
   echo "  Warning: Frontend HTML may not contain expected app entry point."
 fi
 
-# Verify the HTML is not an error page
 if echo "$frontend_html" | grep -qi '502 bad gateway\|503 service\|nginx error'; then
   fail "Frontend is returning an error page"
 fi

@@ -21,6 +21,7 @@ class PromptDefinitionRecord:
     default_content: str
 
     def to_dict(self) -> dict:
+        """Return a plain dict representation of the prompt definition."""
         return {
             "prompt_key": self.prompt_key,
             "display_name": self.display_name,

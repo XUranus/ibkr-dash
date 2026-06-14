@@ -52,14 +52,32 @@ class AccountCopilotSubAgentRegistry:
         self._subagents: dict[str, AccountCopilotSubAgentSpec] = {}
 
     def register(self, spec: AccountCopilotSubAgentSpec) -> None:
+        """Register a sub-agent specification.
+
+        Args:
+            spec: The sub-agent specification to register.
+        """
         self._subagents[spec.name] = spec
 
     def get(self, name: str | None) -> AccountCopilotSubAgentSpec | None:
+        """Retrieve a registered sub-agent by name.
+
+        Args:
+            name: The sub-agent name to look up, or None.
+
+        Returns:
+            The matching spec, or None if not found or name is falsy.
+        """
         if not name:
             return None
         return self._subagents.get(name)
 
     def list_specs(self) -> list[AccountCopilotSubAgentSpec]:
+        """Return all registered sub-agent specifications.
+
+        Returns:
+            A list of all registered specs.
+        """
         return list(self._subagents.values())
 
     def list_exposed_specs(self) -> list[AccountCopilotSubAgentSpec]:

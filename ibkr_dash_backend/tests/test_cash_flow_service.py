@@ -11,18 +11,14 @@ from app.services.cash_flow_service import CashFlowService
 
 @pytest.fixture
 def settings() -> Settings:
-    """Return test settings with in-memory SQLite."""
-    return Settings(
-        sqlite_path=":memory:",
-        debug=True,
-        auth_password="",
-    )
-
+    return Settings()
 
 @pytest.fixture
 def db(settings: Settings) -> Database:
-    """Return an initialized in-memory database."""
     return init_database(settings)
+
+
+
 
 
 @pytest.fixture
@@ -63,7 +59,6 @@ def cash_flow_service(db: Database) -> CashFlowService:
     })
     return CashFlowService(db)
 
-
 def test_list_cash_flows_returns_deposit_withdrawals_only(
     cash_flow_service: CashFlowService,
 ) -> None:
@@ -71,34 +66,28 @@ def test_list_cash_flows_returns_deposit_withdrawals_only(
     result = cash_flow_service.list_cash_flows(
         start_date=None, end_date=None, currency=None,
         flow_direction=None, sort_by="date_time", sort_order="desc",
-        page=1, page_size=10,
-    )
+        page=1, page_size=10,)
     assert len(result.items) == 2
     assert all(item.flow_type == "Deposits/Withdrawals" for item in result.items)
-
 
 def test_list_cash_flows_filters_by_date(cash_flow_service: CashFlowService) -> None:
     """Test that list_cash_flows filters by date range."""
     result = cash_flow_service.list_cash_flows(
         start_date="2026-04-18", end_date=None, currency=None,
         flow_direction=None, sort_by="date_time", sort_order="desc",
-        page=1, page_size=10,
-    )
+        page=1, page_size=10,)
     assert len(result.items) == 1
     assert result.items[0].amount == 5000.0
-
 
 def test_list_cash_flows_pagination(cash_flow_service: CashFlowService) -> None:
     """Test that list_cash_flows paginates correctly."""
     result = cash_flow_service.list_cash_flows(
         start_date=None, end_date=None, currency=None,
         flow_direction=None, sort_by="date_time", sort_order="asc",
-        page=1, page_size=1,
-    )
+        page=1, page_size=1,)
     assert len(result.items) == 1
     assert result.pagination.total == 2
     assert result.pagination.total_pages == 2
-
 
 def test_list_cash_flows_empty_when_no_data(db: Database) -> None:
     """Test that list_cash_flows returns empty when no data."""
@@ -106,7 +95,6 @@ def test_list_cash_flows_empty_when_no_data(db: Database) -> None:
     result = service.list_cash_flows(
         start_date=None, end_date=None, currency=None,
         flow_direction=None, sort_by="date_time", sort_order="desc",
-        page=1, page_size=10,
-    )
+        page=1, page_size=10,)
     assert len(result.items) == 0
     assert result.pagination.total == 0

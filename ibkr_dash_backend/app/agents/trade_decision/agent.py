@@ -132,6 +132,7 @@ async def analyze_trade(
         },
         "raw_llm_response": result.raw_response if result.ok else "",
         "fallback_used": not result.ok,
+        "run_trace": result.trace if hasattr(result, "trace") else [],
         "prompt_metadata": {"trade_decision_composer": prompt_metadata},
         "verification": verification,
         "report_paths": report_paths,

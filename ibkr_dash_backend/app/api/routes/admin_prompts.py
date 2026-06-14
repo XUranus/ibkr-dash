@@ -12,12 +12,14 @@ router = APIRouter(prefix="/admin/prompts", tags=["admin", "prompts"])
 
 
 class PromptCreateRequest(BaseModel):
+    """Request body for creating a new agent prompt."""
     prompt_key: str
     content: str
     status: str = "active"
 
 
 class PromptResponse(BaseModel):
+    """Response model representing a versioned agent prompt."""
     id: int
     prompt_key: str
     version: int

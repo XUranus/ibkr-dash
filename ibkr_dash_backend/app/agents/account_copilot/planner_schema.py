@@ -24,6 +24,7 @@ class EvidenceSufficiency(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def coerce_confidence(cls, data: Any) -> Any:
+        """Validate and normalise the confidence field to a known level."""
         if isinstance(data, dict):
             conf = data.get("confidence")
             if conf not in ("low", "medium", "high"):
@@ -53,6 +54,7 @@ class CopilotPlannerAction(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def coerce_action_type(cls, data: Any) -> Any:
+        """Validate action_type, inferring it from other fields when missing."""
         if isinstance(data, dict):
             action = data.get("action_type")
             valid_actions = {"call_tool", "final_answer", "request_skill_approval"}

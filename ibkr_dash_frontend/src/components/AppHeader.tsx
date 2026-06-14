@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
 import { useAccountOverview } from '@/hooks/useAccountOverview'
 import { formatNumber, pnlClass } from '@/utils/format'
+import Modal from './Modal'
 
 export default function AppHeader() {
   const { t, i18n } = useTranslation()
@@ -25,7 +26,6 @@ export default function AppHeader() {
     { label: t('nav.cashFlows'), to: '/cash-flows' },
     { label: t('nav.dividends'), to: '/dividends' },
     { label: t('nav.aiDecision'), to: '/trade-decision' },
-    { label: t('nav.aiReview'), to: '/trade-review' },
     { label: t('nav.copilot'), to: '/copilot' },
     { label: t('nav.admin'), to: '/admin/system' },
   ]
@@ -85,7 +85,7 @@ export default function AppHeader() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: '0.72rem',
+              fontSize: '0.85rem',
               fontWeight: 700,
               color: 'var(--color-text-bright)',
               letterSpacing: '0.04em',
@@ -114,7 +114,7 @@ export default function AppHeader() {
               }}>
                 <span style={{
                   fontFamily: 'var(--font-mono)',
-                  fontSize: '0.58rem',
+                  fontSize: '0.72rem',
                   color: 'var(--color-text-muted)',
                   letterSpacing: '0.06em',
                   textTransform: 'uppercase',
@@ -124,7 +124,7 @@ export default function AppHeader() {
                 <strong
                   style={{
                     fontFamily: 'var(--font-mono)',
-                    fontSize: '0.78rem',
+                    fontSize: '0.9rem',
                     fontWeight: 600,
                     color: item.className ? undefined : 'var(--color-text-bright)',
                     fontVariantNumeric: 'tabular-nums',
@@ -140,24 +140,24 @@ export default function AppHeader() {
           {/* Right: auth + language */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button className="btn btn--ghost btn--sm" onClick={toggleLanguage} style={{
-              fontSize: '0.65rem', fontFamily: 'var(--font-mono)', padding: '0 6px', minHeight: 22,
+              fontSize: '0.82rem', fontFamily: 'var(--font-mono)', padding: '0 6px', minHeight: 22,
             }}>
               {i18n.language === 'zh-CN' ? 'EN' : '中文'}
             </button>
             {!authenticated ? (
-              <button className="btn btn--ghost btn--sm" onClick={() => setShowLogin(true)} style={{ minHeight: 22, padding: '0 8px', fontSize: '0.7rem' }}>
+              <button className="btn btn--ghost btn--sm" onClick={() => setShowLogin(true)} style={{ minHeight: 22, padding: '0 8px', fontSize: '0.82rem' }}>
                 {t('auth.login')}
               </button>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{
                   fontFamily: 'var(--font-mono)',
-                  fontSize: '0.68rem',
+                  fontSize: '0.82rem',
                   color: 'var(--color-text-muted)',
                 }}>
                   {username}
                 </span>
-                <button className="btn btn--ghost btn--sm" onClick={handleLogout} style={{ minHeight: 22, padding: '0 8px', fontSize: '0.7rem' }}>
+                <button className="btn btn--ghost btn--sm" onClick={handleLogout} style={{ minHeight: 22, padding: '0 8px', fontSize: '0.82rem' }}>
                   {t('auth.logout')}
                 </button>
               </div>
@@ -178,14 +178,14 @@ export default function AppHeader() {
                 key={item.to}
                 onClick={() => navigate(item.to)}
                 style={{
-                  minHeight: 30,
-                  padding: '0 12px',
+                  minHeight: 34,
+                  padding: '0 14px',
                   border: 'none',
                   borderBottom: active ? '2px solid var(--color-accent)' : '2px solid transparent',
                   background: 'transparent',
                   color: active ? 'var(--color-text-bright)' : 'var(--color-text-secondary)',
                   fontFamily: 'var(--font-body)',
-                  fontSize: '0.75rem',
+                  fontSize: '0.88rem',
                   fontWeight: active ? 600 : 400,
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
@@ -199,36 +199,23 @@ export default function AppHeader() {
       </header>
 
       {/* Login modal */}
-      {showLogin && (
-        <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setShowLogin(false) }}>
-          <section className="modal-dialog" style={{ width: 'min(380px, 100%)' }}>
-            <div style={{ display: 'grid', gap: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                <div>
-                  <p className="eyebrow">ACCESS</p>
-                  <h2 style={{ margin: 0, fontSize: '1rem', color: 'var(--color-text-bright)' }}>{t('auth.loginTitle')}</h2>
-                </div>
-                <button className="btn btn--ghost btn--sm" onClick={() => setShowLogin(false)} style={{ minWidth: 28, minHeight: 28, padding: 0, fontSize: '0.8rem' }}>✕</button>
-              </div>
-              <form style={{ display: 'grid', gap: 10 }} onSubmit={handleLogin}>
-                <label className="field-stack">
-                  <span className="field-stack__label">{t('auth.username')}</span>
-                  <input className="input" value={loginForm.username} onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })} type="text" autoComplete="username" />
-                </label>
-                <label className="field-stack">
-                  <span className="field-stack__label">{t('auth.password')}</span>
-                  <input className="input" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} type="password" autoComplete="current-password" />
-                </label>
-                {loginError && <p style={{ margin: 0, color: 'var(--color-negative)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{loginError}</p>}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4 }}>
-                  <button type="button" className="btn btn--ghost" onClick={() => setShowLogin(false)}>{t('auth.cancel')}</button>
-                  <button type="submit" className="btn btn--accent" disabled={authLoading}>{t('auth.login')}</button>
-                </div>
-              </form>
-            </div>
-          </section>
-        </div>
-      )}
+      <Modal open={showLogin} onClose={() => setShowLogin(false)} title={t('auth.loginTitle')} width="min(380px, 100%)">
+        <form style={{ display: 'grid', gap: 10 }} onSubmit={handleLogin}>
+          <label className="field-stack">
+            <span className="field-stack__label">{t('auth.username')}</span>
+            <input className="input" value={loginForm.username} onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })} type="text" autoComplete="username" />
+          </label>
+          <label className="field-stack">
+            <span className="field-stack__label">{t('auth.password')}</span>
+            <input className="input" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} type="password" autoComplete="current-password" />
+          </label>
+          {loginError && <p style={{ margin: 0, color: 'var(--color-negative)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{loginError}</p>}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4 }}>
+            <button type="button" className="btn btn--ghost" onClick={() => setShowLogin(false)}>{t('auth.cancel')}</button>
+            <button type="submit" className="btn btn--accent" disabled={authLoading}>{t('auth.login')}</button>
+          </div>
+        </form>
+      </Modal>
     </>
   )
 }

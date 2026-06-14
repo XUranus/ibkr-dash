@@ -17,7 +17,7 @@ Before deploying, make sure you have:
 - [ ] A domain name pointing to your server (e.g. `dash.example.com`)
 - [ ] An IBKR Flex Web Service token and query ID
 - [ ] An LLM API key (OpenAI, DeepSeek, or compatible provider)
-- [ ] A strong `AUTH_PASSWORD` set in `.env`
+- [ ] A strong auth password configured via Admin Settings
 
 ---
 
@@ -94,58 +94,11 @@ git clone https://github.com/your-org/ibkr-dash.git .
 
 ---
 
-## Step 2: Configure Environment
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` with production values:
-
-```env
-APP_ENV=production
-DEBUG=false
-
-# Strong password -- this protects your financial data
-AUTH_USERNAME=admin
-AUTH_PASSWORD=your-strong-password-here
-
-# LLM
-LLM_API_KEY=your-api-key
-LLM_BASE_URL=https://api.openai.com/v1
-LLM_DEFAULT_MODEL=gpt-4o
-
-# IBKR
-FLEX_TOKEN=your-flex-token
-FLEX_QUERY_ID_DAILY=your-query-id
-
-# Worker schedule (server timezone)
-SCHEDULER_ENABLED=true
-SCHEDULER_HOUR=12
-SCHEDULER_MINUTE=30
-SCHEDULER_TIMEZONE=UTC
-
-# Logging
-LOG_LEVEL=WARNING
-
-# CORS (add your production domain)
-CORS_ORIGINS=https://dash.example.com
-```
-
-:::warning
-Never commit `.env` to version control. It contains secrets.
-:::
-
----
-
-## Step 3: Build and Deploy
+## Step 2: Build and Deploy
 
 ```bash
 # Build all containers
 docker compose up --build -d
-
-# Initialize the database
-docker compose exec worker python -m worker.main init-db
 
 # Verify all services are running
 docker compose ps
@@ -159,6 +112,27 @@ ibkr-dash-backend   Up (healthy)    0.0.0.0:8000->8000/tcp
 ibkr-dash-worker    Up
 ibkr-dash-frontend  Up              0.0.0.0:8080->80/tcp
 ```
+
+## Step 3: Configure via Admin UI
+
+Open **http://localhost:8080/admin/settings** and configure:
+
+| Setting | Value |
+|---------|-------|
+| `advanced.app_env` | `production` |
+| `advanced.debug` | `false` |
+| `advanced.cors_origins` | `https://dash.example.com` |
+| `advanced.log_level` | `WARNING` |
+| `auth.username` | `admin` |
+| `auth.password` | Your strong password |
+| `llm.api_key` | Your LLM API key |
+| `llm.base_url` | `https://api.openai.com/v1` |
+| `ibkr.flex_token` | Your Flex token |
+| `ibkr.flex_query_ids` | Your query IDs |
+| `scheduler.timezone` | `UTC` |
+
+---
+
 
 ---
 
@@ -252,17 +226,13 @@ sudo certbot renew --dry-run
 
 ### Update CORS
 
-Add your production domain to `.env`:
+Add your production domain in Admin Settings → Advanced → `cors_origins`:
 
-```env
-CORS_ORIGINS=https://dash.example.com
+```
+https://dash.example.com
 ```
 
-Then restart the backend:
-
-```bash
-docker compose restart backend
-```
+Changes take effect immediately — no restart needed.
 
 ---
 
@@ -449,10 +419,10 @@ The default rate limit is 20 requests per 60 seconds per IP. This is configured 
 
 ## Security Best Practices
 
-1. **Strong password** -- Set a strong `AUTH_PASSWORD` in `.env`.
+1. **Strong password** -- Set a strong auth password in Admin Settings.
 2. **HTTPS only** -- Always use SSL in production.
 3. **Firewall** -- Block direct access to ports 8000 and 8080.
 4. **Regular backups** -- Automate daily database backups.
 5. **Keep updated** -- Regularly pull updates and rebuild containers.
-6. **Secrets management** -- Never commit `.env` to version control.
+6. **Secrets management** -- Config is stored in `data/config.json` which is gitignored.
 7. **Log monitoring** -- Check logs regularly for errors or suspicious activity.

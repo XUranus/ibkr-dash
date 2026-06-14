@@ -192,6 +192,7 @@ FORCEFUL_TRADE_WORDS = (
 # ---- Rating derivation ----
 
 def decision_rating_for_score(score: float) -> str:
+    """Map a decision overall score to a rating bucket."""
     if score >= 85:
         return "strong_buy_or_hold"
     if score >= 70:
@@ -202,6 +203,7 @@ def decision_rating_for_score(score: float) -> str:
 
 
 def review_rating_for_score(score: float) -> str:
+    """Map a review overall score to a rating bucket."""
     if score >= 85:
         return "excellent"
     if score >= 70:

@@ -6,7 +6,7 @@ description: Reusable UI components in the frontend
 
 # Components
 
-The frontend uses a library of reusable components in `src/components/`. These components follow the terminal-luxury design system and use CSS variables for consistent styling.
+The frontend uses a library of reusable components in `src/components/`. These components follow the institutional terminal design system and use CSS variables for consistent styling.
 
 ## Component Hierarchy
 
@@ -20,29 +20,27 @@ graph TB
     Outlet --> PositionsView
     Outlet --> TradesView
     Outlet --> CopilotView
-    Outlet --> TradeDecisionView
-    Outlet --> TradeReviewView
-    Outlet --> DailyReviewView
+    Outlet --> TradeDecisionAgentView
     Outlet --> AdminViews
 
     DashboardView --> StatCard
     DashboardView --> EquityCurveSimple
     DashboardView --> PerformanceCalendar
-    DashboardView --> PieDistributionCard
+    DashboardView --> MarketEventsPanel
 
     PositionsView --> PositionTable
     PositionsView --> PieDistributionCard
+    PositionsView --> PositionAnalysisCard
 
     TradesView --> TradeTable
     CashFlowsView --> CashFlowTable
     DividendsView --> DividendTable
 
-    CopilotView --> JsonBlock
-    CopilotView --> LoadingBlock
+    CopilotView --> ReactMarkdown
 
-    TradeDecisionView --> AgentEvidencePanel
-    TradeDecisionView --> AgentTaskGraph
-    TradeReviewView --> AgentEvidencePanel
+    TradeDecisionAgentView --> ReportView
+    TradeDecisionAgentView --> BulletList
+    TradeDecisionAgentView --> RiskDimensionCard
 ```
 
 ## Component Categories
@@ -53,6 +51,7 @@ graph LR
         AppHeader
         ErrorBoundary
         AdminTabs
+        Modal
     end
 
     subgraph Data["Data Display"]
@@ -67,15 +66,17 @@ graph LR
         EquityCurveSimple
         PerformanceCalendar
         PieDistributionCard
+        MarketEventsPanel
     end
 
     subgraph AI["AI Agent Components"]
-        AgentEvidencePanel
-        AgentTaskGraph
+        PositionAnalysisCard
+        ReportView
+        BulletList
+        RiskDimensionCard
     end
 
     subgraph Utility["Utility Components"]
-        JsonBlock
         LoadingBlock
         ErrorBlock
         SymbolInput
@@ -90,12 +91,12 @@ graph LR
 
 The main navigation header displayed on every page. It includes:
 
-- **Title and subtitle**: "IBKR Dashboard" / "Portfolio Analytics"
-- **Account metrics strip**: Report date, total equity, total P&L (from `useAccountOverview` hook)
-- **Navigation buttons**: Dashboard, Positions, Trades, Cash Flows, Dividends, AI Decision, AI Review, Copilot, Admin
+- **Title**: "IBKR DASH" with status indicator
+- **Account metrics strip**: Equity, P&L, Report date (from `useAccountOverview` hook)
+- **Navigation tabs**: Dashboard, Positions, Trades, Cash Flows, Dividends, AI Decision, Copilot, Admin
 - **Auth controls**: Login/Logout button, username display
 - **Language toggle**: Switches between English and Chinese
-- **Login modal**: Inline modal for username/password authentication
+- **Login modal**: Uses the `Modal` component for username/password authentication
 
 The header uses the `useAuth` hook for authentication state and the `useAccountOverview` hook for account metrics.
 
@@ -105,35 +106,32 @@ The header uses the `useAuth` hook for authentication state and the `useAccountO
 // Renders inside <App /> as the first child, above the <Outlet />
 ```
 
-**Internal structure (simplified):**
+### Modal
+
+**File**: `src/components/Modal.tsx`
+
+A reusable modal dialog component with keyboard navigation support.
 
 ```tsx
-function AppHeader() {
-  const { authenticated, username, logout } = useAuth()
-  const { data: overview } = useAccountOverview()
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { t, i18n } = useTranslation()
-
-  return (
-    <header className="app-header">
-      <div className="app-header__title">
-        <h1>{t('app.title')}</h1>
-        <span>{t('app.subtitle')}</span>
-      </div>
-      <div className="app-header__metrics">
-        {/* Report date, total equity, total P&L */}
-      </div>
-      <nav className="app-header__nav">
-        {/* Navigation buttons for each route */}
-      </nav>
-      <div className="app-header__controls">
-        {/* Language toggle + auth controls */}
-      </div>
-    </header>
-  )
-}
+<Modal open={isOpen} onClose={() => setIsOpen(false)} title="Login" width="min(380px, 100%)">
+  <form>...</form>
+</Modal>
 ```
+
+| Prop | Type | Description |
+|---|---|---|
+| `open` | boolean | Whether the modal is visible |
+| `onClose` | () => void | Callback when modal should close |
+| `title` | string? | Optional title displayed in header |
+| `width` | string? | CSS width (default: `min(420px, 100%)`) |
+| `children` | ReactNode | Modal content |
+
+Features:
+- **Escape key** closes the modal
+- **Tab key** traps focus within the modal
+- **Auto-focus** first focusable element on open
+- **Click backdrop** to close
+- **ARIA attributes** for accessibility (`role="dialog"`, `aria-modal="true"`)
 
 ### StatCard
 
@@ -158,23 +156,9 @@ A styled card displaying a single metric with title, value, helper text, and opt
 | `title` | string | Metric label (displayed in uppercase monospace) |
 | `value` | string | Main metric value |
 | `helper` | string? | Helper text below the value |
-| `tone` | `'neutral' \| 'positive' \| 'negative' \| 'accent'` | Color tone for the accent bar and value |
-| `deltaAmount` | string? | Delta amount badge (top-right) |
-| `deltaPercent` | string? | Delta percent badge (top-right) |
-| `deltaTone` | string? | Color for delta badges |
-| `icon` | string? | Optional icon prefix |
-
-**Rendering flow:**
-
-```mermaid
-graph LR
-    Props["Props: title, value, tone, ..."] --> Card["surface-panel container"]
-    Card --> AccentBar["Accent bar (left edge, color = tone)"]
-    Card --> Title["Title (uppercase mono)"]
-    Card --> Value["Value (tone color)"]
-    Card --> Helper["Helper text (muted)"]
-    Card --> Delta["Delta badges (top-right)"]
-```
+| `tone` | `'neutral' \| 'positive' \| 'negative' \| 'accent'` | Color tone for the value |
+| `deltaPercent` | string? | Delta percent badge |
+| `deltaTone` | string? | Color for delta badge |
 
 ### ErrorBoundary
 
@@ -192,7 +176,6 @@ Features:
 - Catches errors in child component tree
 - Displays error message and "Reload Page" button
 - Logs errors to console with component stack trace
-- Supports custom fallback via `fallback` prop
 
 Used in:
 - `App.tsx`: Wraps the route outlet
@@ -202,36 +185,16 @@ Used in:
 
 **File**: `src/components/PositionTable.tsx`
 
-A sortable data table displaying current portfolio positions. Supports click-to-sort on numeric columns (Daily Change, Realized P&L, Unrealized P&L, Cost, Market Value, % NAV).
+A sortable data table displaying current portfolio positions. Supports click-to-sort on numeric columns.
 
 Features:
 - Client-side sorting with `useMemo`
-- Click any row to view position detail chart
+- Click any row to view position detail
 - P&L color coding (green for positive, red for negative)
 - Monospace numbers with tabular-nums
 
 ```tsx
-// ibkr_dash_frontend/src/views/PositionsView.tsx
-<PositionTable
-  positions={positions}
-  onSelectSymbol={(symbol) => setSelectedSymbol(symbol)}
-/>
-```
-
-**Sorting implementation:**
-
-```tsx
-// Inside PositionTable.tsx
-const [sortKey, setSortKey] = useState<string>('marketValue')
-const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-
-const sorted = useMemo(() => {
-  return [...positions].sort((a, b) => {
-    const av = a[sortKey] ?? 0
-    const bv = b[sortKey] ?? 0
-    return sortDir === 'asc' ? av - bv : bv - av
-  })
-}, [positions, sortKey, sortDir])
+<PositionTable items={positions} onSelect={openPositionDetail} />
 ```
 
 ### TradeTable
@@ -239,10 +202,6 @@ const sorted = useMemo(() => {
 **File**: `src/components/TradeTable.tsx`
 
 Displays trade history with date, symbol, side (BUY/SELL), quantity, price, and P&L columns.
-
-```tsx
-<TradeTable trades={trades} />
-```
 
 ### CashFlowTable
 
@@ -260,15 +219,15 @@ Displays dividend income records with gross amount, withholding tax, and net rec
 
 **File**: `src/components/PieDistributionCard.tsx`
 
-An ECharts-based pie chart card showing distribution data (e.g., position concentration, asset class allocation). Supports interactive hover tooltips and legend.
+An ECharts-based pie chart card showing distribution data (e.g., asset class allocation, industry distribution). Supports interactive hover tooltips and legend.
 
 ```tsx
 <PieDistributionCard
-  title="Position Concentration"
-  data={[
-    { name: 'AAPL', value: 45000 },
-    { name: 'MSFT', value: 30000 },
-    { name: 'GOOGL', value: 25000 },
+  title="Asset Classes"
+  subtitle="Stocks, fixed income, and cash allocation"
+  items={[
+    { label: 'Stocks', value: 45000, color: '#56d5ff' },
+    { label: 'Fixed Income', value: 30000, color: '#6ee7b7' },
   ]}
 />
 ```
@@ -277,46 +236,25 @@ An ECharts-based pie chart card showing distribution data (e.g., position concen
 
 **File**: `src/components/EquityCurveSimple.tsx`
 
-An ECharts line chart showing the equity curve over time. Supports multiple series (equity, P&L, cost basis) and range selection.
-
-```tsx
-<EquityCurveSimple
-  data={equityCurveData}
-  series={['equity', 'pnl', 'costBasis']}
-/>
-```
+An ECharts line chart showing the equity curve over time. Supports multiple series and range selection.
 
 ### PerformanceCalendar
 
 **File**: `src/components/PerformanceCalendar.tsx`
 
-An ECharts calendar heatmap showing daily P&L. Green cells for positive days, red for negative. Supports month view, year view, and all-years view.
+A calendar heatmap showing daily P&L. Green cells for positive days, red for negative. Supports month view, year view, and all-years view.
 
-```tsx
-<PerformanceCalendar data={calendarData} year={2025} />
-```
+### MarketEventsPanel
 
-### AgentEvidencePanel
+**File**: `src/components/MarketEventsPanel.tsx`
 
-**File**: `src/components/AgentEvidencePanel.tsx`
+Displays upcoming market events (FOMC meetings, economic data releases, etc.) with importance levels and category indicators.
 
-Displays the evidence pack from an AI agent run. Shows data sources, evidence sections with availability status, missing data, and data limitations. Used in Trade Decision, Trade Review, and Daily Review views.
+### PositionAnalysisCard
 
-### AgentTaskGraph
+**File**: `src/components/PositionAnalysisCard.tsx`
 
-**File**: `src/components/AgentTaskGraph.tsx`
-
-Visualizes the execution trace of an agent run as a timeline graph. Shows LLM calls, tool calls, latencies, and errors.
-
-### JsonBlock
-
-**File**: `src/components/JsonBlock.tsx`
-
-A collapsible JSON viewer component. Shows a toggle button that expands to display formatted JSON. Used to show raw agent output, evidence packs, and debug data.
-
-```tsx
-<JsonBlock data={rawAgentOutput} label="Raw Output" />
-```
+AI-generated portfolio analysis card. Shows sector allocation, concentration analysis, and risk assessment.
 
 ### LoadingBlock
 
@@ -331,10 +269,7 @@ A loading placeholder with a shimmer animation. Used while data is being fetched
 An error display component with an error message and optional retry button.
 
 ```tsx
-<ErrorBlock
-  message="Failed to load positions"
-  onRetry={() => refetch()}
-/>
+<ErrorBlock message="Failed to load positions" />
 ```
 
 ### SymbolInput
@@ -343,19 +278,11 @@ An error display component with an error message and optional retry button.
 
 A text input for entering stock symbols with autocomplete suggestions.
 
-```tsx
-<SymbolInput
-  value={symbol}
-  onChange={setSymbol}
-  onSelect={(s) => handleSearch(s)}
-/>
-```
-
 ### AdminTabs
 
 **File**: `src/components/AdminTabs.tsx`
 
-Navigation tabs for the admin section. Provides links to System, LLM, IBKR, Email, Longbridge, Prompts, Monitoring, and Harness views.
+Navigation tabs for the admin section. Provides links to Settings, System, Monitoring, Scheduler, and Prompts views.
 
 ## How Components Use i18n
 
@@ -401,7 +328,7 @@ The design system uses CSS custom properties defined in `theme.css` for colors, 
 
 ```tsx
 // Example: Combining CSS classes and inline styles
-<div className="surface-panel" style={{ padding: 'var(--space-5)' }}>
+<div className="surface-panel" style={{ padding: 'var(--space-4)' }}>
   <StatCard
     title={t('dashboard.totalEquity')}
     value={formatCurrency(overview.totalEquity)}

@@ -9,7 +9,6 @@ from __future__ import annotations
 import hashlib
 import logging
 import secrets
-from functools import lru_cache
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -86,26 +85,14 @@ def get_chart_service(db: Database = Depends(get_db)) -> "ChartService":
     return ChartService(db)
 
 
-@lru_cache(maxsize=1)
-def _cached_llm_service(settings_hash: str, base_url: str, api_key: str) -> "LLMService":
-    """Return a process-wide singleton LLMService.
+def get_llm_service(settings: Settings = Depends(get_app_settings)) -> "LLMService":
+    """Provide an LLMService instance.
 
-    The ``settings_hash`` parameter exists solely to make ``lru_cache``
-    invalidate correctly when the underlying settings change (unlikely
-    in production but important during tests).
+    Creates a fresh instance each time so that config changes (via admin UI)
+    take effect immediately on the next request.
     """
     from app.services.llm_service import LLMService
-    settings = get_settings()
     return LLMService(settings)
-
-
-def get_llm_service(settings: Settings = Depends(get_app_settings)) -> "LLMService":
-    """Provide a process-wide singleton LLMService."""
-    return _cached_llm_service(
-        str(id(settings)),
-        settings.llm_base_url,
-        settings.llm_api_key,
-    )
 
 
 def get_agent_task_service(db: Database = Depends(get_db)) -> "AgentTaskService":

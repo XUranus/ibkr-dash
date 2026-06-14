@@ -5,7 +5,7 @@ title: 身份验证
 
 # 身份验证 API
 
-IBKR Dash 使用存储在 `httpOnly` Cookie 中的 HMAC 签名会话令牌进行身份验证。当环境中未设置 `AUTH_PASSWORD` 时，所有端点均可无需登录公开访问。
+IBKR Dash 使用存储在 `httpOnly` Cookie 中的 HMAC 签名会话令牌进行身份验证。当 Admin Settings 中未设置 `AUTH_PASSWORD` 时，所有端点均可无需登录公开访问。
 
 ---
 
@@ -110,7 +110,7 @@ curl -X POST http://localhost:8000/api/auth/login \
 
 ### 身份验证禁用时
 
-如果 `.env` 中 `AUTH_PASSWORD` 为空，登录端点接受**任意**凭据并返回有效会话。这在本地开发时很方便，但绝不应在生产环境中使用。
+如果 Admin Settings 中 `AUTH_PASSWORD` 为空，登录端点接受**任意**凭据并返回有效会话。这在本地开发时很方便，但绝不应在生产环境中使用。
 
 ---
 

@@ -25,6 +25,11 @@ class AccountCopilotSkillSpec:
     handler: Callable[..., Any] | None = None
 
     def exposed_schema(self) -> dict[str, Any]:
+        """Return the schema dict safe to expose to the LLM planner.
+
+        Returns:
+            Dictionary with skill metadata excluding the handler and risk level.
+        """
         return {
             "name": self.name,
             "display_name": self.display_name,
@@ -43,20 +48,46 @@ class AccountCopilotSkillRegistry:
         self._skills: dict[str, AccountCopilotSkillSpec] = {}
 
     def register(self, spec: AccountCopilotSkillSpec) -> None:
+        """Register a skill spec, keyed by its name.
+
+        Args:
+            spec: The skill specification to register.
+        """
         self._skills[spec.name] = spec
 
     def get(self, name: str | None) -> AccountCopilotSkillSpec | None:
+        """Look up a skill by name.
+
+        Args:
+            name: The skill name, or None/empty to skip lookup.
+
+        Returns:
+            The matching skill spec, or None if not found or name is falsy.
+        """
         if not name:
             return None
         return self._skills.get(name)
 
     def list_specs(self) -> list[AccountCopilotSkillSpec]:
+        """Return all registered skill specs.
+
+        Returns:
+            List of every registered skill specification.
+        """
         return list(self._skills.values())
 
     def list_exposed_specs(self) -> list[AccountCopilotSkillSpec]:
+        """Return only skills that are safe to expose to the LLM planner.
+
+        Filters to skills that are both read-only and require approval.
+
+        Returns:
+            List of exposed skill specifications.
+        """
         return [spec for spec in self._skills.values() if spec.read_only and spec.approval_required]
 
     def to_prompt_items(self) -> list[dict[str, Any]]:
+        """Return exposed skill schemas suitable for inclusion in a prompt."""
         return [spec.exposed_schema() for spec in self.list_exposed_specs()]
 
 

@@ -102,6 +102,7 @@ def compact_news_items(
     for item in limit_list(news, limit):
         if not isinstance(item, dict):
             continue
+        # Normalize across different news API field naming conventions
         summary = (
             item.get("summary") or item.get("brief")
             or item.get("description") or item.get("content") or ""
@@ -125,6 +126,7 @@ def compact_trade_items(trades: Any, limit: int) -> list[dict]:
         "fifo_pnl_realized",
     )
     compacted = []
+    # Keep most recent trades (from_end) as they are most relevant for review
     for item in limit_list(trades, limit, from_end=True):
         if isinstance(item, dict):
             compacted.append({key: item.get(key) for key in keys if key in item})
@@ -196,16 +198,19 @@ def enforce_section_budget(
     dropped_items: dict[str, int] = {}
     truncated_fields: list[str] = []
 
+    # Skip compaction if custom budget is larger than default and payload fits
     if budget is not None and budget > default_limit and original_size <= limit:
         report = build_budget_report(original_size, original_size, dropped_items, truncated_fields)
         return _attach_limitations(deepcopy(payload), section_name, report)
 
+    # Progressive compaction: each stage is more aggressive until we fit the budget
     compacted = _compact_by_section(section_name, payload, dropped_items, truncated_fields)
 
     if estimate_json_chars(compacted) > limit:
         compacted = _shrink_lists(compacted, dropped_items)
     if estimate_json_chars(compacted) > limit:
         compacted = _trim_strings(compacted, truncated_fields, text_limit=140)
+    # Last resort: replace entire section with a 1000-char preview
     if estimate_json_chars(compacted) > limit:
         compacted = _degrade_payload(compacted)
         truncated_fields.append("*")
@@ -243,6 +248,7 @@ def _compact_by_section(
         if dropped > 0:
             dropped_items[key] = dropped
         return value
+    # Single trade reviews get specialized extraction to preserve review-relevant facts
     if section_name == "review_context" and isinstance(value, dict):
         if _is_single_trade_review_context(value):
             return compact_single_trade_review_context(value, dropped_items, truncated_fields)
@@ -281,6 +287,7 @@ def compact_daily_position_context(
     dropped = dropped_items if dropped_items is not None else {}
     truncated = truncated_fields if truncated_fields is not None else []
     payload = deepcopy(value)
+    # Only keep top-5 in each ranking category to control budget
     rankings = payload.get("rankings") if isinstance(payload.get("rankings"), dict) else {}
     payload["rankings"] = {
         "profit_contributors": compact_position_items(rankings.get("profit_contributors"), 5),
@@ -292,6 +299,7 @@ def compact_daily_position_context(
         dropped_count = len(items) - len(payload["rankings"][key])
         if dropped_count > 0:
             dropped[f"rankings.{key}"] = dropped_count
+    # Full positions list is redundant with rankings; drop it entirely
     payload.pop("positions", None)
     public = payload.get("symbol_public_context") if isinstance(payload.get("symbol_public_context"), dict) else {}
     compact_public: dict[str, dict] = {}
@@ -442,26 +450,31 @@ def _select_priority_review_trades(trades: Any, limit: int) -> list[dict]:
     selected: list[dict] = []
 
     def add(item: Any) -> None:
+        """Append item to selected if it is a dict and not already present."""
         if isinstance(item, dict) and item not in selected:
             selected.append(item)
 
     valid = [item for item in trades if isinstance(item, dict)]
     buys = [item for item in valid if str(item.get("side") or "").upper() == "BUY"]
     sells = [item for item in valid if str(item.get("side") or "").upper() == "SELL"]
+    # Priority: first buy establishes entry point context
     if buys:
         add(buys[0])
     for item in sells:
         add(item)
+    # Largest trades by amount reveal position sizing behavior
     for item in sorted(
         valid, key=lambda item: abs(float(item.get("amount") or 0.0)), reverse=True,
     )[:3]:
         add(item)
+    # Highest PnL trades show biggest wins/losses for review
     for item in sorted(
         [item for item in valid if item.get("realized_pnl") is not None],
         key=lambda item: abs(float(item.get("realized_pnl") or 0.0)),
         reverse=True,
     )[:3]:
         add(item)
+    # Most recent trades capture current action
     for item in valid[-4:]:
         add(item)
     return selected[:limit]
@@ -511,6 +524,7 @@ def _compact_single_trade_market_context(value: Any, dropped_items: dict[str, in
     }
     if candles:
         result["candles_count"] = len(candles)
+        # Keep only first/last candle as boundary samples; full series is too expensive
         sample = [candles[0], candles[-1]] if len(candles) > 1 else candles
         result["candle_sample"] = [
             compact_public_item(item, max_items=8, text_limit=80)
@@ -563,6 +577,7 @@ def _compact_company_context_with_financial_context(
     period_count = fc.get("period_count")
     latest_metrics = fc.get("latest_metrics")
     periods_raw = fc.get("periods") or []
+    # Keep only the 4 most recent quarters; older periods add diminishing value
     keep_count = 4
     if len(periods_raw) > keep_count:
         periods_compact = periods_raw[:keep_count]
@@ -574,6 +589,7 @@ def _compact_company_context_with_financial_context(
         if not isinstance(period, dict):
             continue
         metrics = period.get("metrics") if isinstance(period.get("metrics"), dict) else {}
+        # Filter to only the key financial metrics to avoid bloated raw data
         compact_metrics = {
             k: metrics.get(k) for k in _COMPACT_FINANCIAL_METRIC_KEYS if metrics.get(k) is not None
         }
@@ -608,6 +624,7 @@ def _compact_public_payload(
     result: dict[str, Any] = {}
     for key, item in value.items():
         key_text = str(key)
+        # Long text fields (content, body, etc.) are dropped entirely to save space
         if key_text.lower() in _LONG_TEXT_KEYS:
             truncated_fields.append(key_text)
             continue

@@ -213,15 +213,16 @@ XML files pulled from IBKR are overwritten on each run (same filename: `ibkr_fle
 | `SCHEDULER_TIMEZONE` | `Asia/Shanghai` | Timezone for the cron schedule. |
 | `DATA_DIR` | `data/flex_exports` | Directory for Flex CSV/XML files and tracking. |
 
-### Environment File Example
+### Admin Settings Example
 
-```bash
-# .env file
-SCHEDULER_ENABLED=true
-SCHEDULER_HOUR=12
-SCHEDULER_MINUTE=30
-SCHEDULER_TIMEZONE=Asia/Shanghai
-DATA_DIR=data/flex_exports
+Configure in **Admin Settings → Scheduler**:
+
+| Setting | Example Value |
+|---------|---------------|
+| Enabled | `true` |
+| Hour | `12` |
+| Minute | `30` |
+| Timezone | `Asia/Shanghai` |
 ```
 
 ### Different Schedule Examples

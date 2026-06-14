@@ -40,8 +40,8 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization"],
     )
 
     # GZip compression for large JSON responses
@@ -49,17 +49,43 @@ def create_app() -> FastAPI:
 
     # Limit request body size to prevent abuse
     class BodySizeLimitMiddleware(BaseHTTPMiddleware):
+        """ASGI middleware that rejects requests exceeding a configurable body size."""
         def __init__(self, app, max_bytes: int = 1_000_000):
             super().__init__(app)
             self.max_bytes = max_bytes
 
         async def dispatch(self, request, call_next):
+            """Reject oversized requests before forwarding to the next middleware."""
             content_length = request.headers.get('content-length')
-            if content_length and int(content_length) > self.max_bytes:
-                return JSONResponse(
-                    status_code=413,
-                    content={"detail": "Request body too large"},
-                )
+            if content_length:
+                try:
+                    if int(content_length) > self.max_bytes:
+                        return JSONResponse(
+                            status_code=413,
+                            content={"detail": "Request body too large"},
+                        )
+                except (ValueError, TypeError):
+                    # Invalid content-length header — reject
+                    return JSONResponse(
+                        status_code=400,
+                        content={"detail": "Invalid Content-Length header"},
+                    )
+            # For requests without content-length (chunked encoding),
+            # read the body with a size limit
+            if request.method in ("POST", "PUT", "PATCH") and not content_length:
+                body = b""
+                async for chunk in request.stream():
+                    body += chunk
+                    if len(body) > self.max_bytes:
+                        return JSONResponse(
+                            status_code=413,
+                            content={"detail": "Request body too large"},
+                        )
+                # Replace the stream so downstream can read it
+                async def receive():
+                    """Replay the buffered body so downstream handlers can read it."""
+                    return {"type": "http.request", "body": body}
+                request._receive = receive
             return await call_next(request)
 
     app.add_middleware(BodySizeLimitMiddleware, max_bytes=1_000_000)
@@ -88,6 +114,8 @@ def create_app() -> FastAPI:
     from app.api.routes.admin_ibkr import router as admin_ibkr_router
     from app.api.routes.admin_email import router as admin_email_router
     from app.api.routes.admin_settings import router as admin_settings_router
+    from app.api.routes.admin_monitoring import router as admin_monitoring_router
+    from app.api.routes.admin_scheduler import router as admin_scheduler_router
     from app.api.routes.position_analysis import router as position_analysis_router
     from app.api.routes.market_events import router as market_events_router
 
@@ -114,6 +142,8 @@ def create_app() -> FastAPI:
     app.include_router(admin_ibkr_router, prefix="/api")
     app.include_router(admin_email_router, prefix="/api")
     app.include_router(admin_settings_router, prefix="/api")
+    app.include_router(admin_monitoring_router, prefix="/api")
+    app.include_router(admin_scheduler_router, prefix="/api")
     app.include_router(position_analysis_router, prefix="/api")
     app.include_router(market_events_router, prefix="/api")
 

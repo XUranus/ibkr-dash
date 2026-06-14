@@ -101,6 +101,7 @@ async def generate_daily_review(
         "evidence_pack": evidence_pack,
         "raw_llm_response": result.raw_response if result.ok else "",
         "fallback_used": not result.ok,
+        "run_trace": result.trace if hasattr(result, "trace") else [],
         "prompt_metadata": {"daily_position_review_main": prompt_metadata},
     }
     saved = _save_review(db, document)
@@ -108,20 +109,182 @@ async def generate_daily_review(
 
 
 def _load_deterministic_context(db: Any, report_date: str) -> dict:
-    """Load deterministic account context from DB. Placeholder for real implementation."""
-    # In production, this queries the review_service or repository
-    if hasattr(db, "build_review_context"):
-        return db.build_review_context(report_date, include_public_context=True, include_benchmarks=True)
+    """Load deterministic account context from SQLite database."""
+    # 1. Account snapshot
+    account = db.execute_one(
+        "SELECT * FROM account_snapshots WHERE report_date = ? LIMIT 1",
+        (report_date,),
+    )
+    if not account:
+        return {
+            "overview": {},
+            "rankings": {"profit_contributors": [], "loss_drags": [], "top_weights": []},
+            "risk": {},
+            "positions": [],
+            "focus_symbols": [],
+            "benchmarks": {},
+            "symbol_public_context": {},
+            "attribution_quality": {},
+            "data_quality": {"error": f"No account data for {report_date}"},
+        }
+
+    total_equity = float(account.get("total_equity") or 0)
+    cash = float(account.get("cash") or 0)
+
+    # 2. Previous day snapshot for daily PnL
+    prev_account = db.execute_one(
+        "SELECT total_equity FROM account_snapshots WHERE report_date < ? ORDER BY report_date DESC LIMIT 1",
+        (report_date,),
+    )
+    prev_equity = float(prev_account["total_equity"]) if prev_account else 0
+    daily_pnl = round(total_equity - prev_equity, 2) if prev_equity > 0 else None
+    daily_return = round((daily_pnl / prev_equity) * 100, 4) if prev_equity > 0 and daily_pnl is not None else None
+
+    # 3. Positions
+    positions = db.execute(
+        "SELECT symbol, description, asset_class, quantity, mark_price, position_value, "
+        "percent_of_nav, average_cost_price, cost_basis_money, "
+        "fifo_pnl_unrealized, total_unrealized_pnl, total_realized_pnl, "
+        "previous_day_change_percent "
+        "FROM position_snapshots WHERE report_date = ? ORDER BY position_value DESC",
+        (report_date,),
+    )
+
+    # Enrich positions with computed fields
+    total_position_value = sum(abs(float(p.get("position_value") or 0)) for p in positions)
+    enriched = []
+    for p in positions:
+        pos_val = float(p.get("position_value") or 0)
+        weight = (pos_val / total_equity * 100) if total_equity > 0 else 0
+        daily_chg = float(p.get("previous_day_change_percent") or 0)
+        # Estimate daily PnL from position value and daily change
+        daily_pnl_est = round(pos_val * daily_chg / 100, 2) if daily_chg else 0
+        enriched.append({
+            **p,
+            "normalized_symbol": p.get("symbol", "").split(".")[0],
+            "weight": round(weight, 2),
+            "daily_change_percent": daily_chg,
+            "daily_pnl": daily_pnl_est,
+            "market_value": pos_val,
+            "unrealized_pnl": float(p.get("fifo_pnl_unrealized") or p.get("total_unrealized_pnl") or 0),
+            "unrealized_pnl_percent": 0,
+            "cost_basis": float(p.get("cost_basis_money") or 0),
+            "average_cost": float(p.get("average_cost_price") or 0),
+            "contribution_ratio": 0,
+            "is_major_contributor": False,
+            "is_major_drag": False,
+            "data_source": "ibkr",
+        })
+
+    # Compute unrealized PnL percent
+    for e in enriched:
+        cost = e["cost_basis"]
+        if cost > 0:
+            e["unrealized_pnl_percent"] = round((e["unrealized_pnl"] / cost) * 100, 2)
+
+    # 4. Rankings: sort by daily PnL
+    by_daily_pnl = sorted(enriched, key=lambda x: x["daily_pnl"], reverse=True)
+    contributors = by_daily_pnl[:5]
+    drags = by_daily_pnl[-5:] if len(by_daily_pnl) > 5 else []
+    drags = list(reversed(drags))
+    by_weight = sorted(enriched, key=lambda x: x["weight"], reverse=True)[:5]
+
+    # Contribution ratio
+    total_abs_pnl = sum(abs(e["daily_pnl"]) for e in enriched) or 1
+    for e in contributors:
+        e["contribution_ratio"] = round(e["daily_pnl"] / total_abs_pnl * 100, 2)
+        e["is_major_contributor"] = True
+    for e in drags:
+        e["contribution_ratio"] = round(e["daily_pnl"] / total_abs_pnl * 100, 2)
+        e["is_major_drag"] = True
+
+    # 5. Risk metrics
+    weights = [e["weight"] for e in enriched]
+    max_pos = enriched[0] if enriched else None
+    top3_weight = sum(sorted(weights, reverse=True)[:3])
+    top5_weight = sum(sorted(weights, reverse=True)[:5])
+    cash_ratio = (cash / total_equity * 100) if total_equity > 0 else 0
+
+    # Theme buckets (simple classification)
+    semi_keywords = {"NVDA", "AMD", "TSM", "AVGO", "QCOM", "MU", "INTC", "MRVL", "ARM", "ASML"}
+    ai_keywords = {"NVDA", "MSFT", "GOOG", "GOOGL", "META", "AMZN", "CRM", "PLTR"}
+    china_keywords = {"BABA", "JD", "PDD", "NIO", "XPEV", "LI", "BIDU", "TME"}
+    theme_buckets = [
+        {"theme": "semiconductor", "symbols": [e["symbol"] for e in enriched if e["normalized_symbol"] in semi_keywords]},
+        {"theme": "ai", "symbols": [e["symbol"] for e in enriched if e["normalized_symbol"] in ai_keywords]},
+        {"theme": "china", "symbols": [e["symbol"] for e in enriched if e["normalized_symbol"] in china_keywords]},
+    ]
+    semi_ai_weight = sum(e["weight"] for e in enriched if e["normalized_symbol"] in semi_keywords | ai_keywords)
+
+    risk = {
+        "max_position": max_pos,
+        "max_single_position_weight": max_pos["weight"] if max_pos else 0,
+        "top3_weight": round(top3_weight, 2),
+        "top5_weight": round(top5_weight, 2),
+        "theme_buckets": theme_buckets,
+        "semiconductor_ai_tech_weight": round(semi_ai_weight, 2),
+        "cash_ratio": round(cash_ratio, 2),
+        "risk_flags": [],
+        "account_posture": "concentrated" if (max_pos and max_pos["weight"] > 25) else "balanced",
+    }
+    if max_pos and max_pos["weight"] > 25:
+        risk["risk_flags"].append(f"Top position {max_pos['symbol']} at {max_pos['weight']:.1f}%")
+    if cash_ratio < 5:
+        risk["risk_flags"].append(f"Low cash buffer: {cash_ratio:.1f}%")
+
+    # 6. Focus symbols: top contributors + drags + largest position
+    focus_set: set[str] = set()
+    for e in contributors[:3]:
+        focus_set.add(e["symbol"])
+    for e in drags[:3]:
+        focus_set.add(e["symbol"])
+    if max_pos:
+        focus_set.add(max_pos["symbol"])
+    focus_symbols = list(focus_set)[:6]
+
+    # 7. Overview
+    stock_value = float(account.get("stock_value") or 0)
+    overview = {
+        "report_date": report_date,
+        "currency": account.get("currency", "USD"),
+        "total_equity": total_equity,
+        "daily_pnl": daily_pnl,
+        "daily_return_percent": daily_return,
+        "total_position_value": total_position_value,
+        "cash": cash,
+        "cash_ratio": round(cash_ratio, 2),
+        "position_count": len(enriched),
+        "top_contributors": contributors[:3],
+        "top_drags": drags[:3],
+        "summary": f"Equity ${total_equity:,.0f}, PnL ${daily_pnl:,.0f} ({daily_return}%)" if daily_pnl is not None else f"Equity ${total_equity:,.0f}",
+        "ibkr_pnl_breakdown": {
+            "realized": float(account.get("fifo_total_realized_pnl") or 0),
+            "unrealized": float(account.get("fifo_total_unrealized_pnl") or 0),
+            "cnav_mtm": float(account.get("cnav_mtm") or 0),
+        },
+    }
+
     return {
-        "overview": {},
-        "rankings": {"profit_contributors": [], "loss_drags": [], "top_weights": []},
-        "risk": {},
-        "positions": [],
-        "focus_symbols": [],
-        "benchmarks": {},
+        "overview": overview,
+        "rankings": {
+            "profit_contributors": contributors,
+            "loss_drags": drags,
+            "top_weights": by_weight,
+        },
+        "risk": risk,
+        "positions": enriched,
+        "focus_symbols": focus_symbols,
+        "benchmarks": {"items": [], "beta_alpha_note": "Benchmark data not available."},
         "symbol_public_context": {},
-        "attribution_quality": {},
-        "data_quality": {},
+        "attribution_quality": {
+            "has_daily_change": any(e["daily_change_percent"] != 0 for e in enriched),
+            "has_pnl_data": daily_pnl is not None,
+        },
+        "data_quality": {
+            "positions_count": len(enriched),
+            "has_account_data": True,
+            "has_previous_day": prev_equity > 0,
+        },
     }
 
 

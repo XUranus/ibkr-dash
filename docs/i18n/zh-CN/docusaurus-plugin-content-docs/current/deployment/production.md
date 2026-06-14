@@ -17,7 +17,7 @@ title: 生产环境部署
 - [ ] 指向您服务器的域名（如 `dash.example.com`）
 - [ ] IBKR Flex Web Service 令牌和查询 ID
 - [ ] LLM API 密钥（OpenAI、DeepSeek 或兼容提供商）
-- [ ] 在 `.env` 中设置了强 `AUTH_PASSWORD`
+- [ ] 准备好强密码用于 Admin Settings 中的 `AUTH_PASSWORD` 配置
 
 ---
 
@@ -94,46 +94,20 @@ git clone https://github.com/your-org/ibkr-dash.git .
 
 ---
 
-## 步骤 2：配置环境
+## 步骤 2：配置应用
 
-```bash
-cp .env.example .env
-```
+部署后，打开浏览器访问应用并通过 **Admin Settings UI** 进行配置：
 
-编辑 `.env` 设置生产环境值：
+1. 进入 `/admin/system` -- 设置 `AUTH_PASSWORD`（强密码）和 `LOG_LEVEL`
+2. 进入 `/admin/llm` -- 配置 LLM API 密钥、Base URL 和默认模型
+3. 进入 `/admin/ibkr` -- 设置 Flex Token 和 Query ID
+4. 进入 `/admin/system` -- 配置 Worker 调度计划（时区、小时、分钟）
+5. 进入 `/admin/system` -- 设置 CORS 允许的来源域名
 
-```env
-APP_ENV=production
-DEBUG=false
-
-# 强密码 -- 保护您的财务数据
-AUTH_USERNAME=admin
-AUTH_PASSWORD=your-strong-password-here
-
-# LLM
-LLM_API_KEY=your-api-key
-LLM_BASE_URL=https://api.openai.com/v1
-LLM_DEFAULT_MODEL=gpt-4o
-
-# IBKR
-FLEX_TOKEN=your-flex-token
-FLEX_QUERY_ID_DAILY=your-query-id
-
-# Worker 调度（服务器时区）
-SCHEDULER_ENABLED=true
-SCHEDULER_HOUR=12
-SCHEDULER_MINUTE=30
-SCHEDULER_TIMEZONE=UTC
-
-# 日志
-LOG_LEVEL=WARNING
-
-# CORS（添加您的生产域名）
-CORS_ORIGINS=https://dash.example.com
-```
+所有配置存储在 `data/config.json` 中，通过 Docker 卷持久化。
 
 :::warning
-切勿将 `.env` 提交到版本控制。它包含密钥。
+`data/config.json` 包含密钥，切勿将其提交到版本控制。
 :::
 
 ---
@@ -252,13 +226,7 @@ sudo certbot renew --dry-run
 
 ### 更新 CORS
 
-在 `.env` 中添加您的生产域名：
-
-```env
-CORS_ORIGINS=https://dash.example.com
-```
-
-然后重启后端：
+在 Admin Settings UI（`/admin/system`）中添加您的生产域名到 CORS 允许列表，例如 `https://dash.example.com`。更改后重启后端：
 
 ```bash
 docker compose restart backend
@@ -449,10 +417,10 @@ conn.close()
 
 ## 安全最佳实践
 
-1. **强密码** -- 在 `.env` 中设置强 `AUTH_PASSWORD`。
+1. **强密码** -- 通过 Admin Settings UI 设置强 `AUTH_PASSWORD`。
 2. **仅 HTTPS** -- 生产环境中始终使用 SSL。
 3. **防火墙** -- 阻止直接访问端口 8000 和 8080。
-4. **定期备份** -- 自动化每日数据库备份。
+4. **定期备份** -- 自动化每日数据库备份（包括 `data/config.json`）。
 5. **保持更新** -- 定期拉取更新并重新构建容器。
-6. **密钥管理** -- 切勿将 `.env` 提交到版本控制。
+6. **密钥管理** -- 切勿将 `data/config.json` 提交到版本控制。
 7. **日志监控** -- 定期检查日志以发现错误或可疑活动。

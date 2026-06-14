@@ -246,12 +246,11 @@ def verify_session_token(token: str, *, secret: str) -> AuthSession | None:
 
 ## 禁用认证
 
-要在没有任何登录的情况下运行仪表盘（例如本地开发），将 `AUTH_PASSWORD` 留空：
+要在没有任何登录的情况下运行仪表盘（例如本地开发），在 Admin Settings UI 中将 `AUTH_PASSWORD` 留空：
 
-```bash
-# .env
-AUTH_PASSWORD=
-```
+1. 启动后端并打开 `http://localhost:8000/admin/settings`
+2. 将 AUTH_PASSWORD 设置为空
+3. 保存配置
 
 当认证禁用时：
 - `get_current_user()` 对所有请求返回 `None`。

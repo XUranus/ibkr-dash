@@ -127,7 +127,6 @@ def list_positions(self, ...):
       "module": "uvicorn",
       "args": ["app.main:app", "--reload", "--port", "8000"],
       "cwd": "${workspaceFolder}/ibkr_dash_backend",
-      "envFile": "${workspaceFolder}/.env",
       "env": {
         "PYTHONPATH": "${workspaceFolder}/ibkr_dash_backend"
       }
@@ -162,9 +161,9 @@ ModuleNotFoundError: No module named 'app.schemas.new_feature'
 pip install -r requirements.txt
 ```
 
-**设置未生效 `.env` 更改：**
+**Admin Settings 更改未生效：**
 
-`Settings` 对象使用 `@lru_cache` 缓存。重启服务器以获取新的环境变量。
+配置通过 Admin Settings UI 修改后存储在 `data/config.json` 中。重启后端服务器以使更改生效。
 
 ---
 
@@ -295,13 +294,7 @@ SELECT report_date, COUNT(*) FROM position_snapshots GROUP BY report_date ORDER 
 
 **调度器未运行：**
 
-确认 `.env` 中 `SCHEDULER_ENABLED=true`。检查 cron 计划是否正确：
-
-```env
-SCHEDULER_HOUR=12
-SCHEDULER_MINUTE=30
-SCHEDULER_TIMEZONE=Asia/Shanghai
-```
+通过 Admin Settings UI（`/admin/system`）确认调度器已启用。检查 cron 计划是否正确配置（小时、分钟、时区）。
 
 **Flex API 错误：**
 

@@ -34,6 +34,7 @@ class TradeLifecycleCard:
     data_limitations: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
+        """Serialize the lifecycle card to a plain dictionary."""
         return {k: v for k, v in self.__dict__.items()}
 
 
@@ -52,6 +53,7 @@ class BehaviorPatternCard:
     data_limitations: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
+        """Serialize the behavior pattern card to a plain dictionary."""
         return {k: v for k, v in self.__dict__.items()}
 
 
@@ -69,6 +71,7 @@ class OpportunityCostCard:
     data_limitations: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
+        """Serialize the opportunity cost card to a plain dictionary."""
         return {k: v for k, v in self.__dict__.items()}
 
 
@@ -83,6 +86,7 @@ class TradeReviewCardPack:
     created_at: str = ""
 
     def to_dict(self) -> dict:
+        """Serialize the full card pack, including nested cards, to a dictionary."""
         return {
             "lifecycle_card": self.lifecycle_card.to_dict(),
             "behavior_card": self.behavior_card.to_dict(),
@@ -93,6 +97,15 @@ class TradeReviewCardPack:
 
 
 def build_fallback_lifecycle_card(symbol: str, reason: str) -> TradeLifecycleCard:
+    """Build a placeholder lifecycle card when real data is unavailable.
+
+    Args:
+        symbol: The ticker symbol this card represents.
+        reason: Explanation for why data is unavailable.
+
+    Returns:
+        A TradeLifecycleCard with default values and the given reason noted.
+    """
     return TradeLifecycleCard(
         symbol=symbol,
         summary=f"Trade lifecycle data unavailable: {reason[:100]}",
@@ -101,6 +114,14 @@ def build_fallback_lifecycle_card(symbol: str, reason: str) -> TradeLifecycleCar
 
 
 def build_fallback_behavior_card(reason: str) -> BehaviorPatternCard:
+    """Build a placeholder behavior pattern card when analysis is unavailable.
+
+    Args:
+        reason: Explanation for why analysis is unavailable.
+
+    Returns:
+        A BehaviorPatternCard with a midpoint default score and the reason noted.
+    """
     return BehaviorPatternCard(
         summary=f"Behavior pattern analysis unavailable: {reason[:100]}",
         behavior_score=15,
@@ -109,6 +130,14 @@ def build_fallback_behavior_card(reason: str) -> BehaviorPatternCard:
 
 
 def build_fallback_opportunity_card(reason: str) -> OpportunityCostCard:
+    """Build a placeholder opportunity cost card when analysis is unavailable.
+
+    Args:
+        reason: Explanation for why analysis is unavailable.
+
+    Returns:
+        An OpportunityCostCard with a midpoint default score and the reason noted.
+    """
     return OpportunityCostCard(
         summary=f"Opportunity cost analysis unavailable: {reason[:100]}",
         opportunity_cost_score=10,

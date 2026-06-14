@@ -11,18 +11,14 @@ from app.services.trade_service import TradeService
 
 @pytest.fixture
 def settings() -> Settings:
-    """Return test settings with in-memory SQLite."""
-    return Settings(
-        sqlite_path=":memory:",
-        debug=True,
-        auth_password="",
-    )
-
+    return Settings()
 
 @pytest.fixture
 def db(settings: Settings) -> Database:
-    """Return an initialized in-memory database."""
     return init_database(settings)
+
+
+
 
 
 @pytest.fixture
@@ -82,70 +78,58 @@ def trade_service(db: Database) -> TradeService:
     })
     return TradeService(db)
 
-
 def test_list_trades_returns_all_trades(trade_service: TradeService) -> None:
     """Test that list_trades returns all trades without filters."""
     result = trade_service.list_trades(
         start_date=None, end_date=None, symbol=None,
         asset_class=None, buy_sell=None, sort_by="date_time",
-        sort_order="desc", page=1, page_size=10,
-    )
+        sort_order="desc", page=1, page_size=10,)
     assert len(result.items) == 3
     assert result.pagination.total == 3
-
 
 def test_list_trades_filters_by_symbol(trade_service: TradeService) -> None:
     """Test that list_trades filters by symbol."""
     result = trade_service.list_trades(
         start_date=None, end_date=None, symbol="AAPL",
         asset_class=None, buy_sell=None, sort_by="date_time",
-        sort_order="desc", page=1, page_size=10,
-    )
+        sort_order="desc", page=1, page_size=10,)
     assert len(result.items) == 2
     assert all(item.symbol == "AAPL" for item in result.items)
-
 
 def test_list_trades_filters_by_buy_sell(trade_service: TradeService) -> None:
     """Test that list_trades filters by buy/sell direction."""
     result = trade_service.list_trades(
         start_date=None, end_date=None, symbol=None,
         asset_class=None, buy_sell="SELL", sort_by="date_time",
-        sort_order="desc", page=1, page_size=10,
-    )
+        sort_order="desc", page=1, page_size=10,)
     assert len(result.items) == 1
     assert result.items[0].buy_sell == "SELL"
     assert result.items[0].symbol == "AAPL"
-
 
 def test_list_trades_filters_by_date_range(trade_service: TradeService) -> None:
     """Test that list_trades filters by date range."""
     result = trade_service.list_trades(
         start_date="2026-04-19", end_date=None, symbol=None,
         asset_class=None, buy_sell=None, sort_by="date_time",
-        sort_order="desc", page=1, page_size=10,
-    )
+        sort_order="desc", page=1, page_size=10,)
     assert len(result.items) == 1
     assert result.items[0].trade_date == "2026-04-19"
-
 
 def test_list_trades_pagination(trade_service: TradeService) -> None:
     """Test that list_trades paginates correctly."""
     result = trade_service.list_trades(
         start_date=None, end_date=None, symbol=None,
         asset_class=None, buy_sell=None, sort_by="date_time",
-        sort_order="desc", page=1, page_size=2,
-    )
+        sort_order="desc", page=1, page_size=2,)
     assert len(result.items) == 2
     assert result.pagination.total == 3
     assert result.pagination.total_pages == 2
-
 
 def test_summarize_trades_returns_aggregate_stats(trade_service: TradeService) -> None:
     """Test that summarize_trades returns correct aggregate statistics."""
     result = trade_service.summarize_trades(
         start_date=None, end_date=None, symbol=None,
-        asset_class=None, buy_sell=None,
-    )
+        asset_class=None, buy_sell=None,)
     assert result.trade_count == 3
     assert result.buy_count == 2
     assert result.sell_count == 1
@@ -153,22 +137,18 @@ def test_summarize_trades_returns_aggregate_stats(trade_service: TradeService) -
     assert result.total_realized_pnl == 25.0
     assert result.symbols_count == 2
 
-
 def test_summarize_trades_filters_by_symbol(trade_service: TradeService) -> None:
     """Test that summarize_trades filters correctly by symbol."""
     result = trade_service.summarize_trades(
         start_date=None, end_date=None, symbol="AAPL",
-        asset_class=None, buy_sell=None,
-    )
+        asset_class=None, buy_sell=None,)
     assert result.trade_count == 2
     assert result.symbols_count == 1
-
 
 def test_summarize_trades_empty_result(trade_service: TradeService) -> None:
     """Test that summarize_trades returns zeros when no trades match."""
     result = trade_service.summarize_trades(
         start_date="2030-01-01", end_date=None, symbol=None,
-        asset_class=None, buy_sell=None,
-    )
+        asset_class=None, buy_sell=None,)
     assert result.trade_count == 0
     assert result.total_commission == 0.0

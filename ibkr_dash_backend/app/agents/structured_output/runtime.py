@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
+from app.services.llm_audit import log_llm_call
+
 from pydantic import BaseModel, ValidationError
 
 from app.agents.structured_output.contracts import StructuredOutputContract
@@ -40,6 +42,7 @@ class StructuredOutputResult:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialise the result to a dictionary, including the validated model."""
         value = asdict(self)
         if self.model is not None:
             value["model"] = self.model.model_dump()
@@ -168,12 +171,26 @@ class StructuredOutputRuntime:
             if hasattr(self.llm_service, "chat_with_metadata"):
                 result = self.llm_service.chat_with_metadata(messages, **clean_kwargs)
                 raw_response = str(result.get("content", "") if isinstance(result, dict) else getattr(result, "content", "") or "")
+                usage = result.get("usage", {}) if isinstance(result, dict) else {}
+                lat = result.get("latency_ms", 0) if isinstance(result, dict) else 0
+                mdl = str(clean_kwargs.get("model", "") or getattr(self.llm_service, "default_model", ""))
+                self._event(events, "structured_output_llm_finish", contract=contract.name, ok=True,
+                            latency_ms=lat, model=mdl,
+                            prompt_tokens=usage.get("prompt_tokens", 0),
+                            completion_tokens=usage.get("completion_tokens", 0),
+                            total_tokens=usage.get("total_tokens", 0))
+                log_llm_call(agent_name=contract.agent_name, model=mdl,
+                             prompt_tokens=usage.get("prompt_tokens", 0),
+                             completion_tokens=usage.get("completion_tokens", 0),
+                             total_tokens=usage.get("total_tokens", 0),
+                             latency_ms=lat, ok=True, contract=contract.name)
             else:
                 raw_response = str(self.llm_service.chat(messages, **clean_kwargs))
-            self._event(events, "structured_output_llm_finish", contract=contract.name, ok=True)
+                self._event(events, "structured_output_llm_finish", contract=contract.name, ok=True)
         except Exception as exc:
             error = StructuredOutputError(LLM_CALL_FAILED, "LLM call failed before structured output parsing.", cause=exc)
             self._event(events, "structured_output_llm_finish", contract=contract.name, ok=False, error_code=LLM_CALL_FAILED)
+            log_llm_call(agent_name=contract.agent_name, ok=False, error=str(exc)[:500], contract=contract.name)
             self._event(events, "structured_output_failed", contract=contract.name, error_code=LLM_CALL_FAILED)
             return self._result(
                 ok=False, payload=None, model=None, raw_response="",
@@ -229,8 +246,24 @@ class StructuredOutputRuntime:
         self._event(trace, "structured_output_repair_start", contract=contract.name, repair_attempt=attempt, error_code=error.error_code)
         try:
             messages = contract.build_repair_messages(raw_response=raw_response, error=error, context=context)
-            repaired = str(self.llm_service.chat(messages, temperature=0.0, response_format=contract.response_format))
-            self._event(trace, "structured_output_repair_finish", contract=contract.name, ok=True, repair_attempt=attempt)
+            if hasattr(self.llm_service, "chat_with_metadata"):
+                result = self.llm_service.chat_with_metadata(messages, temperature=0.0, response_format=contract.response_format)
+                repaired = str(result.get("content", "") if isinstance(result, dict) else result)
+                usage = result.get("usage", {}) if isinstance(result, dict) else {}
+                lat = result.get("latency_ms", 0) if isinstance(result, dict) else 0
+                self._event(trace, "structured_output_repair_finish", contract=contract.name, ok=True, repair_attempt=attempt,
+                            latency_ms=lat,
+                            prompt_tokens=usage.get("prompt_tokens", 0),
+                            completion_tokens=usage.get("completion_tokens", 0),
+                            total_tokens=usage.get("total_tokens", 0))
+                log_llm_call(agent_name=contract.agent_name, model=str(self.llm_service.default_model),
+                             prompt_tokens=usage.get("prompt_tokens", 0),
+                             completion_tokens=usage.get("completion_tokens", 0),
+                             total_tokens=usage.get("total_tokens", 0),
+                             latency_ms=lat, ok=True, contract=contract.name)
+            else:
+                repaired = str(self.llm_service.chat(messages, temperature=0.0, response_format=contract.response_format))
+                self._event(trace, "structured_output_repair_finish", contract=contract.name, ok=True, repair_attempt=attempt)
             return repaired
         except Exception as exc:
             repair_error = StructuredOutputError(

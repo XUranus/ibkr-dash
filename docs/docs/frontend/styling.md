@@ -6,7 +6,7 @@ description: CSS architecture, design tokens, and component styling patterns
 
 # Styling
 
-The frontend uses a **terminal-luxury** design system inspired by Bloomberg Terminal and luxury watch interfaces. The styling is built on CSS custom properties (design tokens) for consistency and maintainability.
+The frontend uses an **institutional terminal** design system inspired by Bloomberg Terminal, IBKR Client Portal, and FactSet. Cold dark base, muted accents, zero glow, maximum density.
 
 ## CSS Architecture
 
@@ -36,7 +36,6 @@ graph TB
         Radius["Border Radius"]
         Spacing["Spacing Scale"]
         Typography["Typography"]
-        Grain["Grain Texture"]
     end
 
     subgraph base.css["base.css (Component Styles)"]
@@ -65,80 +64,49 @@ graph TB
 
 All visual properties are defined as CSS custom properties in `theme.css`. This makes it easy to maintain consistency and adjust the theme.
 
-### Color Palette Reference
+### Color Palette
 
 | Variable | Value | Usage |
 |---|---|---|
-| `--color-bg` | `#080b12` | Page background |
-| `--color-bg-elevated` | `rgba(12, 16, 28, 0.96)` | Elevated surfaces |
-| `--color-bg-panel` | `rgba(14, 18, 32, 0.92)` | Panel backgrounds |
-| `--color-bg-panel-strong` | `rgba(18, 24, 42, 0.96)` | Stronger panel backgrounds |
-| `--color-bg-muted` | `rgba(20, 26, 44, 0.72)` | Muted backgrounds |
-| `--color-bg-glass` | `rgba(18, 24, 42, 0.56)` | Glass effect backgrounds |
-| `--color-border` | `rgba(255, 191, 80, 0.08)` | Default borders |
-| `--color-border-strong` | `rgba(255, 191, 80, 0.18)` | Emphasized borders |
+| `--color-bg` | `#0A0E14` | Page background |
+| `--color-bg-elevated` | `#0D1117` | Elevated surfaces |
+| `--color-bg-panel` | `#111820` | Panel backgrounds |
+| `--color-bg-panel-strong` | `#151C28` | Stronger panel backgrounds |
+| `--color-bg-muted` | `#161B22` | Muted backgrounds |
+| `--color-border` | `rgba(255, 255, 255, 0.06)` | Default borders |
+| `--color-border-strong` | `rgba(255, 255, 255, 0.12)` | Emphasized borders |
 | `--color-border-subtle` | `rgba(255, 255, 255, 0.04)` | Subtle borders |
-| `--color-text-primary` | `#e8e4dc` | Primary text |
-| `--color-text-secondary` | `#8a8d9e` | Secondary text |
-| `--color-text-muted` | `#5a5d6e` | Muted text |
-| `--color-text-bright` | `#fff8ef` | Bright/highlighted text |
-| `--color-accent` | `#d4a843` | Primary accent (amber/gold) |
-| `--color-accent-soft` | `rgba(212, 168, 67, 0.12)` | Soft accent backgrounds |
-| `--color-accent-strong` | `#f0c55e` | Strong accent |
-| `--color-accent-glow` | `rgba(212, 168, 67, 0.06)` | Accent glow effects |
-| `--color-positive` | `#3dd68c` | Gains, success |
-| `--color-positive-soft` | `rgba(61, 214, 140, 0.10)` | Positive backgrounds |
-| `--color-negative` | `#f25c5c` | Losses, errors |
-| `--color-negative-soft` | `rgba(242, 92, 92, 0.10)` | Negative backgrounds |
-| `--color-warning` | `#f0a030` | Warnings |
+| `--color-text-primary` | `#C9D1D9` | Primary text |
+| `--color-text-secondary` | `#6E7681` | Secondary text |
+| `--color-text-muted` | `#484F58` | Muted text |
+| `--color-text-bright` | `#E6EDF3` | Bright/highlighted text |
+| `--color-accent` | `#58A6FF` | Primary accent (cold blue) |
+| `--color-accent-soft` | `rgba(88, 166, 255, 0.08)` | Soft accent backgrounds |
+| `--color-accent-strong` | `#79C0FF` | Strong accent |
+| `--color-positive` | `#3FB950` | Gains, success |
+| `--color-negative` | `#F85149` | Losses, errors |
+| `--color-warning` | `#D29922` | Warnings |
 
-### Color Palette CSS
+### Typography
 
 ```css
-/* ibkr_dash_frontend/src/styles/theme.css */
 :root {
-  /* Surface palette */
-  --color-bg:              #080b12;     /* Page background */
-  --color-bg-elevated:     rgba(12, 16, 28, 0.96);
-  --color-bg-panel:        rgba(14, 18, 32, 0.92);
-  --color-bg-panel-strong: rgba(18, 24, 42, 0.96);
-  --color-bg-muted:        rgba(20, 26, 44, 0.72);
-  --color-bg-glass:        rgba(18, 24, 42, 0.56);
-
-  /* Borders */
-  --color-border:        rgba(255, 191, 80, 0.08);
-  --color-border-strong: rgba(255, 191, 80, 0.18);
-  --color-border-subtle: rgba(255, 255, 255, 0.04);
-
-  /* Text */
-  --color-text-primary:   #e8e4dc;
-  --color-text-secondary: #8a8d9e;
-  --color-text-muted:     #5a5d6e;
-  --color-text-bright:    #fff8ef;
-
-  /* Accent — amber/gold */
-  --color-accent:       #d4a843;
-  --color-accent-soft:  rgba(212, 168, 67, 0.12);
-  --color-accent-strong:#f0c55e;
-  --color-accent-glow:  rgba(212, 168, 67, 0.06);
-
-  /* Semantic */
-  --color-positive:      #3dd68c;     /* Gains, success */
-  --color-positive-soft: rgba(61, 214, 140, 0.10);
-  --color-negative:      #f25c5c;     /* Losses, errors */
-  --color-negative-soft: rgba(242, 92, 92, 0.10);
-  --color-warning:       #f0a030;     /* Warnings */
+  --font-mono: 'IBM Plex Mono', 'SF Mono', 'Cascadia Code', monospace;
+  --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 ```
+
+- **IBM Plex Mono**: Used for numbers, code, labels, and terminal-style text
+- **IBM Plex Sans**: Used for body text and headings
 
 ### Shadows
 
 ```css
 :root {
-  --shadow-panel:    0 1px 0 rgba(255,191,80,0.04), 0 8px 32px rgba(0,0,0,0.35);
-  --shadow-card:     0 1px 0 rgba(255,191,80,0.03), 0 4px 20px rgba(0,0,0,0.25);
-  --shadow-elevated: 0 12px 48px rgba(0,0,0,0.5), 0 1px 0 rgba(255,191,80,0.06);
-  --shadow-glow:     0 0 30px rgba(212,168,67,0.06);
+  --shadow-panel:    0 1px 0 rgba(0,0,0,0.3);
+  --shadow-card:     0 1px 0 rgba(0,0,0,0.2);
+  --shadow-elevated: 0 8px 24px rgba(0,0,0,0.4);
+  --shadow-glow:     none;
 }
 ```
 
@@ -146,10 +114,10 @@ All visual properties are defined as CSS custom properties in `theme.css`. This 
 
 ```css
 :root {
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
 }
 ```
 
@@ -159,23 +127,11 @@ All visual properties are defined as CSS custom properties in `theme.css`. This 
 |---|---|---|
 | `--space-1` | `0.25rem` | 4px |
 | `--space-2` | `0.5rem` | 8px |
-| `--space-3` | `0.75rem` | 12px |
-| `--space-4` | `1rem` | 16px |
-| `--space-5` | `1.5rem` | 24px |
-| `--space-6` | `2rem` | 32px |
-| `--space-7` | `3rem` | 48px |
-
-### Typography
-
-```css
-:root {
-  --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', monospace;
-  --font-body: 'DM Sans', -apple-system, sans-serif;
-}
-```
-
-- **JetBrains Mono**: Used for numbers, code, labels, and terminal-style text
-- **DM Sans**: Used for body text and headings
+| `--space-3` | `0.625rem` | 10px |
+| `--space-4` | `0.875rem` | 14px |
+| `--space-5` | `1.25rem` | 20px |
+| `--space-6` | `1.75rem` | 28px |
+| `--space-7` | `2.5rem` | 40px |
 
 ## Base Styles
 
@@ -184,38 +140,38 @@ All visual properties are defined as CSS custom properties in `theme.css`. This 
 The `.app-shell` class centers content and constrains width:
 
 ```css
-/* ibkr_dash_frontend/src/styles/base.css */
 .app-shell {
-  width: min(1520px, calc(100% - 48px));
+  position: relative;
+  width: 100%;
+  max-width: 1600px;
   margin: 0 auto;
-  padding: 20px 0 60px;
+  padding: 0 12px 40px;
+  overflow-x: clip;
 }
 ```
 
-### Surface Panel (Glass Card)
+### Surface Panel
 
-The primary container component uses a glassmorphism effect:
+The primary container component uses a flat, no-gradient style:
 
 ```css
 .surface-panel {
-  border-radius: var(--radius-xl);
-  background: linear-gradient(168deg, rgba(22, 28, 50, 0.88), rgba(12, 16, 30, 0.94));
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-panel);
   border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-panel);
-  backdrop-filter: blur(12px);
 }
 ```
 
-An ambient glow appears on the top edge via `::before` pseudo-element.
-
 ### Buttons
 
-Three button variants:
+Four button variants:
 
 | Class | Description |
 |---|---|
 | `.btn` | Default button with subtle border |
-| `.btn--accent` | Amber/gold accent button |
+| `.btn--accent` | Blue accent button |
 | `.btn--ghost` | Transparent background, no border |
 | `.btn--sm` | Smaller size variant |
 
@@ -244,16 +200,18 @@ Styled tables for data display:
 ```css
 .data-table {
   width: 100%;
-  min-width: 1100px;
+  min-width: 1000px;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .data-table thead th {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-text-muted);
+  background: var(--color-bg-elevated);
 }
 ```
 
@@ -268,35 +226,6 @@ Styled tables for data display:
 </label>
 ```
 
-## Theme Switching Example
-
-While the current app uses a fixed dark theme, the CSS variable architecture makes it straightforward to add theme switching. Here is an example of how you could implement a light theme toggle:
-
-```typescript
-// Example: Theme switching utility
-const themes = {
-  dark: {
-    '--color-bg': '#080b12',
-    '--color-text-primary': '#e8e4dc',
-    '--color-accent': '#d4a843',
-  },
-  light: {
-    '--color-bg': '#f5f3ee',
-    '--color-text-primary': '#1a1a2e',
-    '--color-accent': '#b8860b',
-  },
-}
-
-function applyTheme(themeName: 'dark' | 'light') {
-  const root = document.documentElement
-  const vars = themes[themeName]
-  for (const [key, value] of Object.entries(vars)) {
-    root.style.setProperty(key, value)
-  }
-  localStorage.setItem('theme', themeName)
-}
-```
-
 ## Component Styling Patterns
 
 ### Pattern 1: CSS Variables in Inline Styles
@@ -307,7 +236,7 @@ Components frequently use CSS variables in inline styles for dynamic layouts:
 <div style={{
   color: 'var(--color-text-muted)',
   fontFamily: 'var(--font-mono)',
-  fontSize: '0.82rem',
+  fontSize: '0.9rem',
   padding: 'var(--space-4)',
   borderRadius: 'var(--radius-md)',
   border: '1px solid var(--color-border)',
@@ -334,14 +263,30 @@ const toneColorMap = {
 ```css
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-2);
 }
 
 .filters-grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: var(--space-3);
+  gap: var(--space-2);
+}
+
+/* Two-column list+detail layout */
+.list-detail-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: var(--space-4);
+}
+
+@media (max-width: 1200px) {
+  .filters-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 900px) {
+  .summary-layout { grid-template-columns: 1fr; }
+  .list-detail-layout { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 768px) {
@@ -349,90 +294,39 @@ const toneColorMap = {
 }
 ```
 
-### Pattern 4: Hover Effects
-
-Interactive elements use CSS transitions:
-
-```tsx
-<div
-  onMouseEnter={e => {
-    e.currentTarget.style.borderColor = 'var(--color-border)'
-    e.currentTarget.style.boxShadow = '0 0 24px rgba(212,168,67,0.04)'
-  }}
-  onMouseLeave={e => {
-    e.currentTarget.style.borderColor = 'var(--color-border-subtle)'
-    e.currentTarget.style.boxShadow = 'none'
-  }}
->
-```
-
-### Pattern 5: Animations
+### Pattern 4: Animations
 
 Predefined animation keyframes:
 
 | Animation | Description |
 |---|---|
 | `fadeIn` | Fade in from transparent |
-| `slideUp` | Slide up from 16px below |
+| `slideUp` | Slide up from 8px below |
 | `slideInLeft` | Slide in from left |
-| `shimmer` | Loading shimmer effect |
-| `runner-pulse` | Pulsing opacity |
-| `glowPulse` | Pulsing box-shadow glow |
 
 Staggered reveal for lists:
 
 ```css
-.stagger-reveal > * { animation: slideInLeft 0.4s ease both; }
+.stagger-reveal > * { animation: slideInLeft 0.3s ease both; }
 .stagger-reveal > *:nth-child(1) { animation-delay: 0s; }
-.stagger-reveal > *:nth-child(2) { animation-delay: 0.06s; }
-.stagger-reveal > *:nth-child(3) { animation-delay: 0.12s; }
-```
-
-## Grain Overlay
-
-A subtle noise texture is applied to the entire page via `body::before`:
-
-```css
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  pointer-events: none;
-  background: var(--grain);
-  opacity: 0.4;
-}
-```
-
-This creates the terminal-luxury aesthetic with a subtle film grain effect.
-
-## Grid Pattern
-
-A faint grid pattern is applied via `body::after`:
-
-```css
-body::after {
-  background:
-    linear-gradient(rgba(212,168,67,0.012) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(212,168,67,0.012) 1px, transparent 1px);
-  background-size: 60px 60px;
-}
+.stagger-reveal > *:nth-child(2) { animation-delay: 0.04s; }
+.stagger-reveal > *:nth-child(3) { animation-delay: 0.08s; }
 ```
 
 ## Copilot Markdown Styles
 
-The Copilot view renders Markdown with custom styles via the `.copilot-markdown` class. This ensures Markdown content matches the terminal-luxury theme:
+The Copilot view renders Markdown with custom styles via the `.copilot-markdown` class. This ensures Markdown content matches the terminal theme:
 
 - Headings: bright text, monospace
-- Code blocks: dark background with amber accents
+- Code blocks: dark background with blue accents
 - Tables: monospace headers, subtle borders
-- Blockquotes: amber left border
-- Links: amber color with underline
+- Blockquotes: blue left border
+- Links: blue color with underline
 
 ## Responsive Breakpoints
 
 | Breakpoint | Adjustments |
 |---|---|
-| `<= 1200px` | Filters grid: 4 columns |
-| `<= 900px` | Summary layout: single column |
+| `<= 1200px` | Filters grid: 4 columns, account strip wraps |
+| `<= 900px` | Summary layout: single column, list-detail: single column |
 | `<= 768px` | Narrower padding, 2-column filters, smaller text |

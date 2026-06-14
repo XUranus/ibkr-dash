@@ -40,7 +40,7 @@ Open `http://localhost:8000/docs` in your browser to explore all endpoints inter
 
 ## Authentication Flow
 
-IBKR Dash supports two authentication methods. When `AUTH_PASSWORD` is empty in your `.env` file, authentication is disabled and all endpoints are publicly accessible.
+IBKR Dash supports two authentication methods. When `auth.password` is empty in Admin Settings, authentication is disabled and all endpoints are publicly accessible.
 
 ```mermaid
 sequenceDiagram

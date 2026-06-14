@@ -16,11 +16,11 @@ export function fetchTradeDecisionHealth(): Promise<TradeDecisionHealth> {
   return request<TradeDecisionHealth>('/api/trade-decision/health')
 }
 
-export function analyzeEntryDecision(payload: {
+export async function analyzeEntryDecision(payload: {
   symbol: string
   question?: string
 }): Promise<TradeDecisionResult> {
-  return request<TradeDecisionResult>('/api/trade-decision/analyze', {
+  const raw = await request<Record<string, unknown>>('/api/trade-decision/analyze', {
     method: 'POST',
     body: JSON.stringify({
       symbol: payload.symbol,
@@ -28,13 +28,14 @@ export function analyzeEntryDecision(payload: {
       question: payload.question || undefined,
     }),
   })
+  return normalizeTradeDecisionResponse(raw)
 }
 
-export function analyzeHoldingDecision(payload: {
+export async function analyzeHoldingDecision(payload: {
   symbol: string
   question?: string
 }): Promise<TradeDecisionResult> {
-  return request<TradeDecisionResult>('/api/trade-decision/analyze', {
+  const raw = await request<Record<string, unknown>>('/api/trade-decision/analyze', {
     method: 'POST',
     body: JSON.stringify({
       symbol: payload.symbol,
@@ -42,6 +43,7 @@ export function analyzeHoldingDecision(payload: {
       question: payload.question || undefined,
     }),
   })
+  return normalizeTradeDecisionResponse(raw)
 }
 
 export async function fetchRecentTradeDecisions(params: { limit?: number; symbol?: string; decision_type?: string } = {}): Promise<TradeDecisionResult[]> {
@@ -49,8 +51,18 @@ export async function fetchRecentTradeDecisions(params: { limit?: number; symbol
   return response.items ?? []
 }
 
-export function fetchTradeDecisionDetail(decisionId: string): Promise<TradeDecisionResult> {
-  return request<TradeDecisionResult>(`/api/trade-decision/decisions/${encodeURIComponent(decisionId)}`)
+export async function fetchTradeDecisionDetail(decisionId: string): Promise<TradeDecisionResult> {
+  const raw = await request<Record<string, unknown>>(`/api/trade-decision/decisions/${encodeURIComponent(decisionId)}`)
+  return normalizeTradeDecisionResponse(raw)
+}
+
+/** Flatten the backend response: merge decision_output fields to top level. */
+function normalizeTradeDecisionResponse(raw: Record<string, unknown>): TradeDecisionResult {
+  const output = raw.decision_output
+  const flattened = typeof output === 'object' && output !== null
+    ? { ...raw, ...(output as Record<string, unknown>) }
+    : raw
+  return flattened as unknown as TradeDecisionResult
 }
 
 export function fetchTradeDecisionReport(decisionId: string, lang: string = 'zh'): Promise<{ report: string }> {

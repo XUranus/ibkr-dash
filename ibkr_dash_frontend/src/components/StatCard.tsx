@@ -20,8 +20,8 @@ export default function StatCard({ title, value, helper, tone = 'neutral', delta
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      gap: 4,
-      padding: '8px 12px',
+      gap: 6,
+      padding: '10px 14px',
       borderRadius: 'var(--radius-sm)',
       background: 'var(--color-bg-elevated)',
       border: '1px solid var(--color-border-subtle)',
@@ -30,7 +30,7 @@ export default function StatCard({ title, value, helper, tone = 'neutral', delta
       {/* Label */}
       <span style={{
         fontFamily: 'var(--font-mono)',
-        fontSize: '0.6rem',
+        fontSize: '0.72rem',
         fontWeight: 500,
         color: 'var(--color-text-muted)',
         letterSpacing: '0.08em',
@@ -43,7 +43,7 @@ export default function StatCard({ title, value, helper, tone = 'neutral', delta
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
         <span style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: '1.1rem',
+          fontSize: '1.25rem',
           fontWeight: 700,
           letterSpacing: '-0.02em',
           lineHeight: 1.2,
@@ -55,7 +55,7 @@ export default function StatCard({ title, value, helper, tone = 'neutral', delta
         {deltaPercent && (
           <span style={{
             fontFamily: 'var(--font-mono)',
-            fontSize: '0.68rem',
+            fontSize: '0.82rem',
             fontWeight: 600,
             color: deltaTone === 'positive' ? 'var(--color-positive)' : deltaTone === 'negative' ? 'var(--color-negative)' : 'var(--color-text-muted)',
           }}>
@@ -68,7 +68,7 @@ export default function StatCard({ title, value, helper, tone = 'neutral', delta
       {helper && (
         <span style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: '0.65rem',
+          fontSize: '0.82rem',
           color: 'var(--color-text-muted)',
         }}>
           {helper}

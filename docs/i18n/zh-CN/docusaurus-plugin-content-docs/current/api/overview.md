@@ -40,7 +40,7 @@ FastAPI 自动生成交互式 API 文档：
 
 ## 身份验证流程
 
-IBKR Dash 支持两种身份验证方式。当 `.env` 文件中的 `AUTH_PASSWORD` 为空时，身份验证将被禁用，所有端点均可公开访问。
+IBKR Dash 支持两种身份验证方式。当 Admin Settings 中的 `AUTH_PASSWORD` 为空时，身份验证将被禁用，所有端点均可公开访问。
 
 ```mermaid
 sequenceDiagram
@@ -239,7 +239,7 @@ async function fetchPositions() {
 
 ## CORS
 
-跨源资源共享通过 `CORS_ORIGINS` 环境变量配置。默认允许以下来源的请求：
+跨源资源共享通过 Admin Settings 中的 `CORS_ORIGINS` 配置。默认允许以下来源的请求：
 
 - `http://localhost:5173`（Vite 开发服务器）
 - `http://localhost:3000`

@@ -26,6 +26,8 @@ DIVIDEND_SORT_FIELDS = {
 
 
 class DividendService:
+    """Service for querying and filtering dividend records."""
+
     def __init__(self, db: Database) -> None:
         self.db = db
 

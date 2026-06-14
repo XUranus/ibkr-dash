@@ -186,7 +186,7 @@ export default function PerformanceCalendar({ latestReportDate }: Props) {
         </div>
 
         {loading ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 120, borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', background: 'var(--color-bg-elevated)', color: 'var(--color-text-secondary)', fontSize: '0.82rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 120, borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', background: 'var(--color-bg-elevated)', color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>
             {t('dashboard.updatingCalendar')}
           </div>
         ) : errorMessage ? (
@@ -203,8 +203,8 @@ export default function PerformanceCalendar({ latestReportDate }: Props) {
                 { label: t('dashboard.netChange'), value: formatNumber(summary.total_pnl), className: toneByValue(summary.total_pnl) === 'positive' ? 'metric-positive' : toneByValue(summary.total_pnl) === 'negative' ? 'metric-negative' : '' },
               ].map((m) => (
                 <div key={m.label} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '6px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--color-bg-elevated)', border: '1px solid var(--color-border-subtle)' }}>
-                  <span style={{ color: 'var(--color-text-muted)', fontSize: '0.72rem' }}>{m.label}</span>
-                  <strong className={m.className} style={{ fontSize: '0.88rem', fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>{m.value}</strong>
+                  <span style={{ color: 'var(--color-text-muted)', fontSize: '0.82rem' }}>{m.label}</span>
+                  <strong className={m.className} style={{ fontSize: '0.95rem', fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>{m.value}</strong>
                 </div>
               ))}
             </div>
@@ -213,7 +213,7 @@ export default function PerformanceCalendar({ latestReportDate }: Props) {
             {activeView === 'month' && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 4 }}>
                 {weekdayLabels.map((label, i) => (
-                  <div key={label} style={{ padding: '0 4px 3px', color: 'var(--color-text-muted)', fontSize: '0.65rem', fontWeight: 600, textAlign: 'center', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t(weekdayKeys[i])}</div>
+                  <div key={label} style={{ padding: '0 4px 3px', color: 'var(--color-text-muted)', fontSize: '0.72rem', fontWeight: 600, textAlign: 'center', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t(weekdayKeys[i])}</div>
                 ))}
                 {monthCells.map((cell) => {
                   const tone = toneByValue(cell.item?.pnl ?? null)
@@ -229,14 +229,14 @@ export default function PerformanceCalendar({ latestReportDate }: Props) {
                     }}>
                       {cell.isCurrentMonth && cell.item && (
                         <>
-                          <div style={{ color: 'var(--color-text-muted)', fontSize: '0.7rem', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{cell.label}</div>
+                          <div style={{ color: 'var(--color-text-muted)', fontSize: '0.82rem', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{cell.label}</div>
                           <div style={{
                             color: tone === 'positive' ? 'var(--color-positive)' : tone === 'negative' ? 'var(--color-negative)' : 'var(--color-text-primary)',
-                            fontSize: '0.92rem', fontWeight: 700, fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums',
+                            fontSize: '1rem', fontWeight: 700, fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums',
                           }}>
                             {formatSignedInteger(cell.item.pnl, t)}
                           </div>
-                          <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.68rem', fontFamily: 'var(--font-mono)' }}>
+                          <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.78rem', fontFamily: 'var(--font-mono)' }}>
                             {formatSignedPercent(cell.item.twr)}
                           </div>
                         </>
@@ -261,14 +261,14 @@ export default function PerformanceCalendar({ latestReportDate }: Props) {
                       background: bgColor,
                       display: 'grid', alignContent: 'space-between', gap: 4,
                     }}>
-                      <div style={{ color: 'var(--color-text-muted)', fontSize: '0.72rem', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{item.label}</div>
+                      <div style={{ color: 'var(--color-text-muted)', fontSize: '0.82rem', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{item.label}</div>
                       <div style={{
                         color: tone === 'positive' ? 'var(--color-positive)' : tone === 'negative' ? 'var(--color-negative)' : 'var(--color-text-primary)',
-                        fontSize: '0.92rem', fontWeight: 700, fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums',
+                        fontSize: '1rem', fontWeight: 700, fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums',
                       }}>
                         {formatSignedInteger(item.pnl, t)}
                       </div>
-                      <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.68rem', fontFamily: 'var(--font-mono)' }}>
+                      <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.78rem', fontFamily: 'var(--font-mono)' }}>
                         {formatSignedPercent(item.twr) || t('common.noData')}
                       </div>
                     </div>

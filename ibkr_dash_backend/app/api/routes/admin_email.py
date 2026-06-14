@@ -1,7 +1,7 @@
 """Admin email settings endpoints.
 
 Provides routes for viewing and updating email configuration and sending
-test emails.  Settings are persisted in a simple key-value table.
+test emails.  Settings are persisted via the JSON settings manager.
 """
 
 from __future__ import annotations
@@ -12,135 +12,105 @@ from email.mime.text import MIMEText
 
 from fastapi import APIRouter, Depends
 
-from app.api.deps import get_current_user, get_db
-from app.core.database import Database
+from app.api.deps import get_current_user
 from app.schemas.admin_email import EmailSettings, EmailSettingsUpdate, EmailTestResponse
+from app.services.settings_service import get_email_settings, update_email_settings
 
 router = APIRouter(prefix="/admin/email", tags=["admin-email"])
 
-# Keys used in the admin_settings table
-_EMAIL_KEYS = [
-    "email_smtp_host",
-    "email_smtp_port",
-    "email_smtp_username",
-    "email_smtp_password",
-    "email_from_address",
-    "email_to_addresses",
-    "email_enabled",
-]
 
-
-def _read_email_settings(db: Database) -> dict[str, str | None]:
-    """Read all email-related settings from the database."""
-    values: dict[str, str | None] = {}
-    for key in _EMAIL_KEYS:
-        row = db.execute_one("SELECT value FROM admin_settings WHERE key = ?", (key,))
-        values[key] = row["value"] if row else None
-    return values
-
-
-def _build_email_response(values: dict[str, str | None]) -> EmailSettings:
-    """Build an EmailSettings response from raw DB values."""
-    to_addresses_raw = values.get("email_to_addresses")
+def _build_email_response(raw: dict) -> EmailSettings:
+    """Build an EmailSettings response from raw config values."""
+    to_addresses_raw = raw.get("to_addresses")
     to_addresses: list[str] = []
-    if to_addresses_raw:
+    if isinstance(to_addresses_raw, list):
+        to_addresses = [str(a) for a in to_addresses_raw]
+    elif isinstance(to_addresses_raw, str) and to_addresses_raw:
         try:
             parsed = json.loads(to_addresses_raw)
             if isinstance(parsed, list):
                 to_addresses = [str(a) for a in parsed]
         except (json.JSONDecodeError, TypeError):
-            # Fall back to comma-separated
             to_addresses = [a.strip() for a in to_addresses_raw.split(",") if a.strip()]
 
-    smtp_port_raw = values.get("email_smtp_port")
-    smtp_port = int(smtp_port_raw) if smtp_port_raw and smtp_port_raw.isdigit() else None
+    smtp_port = raw.get("smtp_port")
+    if isinstance(smtp_port, str) and smtp_port.isdigit():
+        smtp_port = int(smtp_port)
+    elif not isinstance(smtp_port, int):
+        smtp_port = None
 
     return EmailSettings(
-        smtp_host=values.get("email_smtp_host"),
+        smtp_host=raw.get("smtp_host") or None,
         smtp_port=smtp_port,
-        smtp_username=values.get("email_smtp_username"),
-        smtp_password_set=bool(values.get("email_smtp_password")),
-        from_address=values.get("email_from_address"),
+        smtp_username=raw.get("smtp_username") or None,
+        smtp_password_set=bool(raw.get("smtp_password")),
+        from_address=raw.get("from_address") or None,
         to_addresses=to_addresses,
-        enabled=values.get("email_enabled") == "true",
+        enabled=bool(raw.get("enabled")),
     )
 
 
 @router.get("/settings", response_model=EmailSettings)
-def get_email_settings(
+def get_email_settings_endpoint(
     _user: str | None = Depends(get_current_user),
-    db: Database = Depends(get_db),
 ) -> EmailSettings:
     """Get current email configuration."""
-    values = _read_email_settings(db)
-    return _build_email_response(values)
+    return _build_email_response(get_email_settings())
 
 
 @router.put("/settings", response_model=EmailSettings)
-def update_email_settings(
+def update_email_settings_endpoint(
     payload: EmailSettingsUpdate,
     _user: str | None = Depends(get_current_user),
-    db: Database = Depends(get_db),
 ) -> EmailSettings:
     """Update email configuration."""
-    updates: dict[str, str] = {}
-
+    updates: dict[str, object] = {}
     if payload.smtp_host is not None:
-        updates["email_smtp_host"] = payload.smtp_host
+        updates["smtp_host"] = payload.smtp_host
     if payload.smtp_port is not None:
-        updates["email_smtp_port"] = str(payload.smtp_port)
+        updates["smtp_port"] = payload.smtp_port
     if payload.smtp_username is not None:
-        updates["email_smtp_username"] = payload.smtp_username
+        updates["smtp_username"] = payload.smtp_username
     if payload.smtp_password is not None:
-        updates["email_smtp_password"] = payload.smtp_password
+        updates["smtp_password"] = payload.smtp_password
     if payload.from_address is not None:
-        updates["email_from_address"] = payload.from_address
+        updates["from_address"] = payload.from_address
     if payload.to_addresses is not None:
-        updates["email_to_addresses"] = json.dumps(payload.to_addresses)
+        updates["to_addresses"] = payload.to_addresses
     if payload.enabled is not None:
-        updates["email_enabled"] = "true" if payload.enabled else "false"
+        updates["enabled"] = payload.enabled
 
-    for key, value in updates.items():
-        db.upsert(
-            "admin_settings",
-            {"key": key, "value": value},
-            conflict_cols=["key"],
-        )
+    if updates:
+        update_email_settings(updates)
 
-    # Return the updated settings
-    values = _read_email_settings(db)
-    return _build_email_response(values)
+    return _build_email_response(get_email_settings())
 
 
 @router.post("/test", response_model=EmailTestResponse)
 def test_email(
     _user: str | None = Depends(get_current_user),
-    db: Database = Depends(get_db),
 ) -> EmailTestResponse:
     """Send a test email using the current configuration."""
-    values = _read_email_settings(db)
+    raw = get_email_settings()
 
-    smtp_host = values.get("email_smtp_host")
-    smtp_port_raw = values.get("email_smtp_port")
-    smtp_username = values.get("email_smtp_username")
-    smtp_password = values.get("email_smtp_password")
-    from_address = values.get("email_from_address")
-    to_addresses_raw = values.get("email_to_addresses")
+    smtp_host = raw.get("smtp_host")
+    smtp_port = raw.get("smtp_port", 587)
+    smtp_username = raw.get("smtp_username")
+    smtp_password = raw.get("smtp_password")
+    from_address = raw.get("from_address")
 
-    if not all([smtp_host, smtp_port_raw, smtp_username, smtp_password, from_address]):
+    if not all([smtp_host, smtp_username, smtp_password, from_address]):
         return EmailTestResponse(
             success=False,
-            message="Email is not fully configured. Please set SMTP host, port, username, password, and from address.",
+            message="Email is not fully configured. Please set SMTP host, username, password, and from address.",
         )
 
+    to_addresses_raw = raw.get("to_addresses")
     to_addresses: list[str] = []
-    if to_addresses_raw:
-        try:
-            parsed = json.loads(to_addresses_raw)
-            if isinstance(parsed, list):
-                to_addresses = [str(a) for a in parsed]
-        except (json.JSONDecodeError, TypeError):
-            to_addresses = [a.strip() for a in to_addresses_raw.split(",") if a.strip()]
+    if isinstance(to_addresses_raw, list):
+        to_addresses = [str(a) for a in to_addresses_raw]
+    elif isinstance(to_addresses_raw, str) and to_addresses_raw:
+        to_addresses = [a.strip() for a in to_addresses_raw.split(",") if a.strip()]
 
     if not to_addresses:
         return EmailTestResponse(
@@ -148,9 +118,11 @@ def test_email(
             message="No recipient addresses configured. Please set at least one to_address.",
         )
 
-    smtp_port = int(smtp_port_raw) if smtp_port_raw and smtp_port_raw.isdigit() else 587
+    if isinstance(smtp_port, str) and smtp_port.isdigit():
+        smtp_port = int(smtp_port)
+    elif not isinstance(smtp_port, int):
+        smtp_port = 587
 
-    # Build a test email
     msg = MIMEText("This is a test email from IBKR Dash. Your email configuration is working correctly.", "plain", "utf-8")
     msg["Subject"] = "IBKR Dash - Email Test"
     msg["From"] = from_address

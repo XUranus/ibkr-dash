@@ -34,6 +34,7 @@ class SymbolEvidenceCard:
     created_at: str = ""
 
     def to_dict(self) -> dict:
+        """Return a plain dict representation of the symbol evidence card."""
         return {
             "symbol": self.symbol,
             "normalized_symbol": self.normalized_symbol,
@@ -69,6 +70,7 @@ class MacroEvidenceCard:
     created_at: str = ""
 
     def to_dict(self) -> dict:
+        """Return a plain dict representation of the macro evidence card."""
         return {
             "report_date": self.report_date,
             "market_regime": self.market_regime,
@@ -86,6 +88,7 @@ def build_fallback_symbol_card(
     *, symbol: str, normalized_symbol: str, report_date: str,
     position_item: dict, reason: str,
 ) -> SymbolEvidenceCard:
+    """Build a low-quality fallback symbol card when full evidence is unavailable."""
     return SymbolEvidenceCard(
         symbol=symbol,
         normalized_symbol=normalized_symbol,
@@ -101,6 +104,7 @@ def build_fallback_symbol_card(
 
 
 def build_fallback_macro_card(*, report_date: str, benchmark_context: dict, reason: str) -> MacroEvidenceCard:
+    """Build a low-quality fallback macro card when full evidence is unavailable."""
     return MacroEvidenceCard(
         report_date=report_date,
         market_regime="uncertain",

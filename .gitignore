@@ -21,11 +21,9 @@ env/
 *.swo
 *~
 
-# Environment (sensitive credentials)
-.env
-.env.local
-ibkr_dash_backend/.env
-ibkr_dash_worker/.env
+# Config (sensitive credentials — use config.example.json as template)
+data/config.json
+data/audit/
 
 # Data
 data/

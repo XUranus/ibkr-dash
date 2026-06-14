@@ -192,10 +192,13 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexParseResult]:
             report_date=report_date,
         )
 
-        # Parse OpenPositions
+        # Parse OpenPositions (SUMMARY only — skip LOT-level duplicates)
         for pos in stmt.findall(".//OpenPositions/OpenPosition"):
             symbol = pos.get("symbol", "")
             if not symbol:
+                continue
+            level = pos.get("levelOfDetail", "")
+            if level and level.upper() != "SUMMARY":
                 continue
             currency = pos.get("currency", "USD")
             fx_rate = _safe_float(pos.get("fxRateToBase"), 1.0)
@@ -221,6 +224,10 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexParseResult]:
                 avg_cost = avg_cost / OPTION_MULTIPLIER if avg_cost > 0 else avg_cost
                 cost_basis = cost_basis  # cost_basis is already total value
 
+            # NOTE: Do NOT trust IBKR's percentOfNAV — it is unreliable for
+            # options and some other instruments.  We compute it ourselves
+            # after all positions are collected (see nav patch below).
+
             result.positions.append({
                 "account_id": account_id,
                 "report_date": report_date,
@@ -237,7 +244,7 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexParseResult]:
                 "position_value": position_value,
                 "average_cost_price": avg_cost,
                 "cost_basis_money": cost_basis,
-                "percent_of_nav": _safe_float(pos.get("percentOfNAV")),
+                "percent_of_nav": 0.0,  # recomputed below
                 "fifo_pnl_unrealized": pnl_unrealized,
                 "total_unrealized_pnl": pnl_unrealized,
             })
@@ -394,6 +401,25 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexParseResult]:
                 "fifo_total_realized_pnl": 0,
                 "fifo_total_unrealized_pnl": mtm,
             }
+
+            # Recompute percent_of_nav using actual total equity.
+            # IBKR's percentOfNAV is unreliable for options and some other
+            # instruments (can report values > 100% or wildly incorrect).
+            if ending_value > 0:
+                for p in result.positions:
+                    p["percent_of_nav"] = round(
+                        (p["position_value"] / ending_value) * 100, 2
+                    )
+
+        # Fallback: if no ChangeInNAV was found (ending_value still 0),
+        # compute percent_of_nav from sum of absolute position values.
+        if result.positions:
+            total_abs = sum(abs(p["position_value"]) for p in result.positions)
+            if total_abs > 0 and all(p["percent_of_nav"] == 0 for p in result.positions):
+                for p in result.positions:
+                    p["percent_of_nav"] = round(
+                        (p["position_value"] / total_abs) * 100, 2
+                    )
 
         logger.info(
             "Parsed Flex XML for %s on %s: %d positions, %d trades, %d cash flows",

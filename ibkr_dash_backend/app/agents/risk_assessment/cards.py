@@ -9,6 +9,8 @@ from app.utils.dates import now_iso
 
 
 class RiskLevel:
+    """Enumeration of risk severity levels used across risk assessment cards."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -34,6 +36,7 @@ class ConcentrationRiskCard:
     created_at: str = ""
 
     def to_dict(self) -> dict:
+        """Return a plain dict of all card fields."""
         return {k: v for k, v in self.__dict__.items()}
 
 
@@ -58,6 +61,7 @@ class SectorThemeExposureCard:
     created_at: str = ""
 
     def to_dict(self) -> dict:
+        """Return a plain dict of all card fields."""
         return {k: v for k, v in self.__dict__.items()}
 
 
@@ -81,6 +85,7 @@ class StressTestCard:
     created_at: str = ""
 
     def to_dict(self) -> dict:
+        """Return a plain dict of all card fields."""
         return {k: v for k, v in self.__dict__.items()}
 
 
@@ -114,6 +119,14 @@ def classify_symbol_theme(symbol: str) -> dict[str, bool]:
 
 
 def build_fallback_concentration_card(reason: str) -> ConcentrationRiskCard:
+    """Build a fallback concentration card when the real assessment fails.
+
+    Args:
+        reason: Short explanation of why the assessment could not be completed.
+
+    Returns:
+        A ConcentrationRiskCard with placeholder values and low evidence quality.
+    """
     return ConcentrationRiskCard(
         summary=f"Concentration risk assessment unavailable: {reason[:100]}",
         score=12, risk_level=RiskLevel.MEDIUM, evidence_quality="low",
@@ -123,6 +136,14 @@ def build_fallback_concentration_card(reason: str) -> ConcentrationRiskCard:
 
 
 def build_fallback_sector_theme_card(reason: str) -> SectorThemeExposureCard:
+    """Build a fallback sector/theme exposure card when the real assessment fails.
+
+    Args:
+        reason: Short explanation of why the assessment could not be completed.
+
+    Returns:
+        A SectorThemeExposureCard with placeholder values and low evidence quality.
+    """
     return SectorThemeExposureCard(
         summary=f"Sector/theme exposure assessment unavailable: {reason[:100]}",
         score=10, risk_level=RiskLevel.MEDIUM, evidence_quality="low",
@@ -132,6 +153,14 @@ def build_fallback_sector_theme_card(reason: str) -> SectorThemeExposureCard:
 
 
 def build_fallback_stress_test_card(reason: str) -> StressTestCard:
+    """Build a fallback stress test card when the real assessment fails.
+
+    Args:
+        reason: Short explanation of why the assessment could not be completed.
+
+    Returns:
+        A StressTestCard with placeholder values and low evidence quality.
+    """
     return StressTestCard(
         summary=f"Stress test assessment unavailable: {reason[:100]}",
         score=10, risk_level=RiskLevel.MEDIUM, evidence_quality="low",

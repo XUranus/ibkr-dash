@@ -62,7 +62,7 @@ button, input, textarea, select { font: inherit; }
   margin: 0 0 var(--space-1);
   color: var(--color-accent);
   font-family: var(--font-mono);
-  font-size: 0.625rem;
+  font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.15em;
   text-transform: uppercase;
@@ -70,7 +70,7 @@ button, input, textarea, select { font: inherit; }
 
 .panel-title {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: 1rem;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--color-text-bright);
@@ -79,7 +79,7 @@ button, input, textarea, select { font: inherit; }
 .panel-subtitle {
   margin: 4px 0 0;
   color: var(--color-text-secondary);
-  font-size: 0.8rem;
+  font-size: 0.9rem;
 }
 
 .section-header {
@@ -115,7 +115,7 @@ button, input, textarea, select { font: inherit; }
 
 .account-strip__label {
   font-family: var(--font-mono);
-  font-size: 0.6rem;
+  font-size: 0.72rem;
   font-weight: 500;
   color: var(--color-text-muted);
   letter-spacing: 0.08em;
@@ -124,7 +124,7 @@ button, input, textarea, select { font: inherit; }
 
 .account-strip__value {
   font-family: var(--font-mono);
-  font-size: 0.82rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--color-text-bright);
   font-variant-numeric: tabular-nums;
@@ -153,7 +153,7 @@ button, input, textarea, select { font: inherit; }
 .field-stack__label {
   color: var(--color-text-muted);
   font-family: var(--font-mono);
-  font-size: 0.625rem;
+  font-size: 0.72rem;
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -173,7 +173,7 @@ button, input, textarea, select { font: inherit; }
 
 .summary-title {
   margin: 0 0 var(--space-2);
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--color-text-bright);
 }
@@ -199,7 +199,7 @@ button, input, textarea, select { font: inherit; }
 .summary-list__meta p, .summary-list__value span {
   margin: 0;
   color: var(--color-text-secondary);
-  font-size: 0.78rem;
+  font-size: 0.88rem;
 }
 
 .summary-list__value { display: grid; justify-items: end; gap: 2px; }
@@ -218,7 +218,7 @@ button, input, textarea, select { font: inherit; }
   border: 1px dashed var(--color-border);
   color: var(--color-text-muted);
   background: var(--color-bg-elevated);
-  font-size: 0.82rem;
+  font-size: 0.9rem;
 }
 
 /* ── Table ── */
@@ -234,7 +234,7 @@ button, input, textarea, select { font: inherit; }
 
 .terminal-note {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   color: var(--color-text-muted);
   letter-spacing: 0.02em;
 }
@@ -255,7 +255,7 @@ button, input, textarea, select { font: inherit; }
   background: var(--color-bg-elevated);
   color: var(--color-text-secondary);
   font-family: var(--font-mono);
-  font-size: 0.625rem;
+  font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -285,7 +285,7 @@ button, input, textarea, select { font: inherit; }
   line-height: 1;
   white-space: nowrap;
   font-weight: 500;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   letter-spacing: 0.01em;
 }
 
@@ -321,7 +321,7 @@ button, input, textarea, select { font: inherit; }
 .btn--sm {
   min-height: 26px;
   padding: 0.25rem 0.5rem;
-  font-size: 0.72rem;
+  font-size: 0.82rem;
 }
 
 /* ── Inputs ── */
@@ -334,7 +334,7 @@ button, input, textarea, select { font: inherit; }
   background: var(--color-bg-elevated);
   color: var(--color-text-primary);
   outline: none;
-  font-size: 0.82rem;
+  font-size: 0.9rem;
 }
 
 .input::placeholder { color: var(--color-text-muted); }
@@ -356,7 +356,7 @@ button, input, textarea, select { font: inherit; }
   border-bottom: 1px solid var(--color-border-strong);
   color: var(--color-text-muted);
   font-family: var(--font-mono);
-  font-size: 0.625rem;
+  font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -382,7 +382,7 @@ button, input, textarea, select { font: inherit; }
   vertical-align: middle;
   white-space: nowrap;
   text-align: left;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
 }
 
 .data-table tbody tr:last-child td { border-bottom: 0; }
@@ -395,14 +395,14 @@ button, input, textarea, select { font: inherit; }
   font-family: var(--font-mono);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
-  font-size: 0.78rem;
+  font-size: 0.88rem;
 }
 
 .table-symbol { display: grid; gap: 0.1rem; min-width: 0; }
 .table-symbol__code {
   font-family: var(--font-mono);
   font-weight: 600;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   letter-spacing: 0.03em;
   color: var(--color-text-bright);
   overflow: hidden;
@@ -410,7 +410,7 @@ button, input, textarea, select { font: inherit; }
 }
 .table-symbol__desc {
   color: var(--color-text-muted);
-  font-size: 0.7rem;
+  font-size: 0.82rem;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -434,7 +434,7 @@ button, input, textarea, select { font: inherit; }
   padding: 0;
 }
 
-.sort-button__indicator { color: var(--color-accent); font-size: 0.8rem; }
+.sort-button__indicator { color: var(--color-accent); font-size: 0.9rem; }
 
 /* ── Select ── */
 .select {
@@ -447,7 +447,7 @@ button, input, textarea, select { font: inherit; }
   color: var(--color-text-primary);
   outline: none;
   appearance: none;
-  font-size: 0.82rem;
+  font-size: 0.9rem;
 }
 
 /* ── Admin tabs ── */
@@ -462,7 +462,7 @@ button, input, textarea, select { font: inherit; }
   min-height: 32px;
   padding: 0 12px;
   border-radius: var(--radius-sm);
-  font-size: 0.78rem;
+  font-size: 0.88rem;
   font-weight: 500;
 }
 
@@ -481,7 +481,7 @@ button, input, textarea, select { font: inherit; }
   gap: 0.75rem;
   padding: 0.5rem 0 0;
   color: var(--color-text-secondary);
-  font-size: 0.78rem;
+  font-size: 0.88rem;
 }
 
 .pager__pages { display: flex; gap: 0.25rem; }
@@ -497,7 +497,7 @@ button, input, textarea, select { font: inherit; }
   background: var(--color-bg-elevated);
   color: var(--color-text-secondary);
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   cursor: pointer;
 }
 
@@ -574,7 +574,7 @@ button, input, textarea, select { font: inherit; }
   background: var(--color-bg-elevated);
   color: var(--color-text-secondary);
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   cursor: pointer;
 }
 
@@ -618,6 +618,7 @@ button, input, textarea, select { font: inherit; }
 
 @media (max-width: 900px) {
   .summary-layout { grid-template-columns: 1fr; }
+  .list-detail-layout { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 768px) {
@@ -629,6 +630,13 @@ button, input, textarea, select { font: inherit; }
   .account-strip__item { padding: 6px 10px; }
 }
 
+/* ── Two-column list+detail layout ── */
+.list-detail-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: var(--space-4);
+}
+
 /* ── Copilot Markdown rendering ── */
 .copilot-markdown h1,
 .copilot-markdown h2,
@@ -638,9 +646,9 @@ button, input, textarea, select { font: inherit; }
   margin: 0.5em 0 0.25em;
   font-weight: 600;
 }
-.copilot-markdown h1 { font-size: 1.05rem; }
-.copilot-markdown h2 { font-size: 0.95rem; }
-.copilot-markdown h3 { font-size: 0.88rem; }
+.copilot-markdown h1 { font-size: 1.15rem; }
+.copilot-markdown h2 { font-size: 1.05rem; }
+.copilot-markdown h3 { font-size: 0.95rem; }
 
 .copilot-markdown p {
   margin: 0.3em 0;
@@ -684,7 +692,7 @@ button, input, textarea, select { font: inherit; }
   width: 100%;
   border-collapse: collapse;
   margin: 0.4em 0;
-  font-size: 0.78rem;
+  font-size: 0.88rem;
 }
 
 .copilot-markdown thead th {
@@ -692,7 +700,7 @@ button, input, textarea, select { font: inherit; }
   border-bottom: 1px solid var(--color-border-strong);
   color: var(--color-text-muted);
   font-family: var(--font-mono);
-  font-size: 0.65rem;
+  font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;

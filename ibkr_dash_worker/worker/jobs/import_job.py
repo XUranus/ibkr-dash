@@ -116,6 +116,7 @@ def import_flex_file(
 def import_all_archived(
     data_dir: Path | str | None = None,
     sqlite_path: str | None = None,
+    force: bool = False,
 ) -> dict[str, dict[str, int]]:
     """Import all unprocessed Flex files from the data directory.
 
@@ -125,6 +126,7 @@ def import_all_archived(
     Args:
         data_dir: Directory to scan. Defaults to settings.data_dir.
         sqlite_path: SQLite database path. Defaults to settings.sqlite_path.
+        force: If True, re-import all files ignoring the tracking file.
 
     Returns:
         Dict mapping filename to import result counts.
@@ -134,7 +136,7 @@ def import_all_archived(
     writer = SQLiteWriter(sqlite_path or settings.sqlite_path)
     writer.init_schema()
 
-    imported_names = _get_imported_files(data_dir)
+    imported_names = set() if force else _get_imported_files(data_dir)
     all_results: dict[str, dict[str, int]] = {}
 
     # Scan for all supported file types, excluding the tracking file

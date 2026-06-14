@@ -28,8 +28,9 @@ export async function fetchDailyPositionReviewDates(limit = 60): Promise<string[
   return response.items ?? []
 }
 
-export function fetchDailyPositionReview(reportDate: string): Promise<DailyPositionReviewResult> {
-  return request<DailyPositionReviewResult>(`/api/daily-position-review/reviews/${encodeURIComponent(reportDate)}`)
+export async function fetchDailyPositionReview(reportDate: string): Promise<DailyPositionReviewResult> {
+  const raw = await request<Record<string, unknown>>(`/api/daily-position-review/reviews/${encodeURIComponent(reportDate)}`)
+  return normalizeDailyReviewResponse(raw)
 }
 
 export async function fetchRecentDailyPositionReviews(limit = 20): Promise<DailyPositionReviewResult[]> {
@@ -39,9 +40,19 @@ export async function fetchRecentDailyPositionReviews(limit = 20): Promise<Daily
   return response.items ?? []
 }
 
-export function startDailyPositionReviewTask(reportDate: string): Promise<DailyPositionReviewResult> {
-  return request<DailyPositionReviewResult>('/api/daily-position-review/generate', {
+export async function startDailyPositionReviewTask(reportDate: string): Promise<DailyPositionReviewResult> {
+  const raw = await request<Record<string, unknown>>('/api/daily-position-review/generate', {
     method: 'POST',
     body: JSON.stringify({ report_date: reportDate }),
   })
+  return normalizeDailyReviewResponse(raw)
+}
+
+/** Flatten the backend response: merge review_output fields to top level. */
+function normalizeDailyReviewResponse(raw: Record<string, unknown>): DailyPositionReviewResult {
+  const output = raw.review_output
+  const flattened = typeof output === 'object' && output !== null
+    ? { ...raw, ...(output as Record<string, unknown>) }
+    : raw
+  return flattened as unknown as DailyPositionReviewResult
 }

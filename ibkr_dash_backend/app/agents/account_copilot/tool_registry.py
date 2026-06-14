@@ -30,18 +30,50 @@ class AccountCopilotToolRegistry:
         self._tools: dict[str, AccountCopilotToolSpec] = {}
 
     def register(self, spec: AccountCopilotToolSpec) -> None:
+        """Register a tool spec in the registry.
+
+        Args:
+            spec: The tool specification to add, keyed by its name.
+        """
         self._tools[spec.name] = spec
 
     def list_specs(self) -> list[AccountCopilotToolSpec]:
+        """Return all registered tool specs.
+
+        Returns:
+            A list of every registered AccountCopilotToolSpec.
+        """
         return list(self._tools.values())
 
     def list_exposed_specs(self) -> list[AccountCopilotToolSpec]:
+        """Return specs for tools that should be exposed to the LLM.
+
+        Returns:
+            A list of tool specs visible to the planner.
+        """
         return self.list_specs()
 
     def get(self, name: str) -> AccountCopilotToolSpec | None:
+        """Look up a tool spec by name.
+
+        Args:
+            name: The registered tool name.
+
+        Returns:
+            The matching spec, or None if not found.
+        """
         return self._tools.get(name)
 
     def to_openai_tools(self, tool_names: list[str] | None = None) -> list[dict]:
+        """Convert registered tools to the OpenAI function-calling format.
+
+        Args:
+            tool_names: Optional subset of tool names to include. If None,
+                all registered tools are included.
+
+        Returns:
+            A list of dicts in the OpenAI tool-call schema.
+        """
         names = tool_names or list(self._tools.keys())
         tools = []
         for name in names:

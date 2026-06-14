@@ -16,12 +16,12 @@ export function fetchTradeReviewHealth(): Promise<TradeReviewHealth> {
   return request<TradeReviewHealth>('/api/trade-review/health')
 }
 
-export function startSymbolReviewTask(payload: {
+export async function startSymbolReviewTask(payload: {
   symbol: string
   start_date?: string
   end_date?: string
 }): Promise<TradeReviewResult> {
-  return request<TradeReviewResult>('/api/trade-review/review', {
+  const raw = await request<Record<string, unknown>>('/api/trade-review/review', {
     method: 'POST',
     body: JSON.stringify({
       symbol: payload.symbol,
@@ -29,13 +29,15 @@ export function startSymbolReviewTask(payload: {
       end_date: payload.end_date || undefined,
     }),
   })
+  return normalizeTradeReviewResponse(raw)
 }
 
-export function startSingleTradeReviewTask(tradeId: string, symbol: string): Promise<TradeReviewResult> {
-  return request<TradeReviewResult>('/api/trade-review/review', {
+export async function startSingleTradeReviewTask(tradeId: string, symbol: string): Promise<TradeReviewResult> {
+  const raw = await request<Record<string, unknown>>('/api/trade-review/review', {
     method: 'POST',
     body: JSON.stringify({ symbol, trade_id: tradeId }),
   })
+  return normalizeTradeReviewResponse(raw)
 }
 
 export async function fetchRecentTradeReviews(params: { limit?: number; symbol?: string; review_type?: string } = {}): Promise<TradeReviewResult[]> {
@@ -43,8 +45,18 @@ export async function fetchRecentTradeReviews(params: { limit?: number; symbol?:
   return response.items ?? []
 }
 
-export function fetchTradeReviewDetail(reviewId: string): Promise<TradeReviewResult> {
-  return request<TradeReviewResult>(`/api/trade-review/reviews/${encodeURIComponent(reviewId)}`)
+export async function fetchTradeReviewDetail(reviewId: string): Promise<TradeReviewResult> {
+  const raw = await request<Record<string, unknown>>(`/api/trade-review/reviews/${encodeURIComponent(reviewId)}`)
+  return normalizeTradeReviewResponse(raw)
+}
+
+/** Flatten the backend response: merge review_output fields to top level. */
+function normalizeTradeReviewResponse(raw: Record<string, unknown>): TradeReviewResult {
+  const output = raw.review_output
+  const flattened = typeof output === 'object' && output !== null
+    ? { ...raw, ...(output as Record<string, unknown>) }
+    : raw
+  return flattened as unknown as TradeReviewResult
 }
 
 export function fetchTradeReviewReport(reviewId: string, lang: string = 'zh'): Promise<{ report: string }> {

@@ -27,6 +27,7 @@ class AgentTool:
     handler: Callable[..., Any]
 
     def to_openai_tool(self) -> dict[str, Any]:
+        """Convert this tool definition to the OpenAI function-calling schema."""
         return {
             "type": "function",
             "function": {

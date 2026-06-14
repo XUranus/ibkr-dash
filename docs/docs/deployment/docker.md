@@ -74,40 +74,24 @@ graph TB
 
 ## Quick Start
 
-### 1. Create the `.env` file
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` with your configuration. At minimum:
-
-```env
-LLM_API_KEY=your-api-key
-FLEX_TOKEN=your-flex-token
-AUTH_PASSWORD=your-password
-```
-
-### 2. Build and start
+### 1. Build and start
 
 ```bash
 docker compose up --build -d
 ```
 
-### 3. Initialize the database
-
-```bash
-# Run init-db inside the worker container
-docker compose exec worker python -m worker.main init-db
-```
-
-### 4. Access the application
+### 2. Access the application
 
 | Service | URL |
 |---------|-----|
 | Frontend | `http://localhost:8080` |
+| Admin Settings | `http://localhost:8080/admin/settings` |
 | Backend API | `http://localhost:8080/api/health` |
 | API Docs | `http://localhost:8000/docs` (direct backend access) |
+
+### 3. Configure
+
+Open **http://localhost:8080/admin/settings** and set your LLM API key, Flex token, and other settings. Changes take effect immediately.
 
 ---
 
@@ -125,7 +109,6 @@ backend:
     - "${BACKEND_PORT:-8000}:8000"
   volumes:
     - backend-data:/app/ibkr_dash_backend/data
-  env_file: .env
   environment:
     - SQLITE_PATH=/app/ibkr_dash_backend/data/ibkr_dash.db
     - APP_ENV=${APP_ENV:-docker}
@@ -146,7 +129,6 @@ worker:
     dockerfile: docker/worker.Dockerfile
   volumes:
     - backend-data:/app/ibkr_dash_backend/data
-  env_file: .env
   environment:
     - SQLITE_PATH=/app/ibkr_dash_backend/data/ibkr_dash.db
   restart: unless-stopped
@@ -301,9 +283,11 @@ docker compose exec backend bash
 
 ---
 
-## Environment Variables
+## Configuration
 
-All environment variables from `.env` are passed to the backend and worker containers. Key overrides in `docker-compose.yml`:
+All configuration is managed via the Admin Settings UI at `http://localhost:8080/admin/settings`. The config is stored in `data/config.json` inside the `backend-data` Docker volume.
+
+Docker-specific overrides in `docker-compose.yml`:
 
 | Variable | Docker Default | Description |
 |----------|---------------|-------------|
@@ -319,9 +303,8 @@ All environment variables from `.env` are passed to the backend and worker conta
 ### Containers keep restarting
 
 Check logs: `docker compose logs backend`. Common causes:
-- Missing `.env` file
-- Invalid environment variables
 - Port conflicts on the host
+- Invalid configuration values
 
 ### Database not persisting
 
@@ -333,4 +316,4 @@ The backend container may not be ready yet. Wait a few seconds and refresh. Chec
 
 ### Worker not importing data
 
-Check worker logs: `docker compose logs worker`. Ensure `FLEX_TOKEN` and `FLEX_QUERY_ID_DAILY` are set in `.env`.
+Check worker logs: `docker compose logs worker`. Ensure the Flex token and query IDs are configured in Admin Settings → IBKR Flex.

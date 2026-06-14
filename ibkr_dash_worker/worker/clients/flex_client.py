@@ -43,7 +43,7 @@ class FlexClient:
         """Return the flex token or raise if not configured."""
         if not self.settings.flex_token:
             raise FlexClientError(
-                "FLEX_TOKEN is missing. Please fill FLEX_TOKEN in ibkr_dash_worker/.env before calling IBKR."
+                "FLEX_TOKEN is missing. Please configure it in Admin Settings → IBKR Flex."
             )
         return self.settings.flex_token
 

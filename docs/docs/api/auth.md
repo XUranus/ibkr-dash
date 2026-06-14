@@ -5,7 +5,7 @@ title: Authentication
 
 # Authentication API
 
-IBKR Dash uses HMAC-signed session tokens stored in `httpOnly` cookies for authentication. When `AUTH_PASSWORD` is not set in the environment, all endpoints are publicly accessible without login.
+IBKR Dash uses HMAC-signed session tokens stored in `httpOnly` cookies for authentication. When `auth.password` is empty in Admin Settings, all endpoints are publicly accessible without login.
 
 ---
 
@@ -110,7 +110,7 @@ curl -X POST http://localhost:8000/api/auth/login \
 
 ### When Auth Is Disabled
 
-If `AUTH_PASSWORD` is empty in your `.env` file, the login endpoint accepts **any** credentials and returns a valid session. This is convenient for local development but should never be used in production.
+If `auth.password` is empty in Admin Settings, the login endpoint accepts **any** credentials and returns a valid session. This is convenient for local development but should never be used in production.
 
 ---
 

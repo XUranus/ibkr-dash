@@ -268,10 +268,10 @@ This is useful for:
 | CSV parsing | csv (stdlib) | Multi-section Flex CSV parsing. |
 | XML parsing | xml.etree.ElementTree (stdlib) | Flex XML response parsing. |
 | Database | SQLite (stdlib) | Shared data store with backend. |
-| Configuration | dataclass + os.getenv (stdlib) | Environment variable loading. |
+| Configuration | SettingsManager (JSON) | Shared JSON config with backend. |
 
 :::info
-The worker has minimal external dependencies. Only `requests`, `APScheduler`, and optionally `python-dotenv` are third-party packages. Everything else uses Python standard library modules.
+The worker has minimal external dependencies. Only `requests` and `APScheduler` are third-party packages. Everything else uses Python standard library modules.
 :::
 
 ## Running in Docker
@@ -286,8 +286,8 @@ services:
     command: python -m worker.main run-scheduler
     volumes:
       - ./data:/app/data
-    env_file:
-      - .env
+    environment:
+      - SQLITE_PATH=/app/data/ibkr_dash.db
 ```
 
 The shared `data/` volume contains:
@@ -304,7 +304,7 @@ The shared `data/` volume contains:
 
 ### IBKR pull failing
 
-1. Verify `FLEX_TOKEN` is set correctly in `.env`.
+1. Verify the Flex token is configured in Admin Settings → IBKR Flex.
 2. Check that the Flex Query ID matches a valid query in IBKR.
 3. Review worker logs for `FlexClientError` messages.
 4. Ensure the IBKR Flex Web Service is accessible from your network.

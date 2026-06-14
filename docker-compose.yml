@@ -7,7 +7,6 @@ services:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - backend-data:/app/ibkr_dash_backend/data
-    env_file: .env
     environment:
       - SQLITE_PATH=/app/ibkr_dash_backend/data/ibkr_dash.db
       - APP_ENV=${APP_ENV:-docker}
@@ -19,7 +18,6 @@ services:
       dockerfile: docker/worker.Dockerfile
     volumes:
       - backend-data:/app/ibkr_dash_backend/data
-    env_file: .env
     environment:
       - SQLITE_PATH=/app/ibkr_dash_backend/data/ibkr_dash.db
     restart: unless-stopped

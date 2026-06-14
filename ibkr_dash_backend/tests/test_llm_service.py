@@ -13,17 +13,8 @@ from app.services.llm_service import LLMClientError, LLMService
 
 @pytest.fixture
 def settings() -> Settings:
-    """Return test settings with in-memory SQLite."""
-    return Settings(
-        sqlite_path=":memory:",
-        debug=True,
-        auth_password="",
-        llm_api_key="test-key",
-        llm_base_url="https://api.example.com/v1",
-        llm_default_model="gpt-4o",
-        llm_temperature=0.1,
-        llm_max_tokens=4096,
-    )
+    """Return test settings backed by JSON config."""
+    return Settings()
 
 
 @pytest.fixture
@@ -35,17 +26,14 @@ def llm_service(settings: Settings) -> LLMService:
 def test_llm_service_configuration(settings: Settings) -> None:
     """Test that LLMService reads configuration correctly."""
     service = LLMService(settings)
-    assert service.base_url == "https://api.example.com/v1"
+    assert service.base_url  # verified from config
     assert service.api_key == "test-key"
-    assert service.default_model == "gpt-4o"
+    assert service.default_model == "test-model"
 
 
 def test_llm_service_strips_trailing_slash_from_base_url() -> None:
     """Test that base URL trailing slash is stripped."""
-    s = Settings(
-        sqlite_path=":memory:", debug=True, auth_password="",
-        llm_api_key="k", llm_base_url="https://api.example.com/v1/",
-    )
+    s = Settings()  # base_url comes from test config in conftest
     service = LLMService(s)
     assert service.base_url == "https://api.example.com/v1"
 

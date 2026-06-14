@@ -15,7 +15,8 @@ ibkr_dash_backend/
   app/
     main.py                 # FastAPI app factory, middleware, router registration
     core/
-      config.py             # pydantic-settings configuration
+      config.py             # JSON-backed settings accessor
+      settings_manager.py   # Thread-safe JSON config store
       database.py           # SQLite connection, schema DDL, Database class
       auth.py               # HMAC session token helpers
       cors.py               # CORS configuration
@@ -156,7 +157,7 @@ The backend and worker share the same SQLite file. The worker writes IBKR data; 
 
 When the FastAPI app starts (via the `lifespan` context manager), it:
 
-1. Loads settings from environment variables / `.env`
+1. Loads settings from `data/config.json` via `SettingsManager`
 2. Sets up logging
 3. Initializes the SQLite database schema (creates tables and indexes if they do not exist)
 
@@ -180,7 +181,7 @@ The `init_database()` function (in `app/core/database.py`) runs the full DDL sch
 |-----------|-----------|---------|
 | Web framework | FastAPI | Async REST API with automatic OpenAPI docs. |
 | Validation | Pydantic v2 | Request/response schema validation. |
-| Configuration | pydantic-settings | Environment variable loading with type coercion. |
+| Configuration | SettingsManager (JSON) | Thread-safe JSON config with admin UI. |
 | Database | SQLite (stdlib) | Zero-config embedded database with WAL mode. |
 | HTTP client | httpx | Persistent connection pool for LLM API calls. |
 | Auth | HMAC-SHA256 (stdlib) | Lightweight session tokens without external deps. |

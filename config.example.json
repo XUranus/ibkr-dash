@@ -1,0 +1,56 @@
+{
+  "ibkr": {
+    "flex_token": "",
+    "flex_query_ids": "1532356,1532359",
+    "flex_base_url": "https://www.interactivebrokers.com/AccountManagement/FlexWebService",
+    "flex_poll_interval_seconds": 10,
+    "flex_max_poll_retries": 60
+  },
+  "llm": {
+    "api_key": "",
+    "base_url": "https://api.openai.com/v1",
+    "default_model": "gpt-4o",
+    "temperature": 0.1,
+    "max_tokens": 8192,
+    "bls_api_key": ""
+  },
+  "scheduler": {
+    "enabled": true,
+    "hour": 12,
+    "minute": 30,
+    "timezone": "Asia/Shanghai"
+  },
+  "auth": {
+    "username": "admin",
+    "password": "",
+    "cookie_secure": false
+  },
+  "email": {
+    "smtp_host": "",
+    "smtp_port": 587,
+    "smtp_username": "",
+    "smtp_password": "",
+    "from_address": "",
+    "to_addresses": [],
+    "enabled": false
+  },
+  "longbridge": {
+    "app_key": "",
+    "app_secret": "",
+    "access_token": ""
+  },
+  "advanced": {
+    "app_name": "IBKR Dash",
+    "app_env": "development",
+    "debug": false,
+    "sqlite_path": "data/ibkr_dash.db",
+    "log_level": "INFO",
+    "cors_origins": "http://localhost:5173",
+    "data_dir": "data/flex_exports",
+    "cache_ttl_seconds": 86400
+  },
+  "worker": {
+    "backend_base_url": "http://localhost:8000",
+    "daily_review_internal_token": ""
+  }
+}

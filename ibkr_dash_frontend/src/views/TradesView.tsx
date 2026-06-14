@@ -53,9 +53,8 @@ export default function TradesView() {
 
   function onPageChange(newPage: number) {
     setState((s) => ({ ...s, page: newPage }))
+    void loadTrades()
   }
-
-  useEffect(() => { void loadTrades() }, [state.page])
 
   const tradeItems = tradeResponse?.items ?? []
   const pagination = tradeResponse?.pagination

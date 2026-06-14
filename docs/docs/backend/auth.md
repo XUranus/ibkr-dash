@@ -18,8 +18,11 @@ sequenceDiagram
     participant API as /api/auth/login
     participant Auth as auth.py
     participant DB as Settings
+    participant RateLimit as Rate Limiter
 
     Browser->>API: POST { username, password }
+    API->>RateLimit: Check rate limit (IP-based)
+    RateLimit-->>API: OK or 429 Too Many Requests
     API->>DB: Read AUTH_PASSWORD
 
     alt AUTH_PASSWORD is empty
@@ -31,14 +34,40 @@ sequenceDiagram
         API->>API: secrets.compare_digest(username, stored)
         API->>API: secrets.compare_digest(password, stored)
         alt Credentials match
+            API->>RateLimit: Clear failed attempts
             API->>Auth: create_session_token(username)
             Auth-->>API: signed token
             API->>Browser: Set-Cookie: ibkr_dash_session=<token>
             API-->>Browser: { authenticated: true, username: "admin" }
         else Credentials wrong
+            API->>RateLimit: Record failed attempt
             API-->>Browser: 401 Unauthorized
         end
     end
+```
+
+## Rate Limiting
+
+Login attempts are rate-limited per IP address using a **SQLite-backed** sliding window:
+
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| `MAX_ATTEMPTS` | 5 | Maximum failed attempts before blocking |
+| `WINDOW_SECONDS` | 300 | Time window for counting attempts (5 minutes) |
+| `BLOCK_SECONDS` | 900 | Block duration after exceeding limit (15 minutes) |
+
+The rate limiter state is stored in the `login_attempts` SQLite table, so it **persists across server restarts**.
+
+```python
+# From app/api/routes/auth.py
+def _check_rate_limit(ip: str) -> None:
+    """Raise 429 if IP is rate-limited."""
+    row = db.execute_one(
+        "SELECT fail_count, first_fail FROM login_attempts WHERE ip = ?",
+        (ip,),
+    )
+    if row and row["fail_count"] >= _MAX_ATTEMPTS:
+        raise HTTPException(status_code=429, detail="Too many login attempts.")
 ```
 
 ## HMAC Session Tokens
@@ -84,8 +113,8 @@ The session cookie is named `ibkr_dash_session` and is set with these attributes
 | Attribute | Value | Purpose |
 |-----------|-------|---------|
 | `httponly` | `true` | Prevents JavaScript access (XSS protection). |
-| `samesite` | `lax` | CSRF protection for top-level navigations. |
-| `secure` | `false` | Set to `true` in production with HTTPS. |
+| `samesite` | `strict` | CSRF protection (blocks cross-site cookie sending). |
+| `secure` | auto | `true` in production, `false` in development. |
 | `path` | `/` | Cookie is sent for all paths. |
 | `max_age` | `604800` | 7 days. |
 
@@ -175,7 +204,7 @@ The logout endpoint simply deletes the cookie:
 # From app/api/routes/auth.py
 @router.post("/logout")
 def logout(response: Response) -> SessionResponse:
-    response.delete_cookie(key=SESSION_COOKIE_NAME, path="/", samesite="lax")
+    response.delete_cookie(key=SESSION_COOKIE_NAME, path="/", samesite="strict")
     return SessionResponse(authenticated=False)
 ```
 
@@ -204,7 +233,9 @@ The session check endpoint does not raise 401 -- it always returns a response in
 - **Token expiration** is checked on every verification (7-day default).
 - **Timing-safe comparison** prevents side-channel attacks on credentials.
 - **httpOnly cookies** prevent XSS from stealing session tokens.
-- **SameSite=lax** provides CSRF protection for top-level navigations.
+- **SameSite=strict** provides strong CSRF protection (blocks all cross-site cookie sending).
+- **Secure flag** is automatically set to `true` in production environments.
+- **Rate limiting** prevents brute-force attacks (SQLite-backed, persists across restarts).
 
 ## Token Internals
 
@@ -246,12 +277,7 @@ If you need multi-user support or third-party token verification, consider switc
 
 ## Disabling Authentication
 
-To run the dashboard without any login (e.g., for local development), leave `AUTH_PASSWORD` empty:
-
-```bash
-# .env
-AUTH_PASSWORD=
-```
+To run the dashboard without any login (e.g., for local development), leave `auth.password` empty in Admin Settings.
 
 When auth is disabled:
 - `get_current_user()` returns `None` for all requests.

@@ -23,6 +23,7 @@ def list_trades(
     service: TradeService = Depends(get_trade_service),
     _user: str | None = Depends(get_current_user),
 ) -> TradeListResponse:
+    """Return a paginated list of trade execution records."""
     try:
         return service.list_trades(
             start_date=start_date,
@@ -49,6 +50,7 @@ def get_trade_summary(
     service: TradeService = Depends(get_trade_service),
     _user: str | None = Depends(get_current_user),
 ) -> TradeSummaryResponse:
+    """Return aggregated trade metrics such as total volume and realized PnL."""
     try:
         return service.summarize_trades(
             start_date=start_date,

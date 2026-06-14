@@ -48,6 +48,7 @@ class StructuredOutputContract:
         error: StructuredOutputError,
         context: dict[str, Any] | None = None,
     ) -> list[dict[str, str]]:
+        """Build chat messages that ask the LLM to repair a failed output."""
         if self.repair_user_prompt_builder is not None:
             return self.repair_user_prompt_builder(self, raw_response, error, context)
         return build_default_repair_messages(self, raw_response=raw_response, error=error, context=context)
@@ -60,6 +61,7 @@ def build_default_repair_messages(
     error: StructuredOutputError,
     context: dict[str, Any] | None = None,
 ) -> list[dict[str, str]]:
+    """Build default repair chat messages from a contract and its error."""
     user_prompt = "\n".join([
         f"contract_name: {contract.name}",
         f"agent_name: {contract.agent_name}",

@@ -5,26 +5,15 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core.database import init_database
 from app.main import app
 
 
 @pytest.fixture(autouse=True)
-def setup_db(monkeypatch):
-    import app.core.database as db_mod
-    from app.core.config import get_settings
-
-    # Clear cached singletons so the monkeypatched env takes effect
-    db_mod._db_instance = None
-    get_settings.cache_clear()
-    monkeypatch.setenv("SQLITE_PATH", ":memory:")
-
-    # Create a fresh in-memory database with schema initialized
-    db_mod.init_database()
-
+def setup_db():
+    """Ensure DB is initialized for each test (conftest handles singleton resets)."""
+    init_database()
     yield
-
-    db_mod._db_instance = None
-    get_settings.cache_clear()
 
 
 client = TestClient(app)

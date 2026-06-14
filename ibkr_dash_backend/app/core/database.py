@@ -272,6 +272,10 @@ _MIGRATIONS = [
     "CREATE INDEX IF NOT EXISTS idx_position_analysis_date ON position_analysis(report_date)",
     "CREATE TABLE IF NOT EXISTS market_events (id TEXT PRIMARY KEY, event_type TEXT NOT NULL, category TEXT NOT NULL, title TEXT NOT NULL, title_en TEXT, scheduled_at TEXT NOT NULL, importance TEXT DEFAULT 'MEDIUM', source TEXT DEFAULT 'MANUAL', description TEXT, created_at TEXT DEFAULT (datetime('now')))",
     "CREATE INDEX IF NOT EXISTS idx_market_events_date ON market_events(scheduled_at)",
+    "CREATE TABLE IF NOT EXISTS import_history (id INTEGER PRIMARY KEY AUTOINCREMENT, run_at TEXT DEFAULT (datetime('now')), file_path TEXT NOT NULL, file_size INTEGER DEFAULT 0, status TEXT DEFAULT 'success', records_imported TEXT, error TEXT)",
+    "CREATE INDEX IF NOT EXISTS idx_import_history_run_at ON import_history(run_at DESC)",
+    "ALTER TABLE import_history ADD COLUMN started_at TEXT",
+    "ALTER TABLE import_history ADD COLUMN duration_ms INTEGER DEFAULT 0",
 ]
 
 

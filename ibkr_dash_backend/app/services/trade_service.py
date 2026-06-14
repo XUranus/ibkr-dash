@@ -21,6 +21,8 @@ TRADE_SORT_FIELDS = {
 
 
 class TradeService:
+    """Service for querying and filtering trade records."""
+
     def __init__(self, db: Database) -> None:
         self.db = db
 

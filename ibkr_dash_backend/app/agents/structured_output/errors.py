@@ -18,6 +18,7 @@ STRUCTURED_OUTPUT_UNKNOWN_ERROR = "STRUCTURED_OUTPUT_UNKNOWN_ERROR"
 
 
 def preview_text(value: Any, *, max_chars: int = 500) -> str | None:
+    """Return a truncated string preview of value, or None if value is None."""
     if value is None:
         return None
     text = str(value)
@@ -42,6 +43,7 @@ class StructuredOutputError(Exception):
         super().__init__(self.message)
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialise the error to a JSON-friendly dictionary."""
         return {
             "error_code": self.error_code,
             "message": self.message,

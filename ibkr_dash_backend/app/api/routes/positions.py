@@ -1,10 +1,10 @@
-"""Position list, summary, and detail endpoints — publicly accessible."""
+"""Position list, summary, and detail endpoints."""
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.api.deps import get_db, get_position_service
+from app.api.deps import get_current_user, get_db, get_position_service
 from app.core.database import Database
 from app.schemas.positions import PositionDetailResponse, PositionListResponse, PositionSummaryResponse
 from app.services.position_service import PositionService
@@ -15,6 +15,7 @@ router = APIRouter(prefix="/positions", tags=["positions"])
 @router.get("/realtime")
 def get_positions_realtime(
     db: Database = Depends(get_db),
+    _user: str | None = Depends(get_current_user),
 ) -> dict:
     """Return positions with computed change percentages for the treemap.
 
@@ -58,7 +59,9 @@ def list_positions(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=200),
     service: PositionService = Depends(get_position_service),
+    _user: str | None = Depends(get_current_user),
 ) -> PositionListResponse:
+    """Return a paginated list of portfolio positions."""
     try:
         return service.list_positions(
             report_date=report_date,
@@ -80,7 +83,9 @@ def get_positions_summary(
     symbol: str | None = Query(default=None),
     asset_class: str | None = Query(default=None),
     service: PositionService = Depends(get_position_service),
+    _user: str | None = Depends(get_current_user),
 ) -> PositionSummaryResponse:
+    """Return aggregated position metrics such as total value and PnL."""
     try:
         return service.get_positions_summary(
             report_date=report_date,
@@ -96,7 +101,9 @@ def get_position_detail(
     symbol: str,
     asset_class: str | None = Query(default=None),
     service: PositionService = Depends(get_position_service),
+    _user: str | None = Depends(get_current_user),
 ) -> PositionDetailResponse:
+    """Return detailed information for a single position by symbol."""
     try:
         return service.get_position_detail(symbol=symbol, asset_class=asset_class)
     except ValueError as exc:

@@ -9,6 +9,7 @@ import { fetchPositions, fetchPositionDetail, fetchRealtimePositions, type Realt
 import { useAccountOverview } from '@/hooks/useAccountOverview'
 import ErrorBlock from '@/components/ErrorBlock'
 import LoadingBlock from '@/components/LoadingBlock'
+import Modal from '@/components/Modal'
 import PieDistributionCard, { type PieSegmentItem } from '@/components/PieDistributionCard'
 import PositionAnalysisCard from '@/components/PositionAnalysisCard'
 import PositionTable from '@/components/PositionTable'
@@ -375,29 +376,26 @@ export default function PositionsView() {
         </>
       )}
 
-      {detailVisible && (
-        <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setDetailVisible(false) }}>
-          <section className="modal-dialog" style={{ width: 'min(1400px, 94vw)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h3 style={{ margin: 0 }}>{activeDetail?.symbol ? `${activeDetail.symbol} Detail` : t('positions.positionDetail')}</h3>
-              <button className="btn btn--ghost" onClick={() => setDetailVisible(false)}>{t('positions.close')}</button>
-            </div>
-            {detailLoading ? <LoadingBlock /> : detailError ? <ErrorBlock message={detailError} /> : (
-              <div style={{ color: 'var(--color-text-secondary)', minHeight: 200 }}>
-                {activeDetail?.detail ? (
-                  <div>
-                    <p><strong>{activeDetail.detail.symbol}</strong> - {activeDetail.detail.description}</p>
-                    <p>{t('positions.dailyBarsAndTradeMarkers', { bars: activeDetail.detail.bars.length, trades: activeDetail.detail.trades.length })}</p>
-                    <p style={{ fontSize: '0.85rem', marginTop: 8 }}>{t('positions.chartPlaceholder')}</p>
-                  </div>
-                ) : (
-                  <div className="empty-state">{t('positions.noDetailAvailable')}</div>
-                )}
+      <Modal
+        open={detailVisible}
+        onClose={() => setDetailVisible(false)}
+        title={activeDetail?.symbol ? `${activeDetail.symbol} Detail` : t('positions.positionDetail')}
+        width="min(1400px, 94vw)"
+      >
+        {detailLoading ? <LoadingBlock /> : detailError ? <ErrorBlock message={detailError} /> : (
+          <div style={{ color: 'var(--color-text-secondary)', minHeight: 200 }}>
+            {activeDetail?.detail ? (
+              <div>
+                <p><strong>{activeDetail.detail.symbol}</strong> - {activeDetail.detail.description}</p>
+                <p>{t('positions.dailyBarsAndTradeMarkers', { bars: activeDetail.detail.bars.length, trades: activeDetail.detail.trades.length })}</p>
+                <p style={{ fontSize: '0.85rem', marginTop: 8 }}>{t('positions.chartPlaceholder')}</p>
               </div>
+            ) : (
+              <div className="empty-state">{t('positions.noDetailAvailable')}</div>
             )}
-          </section>
-        </div>
-      )}
+          </div>
+        )}
+      </Modal>
     </section>
   )
 }

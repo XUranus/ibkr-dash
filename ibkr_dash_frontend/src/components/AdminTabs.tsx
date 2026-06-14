@@ -8,14 +8,10 @@ export default function AdminTabs() {
 
   const adminTabs = [
     { path: '/admin/settings', label: t('admin.settings') },
-    { path: '/admin/llm', label: t('admin.llm') },
-    { path: '/admin/ibkr', label: t('admin.ibkr') },
-    { path: '/admin/email', label: t('admin.email') },
-    { path: '/admin/longbridge-mcp', label: t('admin.longbridge') },
     { path: '/admin/system', label: t('admin.system') },
     { path: '/admin/agent-monitoring', label: t('admin.monitoring') },
+    { path: '/admin/scheduler', label: t('admin.scheduler') },
     { path: '/admin/prompts', label: t('admin.prompts') },
-    { path: '/admin/harness', label: t('admin.harness') },
   ]
 
   return (

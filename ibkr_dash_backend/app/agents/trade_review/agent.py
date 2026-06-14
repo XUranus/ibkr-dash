@@ -114,6 +114,7 @@ async def review_trade(
         "trade_facts": trade_facts,
         "raw_llm_response": result.raw_response if result.ok else "",
         "fallback_used": not result.ok,
+        "run_trace": result.trace if hasattr(result, "trace") else [],
         "prompt_metadata": {"trade_review_main": prompt_metadata},
         "verification": verification,
         "report_paths": report_paths,

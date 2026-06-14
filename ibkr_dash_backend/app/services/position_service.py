@@ -37,6 +37,8 @@ POSITION_COLUMNS = """
 
 
 class PositionService:
+    """Service for querying and filtering portfolio positions."""
+
     def __init__(self, db: Database) -> None:
         self.db = db
 

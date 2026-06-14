@@ -74,25 +74,21 @@ graph TB
 
 ## 快速开始
 
-### 1. 创建 `.env` 文件
-
-```bash
-cp .env.example .env
-```
-
-编辑 `.env` 配置。至少需要：
-
-```env
-LLM_API_KEY=your-api-key
-FLEX_TOKEN=your-flex-token
-AUTH_PASSWORD=your-password
-```
-
-### 2. 构建并启动
+### 1. 构建并启动
 
 ```bash
 docker compose up --build -d
 ```
+
+### 2. 配置应用
+
+打开 `http://localhost:8080`，进入 **Admin Settings**（`/admin/system`）页面，配置以下必填项：
+
+- **LLM API 密钥**（`/admin/llm`）-- AI 功能所需
+- **Flex Token 和 Query ID**（`/admin/ibkr`）-- 数据导入所需
+- **认证密码**（`/admin/system`）-- 保护您的财务数据
+
+配置存储在 `data/config.json` 中，持久化在 Docker 卷内。
 
 ### 3. 初始化数据库
 
@@ -125,10 +121,9 @@ backend:
     - "${BACKEND_PORT:-8000}:8000"
   volumes:
     - backend-data:/app/ibkr_dash_backend/data
-  env_file: .env
   environment:
     - SQLITE_PATH=/app/ibkr_dash_backend/data/ibkr_dash.db
-    - APP_ENV=${APP_ENV:-docker}
+    - APP_ENV=docker
   restart: unless-stopped
 ```
 
@@ -146,7 +141,6 @@ worker:
     dockerfile: docker/worker.Dockerfile
   volumes:
     - backend-data:/app/ibkr_dash_backend/data
-  env_file: .env
   environment:
     - SQLITE_PATH=/app/ibkr_dash_backend/data/ibkr_dash.db
   restart: unless-stopped
@@ -301,9 +295,9 @@ docker compose exec backend bash
 
 ---
 
-## 环境变量
+## 配置
 
-`.env` 中的所有环境变量都会传递给后端和 worker 容器。`docker-compose.yml` 中的关键覆盖：
+应用配置通过 **Admin Settings UI** 管理（前端 `/admin/system` 页面），配置存储在 `data/config.json` 中。`docker-compose.yml` 中的关键覆盖：
 
 | 变量 | Docker 默认值 | 说明 |
 |------|---------------|------|
@@ -319,8 +313,7 @@ docker compose exec backend bash
 ### 容器持续重启
 
 查看日志：`docker compose logs backend`。常见原因：
-- 缺少 `.env` 文件
-- 环境变量无效
+- `data/config.json` 中配置无效
 - 宿主机端口冲突
 
 ### 数据库未持久化
@@ -333,4 +326,4 @@ docker compose exec backend bash
 
 ### Worker 未导入数据
 
-查看 worker 日志：`docker compose logs worker`。确保 `.env` 中设置了 `FLEX_TOKEN` 和 `FLEX_QUERY_ID_DAILY`。
+查看 worker 日志：`docker compose logs worker`。确保通过 Admin Settings UI（`/admin/ibkr`）正确配置了 `FLEX_TOKEN` 和 `FLEX_QUERY_ID_DAILY`。

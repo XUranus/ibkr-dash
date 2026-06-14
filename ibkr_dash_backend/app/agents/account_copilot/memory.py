@@ -53,6 +53,7 @@ class AccountCopilotMemoryManager:
     """Builds and updates memory snapshots for Account Copilot runs."""
 
     def build_snapshot(self, *, session: dict, messages: list[dict]) -> dict:
+        """Return a lightweight memory snapshot from a session and its messages."""
         return {
             "session_id": session.get("id"),
             "rolling_summary": session.get("rolling_summary") or "",

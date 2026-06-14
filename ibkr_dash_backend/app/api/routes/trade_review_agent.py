@@ -20,7 +20,7 @@ from app.schemas.trade_review import (
     TradeReviewRequest,
     TradeReviewResponse,
 )
-from app.services.agent_services import AgentTaskService
+from app.services.agent_services import AgentTaskService, extract_trace_metrics
 from app.services.llm_service import LLMService
 from app.utils.json_fields import parse_json_fields
 
@@ -45,6 +45,8 @@ async def trigger_trade_review(
 ) -> TradeReviewResponse:
     """Trigger a trade review and return the result."""
     db = task_service.db
+    task = task_service.create_task(AGENT_NAME)
+    task_service.update_task_status(task["id"], "running")
 
     try:
         from app.agents.trade_review.agent import review_trade
@@ -57,16 +59,28 @@ async def trigger_trade_review(
         )
     except Exception as exc:
         logger.exception("Trade review failed: %s", exc)
+        task_service.update_task_status(task["id"], "failed", error=str(exc)[:2000])
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Trade review failed: {str(exc)[:300]}",
         ) from exc
 
     if result is None:
+        task_service.update_task_status(task["id"], "failed", error="No data available for the requested review")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="No data available for the requested review",
         )
+
+    trace = result.get("run_trace", []) if isinstance(result, dict) else []
+    if isinstance(trace, str):
+        try:
+            import json as _json
+            trace = _json.loads(trace)
+        except (ValueError, TypeError):
+            trace = []
+    progress = extract_trace_metrics(trace) if trace else {"step": "completed"}
+    task_service.update_task_status(task["id"], "completed", progress=progress, result={"symbol": request.symbol})
 
     if isinstance(result, dict):
         # Wrap the result for the response schema

@@ -15,7 +15,7 @@ ibkr_dash_backend/
   app/
     main.py                 # FastAPI 应用工厂、中间件、路由注册
     core/
-      config.py             # pydantic-settings 配置
+      config.py             # JSON 配置 (SettingsManager)
       database.py           # SQLite 连接、模式 DDL、Database 类
       auth.py               # HMAC 会话令牌辅助函数
       cors.py               # CORS 配置
@@ -156,7 +156,7 @@ CORS 中间件在开发期间至关重要。没有它，浏览器会因同源策
 
 当 FastAPI 应用启动时（通过 `lifespan` 上下文管理器），它：
 
-1. 从环境变量 / `.env` 加载设置
+1. 从 `data/config.json` 加载设置
 2. 设置日志
 3. 初始化 SQLite 数据库模式（如果不存在则创建表和索引）
 
@@ -180,7 +180,7 @@ async def lifespan(app: FastAPI):
 |------|------|------|
 | Web 框架 | FastAPI | 带自动 OpenAPI 文档的异步 REST API |
 | 验证 | Pydantic v2 | 请求/响应模式验证 |
-| 配置 | pydantic-settings | 带类型强制的环境变量加载 |
+| 配置 | JSON 配置 (SettingsManager) | JSON 配置文件加载 |
 | 数据库 | SQLite (stdlib) | 带 WAL 模式的零配置嵌入式数据库 |
 | HTTP 客户端 | httpx | LLM API 调用的持久连接池 |
 | 认证 | HMAC-SHA256 (stdlib) | 无外部依赖的轻量级会话令牌 |

@@ -9,7 +9,6 @@ from app.core.config import Settings
 from app.core.database import Database, init_database
 from app.services.chart_service import ChartService
 
-
 @pytest.fixture(autouse=True)
 def clear_cache():
     """Clear cache before each test to avoid cross-test pollution."""
@@ -20,18 +19,14 @@ def clear_cache():
 
 @pytest.fixture
 def settings() -> Settings:
-    """Return test settings with in-memory SQLite."""
-    return Settings(
-        sqlite_path=":memory:",
-        debug=True,
-        auth_password="",
-    )
-
+    return Settings()
 
 @pytest.fixture
 def db(settings: Settings) -> Database:
-    """Return an initialized in-memory database."""
     return init_database(settings)
+
+
+
 
 
 @pytest.fixture
@@ -67,7 +62,6 @@ def chart_service(db: Database) -> ChartService:
 
     return ChartService(db)
 
-
 def test_equity_curve_returns_items(chart_service: ChartService) -> None:
     """Test that equity curve returns data points."""
     result = chart_service.get_equity_curve(start_date=None, end_date=None)
@@ -75,13 +69,11 @@ def test_equity_curve_returns_items(chart_service: ChartService) -> None:
     assert result.items[0].report_date == "2026-04-15"
     assert result.items[-1].report_date == "2026-04-18"
 
-
 def test_equity_curve_filters_by_date(chart_service: ChartService) -> None:
     """Test that equity curve filters by date range."""
     result = chart_service.get_equity_curve(start_date="2026-04-17", end_date=None)
     assert len(result.items) == 2
     assert result.items[0].report_date == "2026-04-17"
-
 
 def test_equity_curve_computes_total_pnl(chart_service: ChartService) -> None:
     """Test that equity curve computes total PnL correctly."""
@@ -91,7 +83,6 @@ def test_equity_curve_computes_total_pnl(chart_service: ChartService) -> None:
     assert last.total_equity == 100000.0
     assert last.total_pnl == 50000.0
 
-
 def test_equity_curve_computes_net_cost(chart_service: ChartService) -> None:
     """Test that equity curve tracks net cost from cash flows."""
     result = chart_service.get_equity_curve(start_date=None, end_date=None)
@@ -99,13 +90,11 @@ def test_equity_curve_computes_net_cost(chart_service: ChartService) -> None:
     for item in result.items:
         assert item.net_cost == 50000.0
 
-
 def test_equity_curve_empty_when_no_data(db: Database) -> None:
     """Test that equity curve returns empty when no data exists."""
     service = ChartService(db)
     result = service.get_equity_curve(start_date=None, end_date=None)
     assert len(result.items) == 0
-
 
 def test_performance_calendar_month_view(chart_service: ChartService) -> None:
     """Test performance calendar with month view."""
@@ -121,7 +110,6 @@ def test_performance_calendar_month_view(chart_service: ChartService) -> None:
     data_days = [item for item in result.items if item.has_data]
     assert len(data_days) == 3
 
-
 def test_performance_calendar_year_view(chart_service: ChartService) -> None:
     """Test performance calendar with year view."""
     result = chart_service.get_performance_calendar(view="year", anchor="2026")
@@ -129,13 +117,11 @@ def test_performance_calendar_year_view(chart_service: ChartService) -> None:
     assert result.anchor == "2026"
     assert len(result.items) == 12  # 12 months
 
-
 def test_performance_calendar_all_years_view(chart_service: ChartService) -> None:
     """Test performance calendar with all-years view."""
     result = chart_service.get_performance_calendar(view="all-years", anchor=None)
     assert result.view == "all-years"
     assert result.anchor == "all"
-
 
 def test_performance_calendar_summary(chart_service: ChartService) -> None:
     """Test that performance calendar includes summary statistics."""
@@ -147,12 +133,10 @@ def test_performance_calendar_summary(chart_service: ChartService) -> None:
     # Day 4: cnav_mtm=1000, prev=1000 → daily=0
     assert result.summary.periods_with_data == 3
 
-
 def test_performance_calendar_invalid_view(chart_service: ChartService) -> None:
     """Test that invalid view raises ValueError."""
     with pytest.raises(ValueError, match="view must be one of"):
         chart_service.get_performance_calendar(view="invalid", anchor=None)
-
 
 def test_daily_mtm_from_twr_fallback(db: Database) -> None:
     """Test that daily MTM falls back to TWR-based computation.
@@ -189,7 +173,6 @@ def test_daily_mtm_from_twr_fallback(db: Database) -> None:
     assert items_by_date["2026-06-03"].pnl == -515.0
     assert items_by_date["2026-06-03"].has_data is True
 
-
 def test_daily_mtm_with_fund_transfer(db: Database) -> None:
     """Test daily MTM with fund transfer uses TWR-based computation.
 
@@ -220,7 +203,6 @@ def test_daily_mtm_with_fund_transfer(db: Database) -> None:
     assert day2.has_data is True
     assert day2.twr == -2.49
 
-
 def test_twr_from_db_preserved(db: Database) -> None:
     """Test that IBKR's TWR is preserved alongside daily MTM."""
     for date, equity, cummtm, twr_val in [
@@ -244,7 +226,6 @@ def test_twr_from_db_preserved(db: Database) -> None:
 
     # Day 2: TWR from DB (3.0) is preserved
     assert items_by_date["2026-06-02"].twr == 3.0
-
 
 def test_daily_mtm_from_change_in_unrealized(db: Database) -> None:
     """Test that daily PnL uses changeInUnrealized + realized when available.

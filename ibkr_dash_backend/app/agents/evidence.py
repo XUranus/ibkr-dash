@@ -1,8 +1,8 @@
 """Evidence pack builder.
 
-Combines evidence_schema (pack construction) and evidence_summary (safe summaries).
-Builds context packs from DB data for each agent type, applying context budgets
-from the context_budget module.
+Constructs structured context packs for LLM agents from raw DB/API data.
+Each pack enforces token budgets per section to stay within LLM context limits.
+The summary layer strips sensitive fields before exposing to frontend.
 """
 
 from __future__ import annotations
@@ -27,6 +27,7 @@ from app.agents.context_budget import (
 
 # ---- Evidence pack construction ----
 
+# Tracks which data provider owns each section — enforces separation of private vs public data
 DATA_SOURCES = {
     "account_data": "IBKR_ONLY",
     "position_data": "IBKR_ONLY",
@@ -161,7 +162,7 @@ def build_trade_review_evidence_pack(raw: dict) -> dict:
         ],
     })
     compacted = _apply_section_budgets(pack)
-    # Keep legacy keys for repository/tests while giving LLM a stable pack shape
+    # Preserve legacy top-level keys for backward compat with tests and repository layer
     compacted["trade_facts"] = trade_facts
     compacted["performance_metrics"] = performance
     compacted["price_context"] = raw.get("price_context") or {}
@@ -220,11 +221,10 @@ def build_daily_position_review_evidence_pack(
 
 
 def build_daily_position_review_evidence_pack_from_cards(card_pack: dict) -> dict:
-    """Build evidence pack from sub-agent card pack.
+    """Build evidence pack from pre-processed sub-agent cards.
 
-    Used when the main agent runs in sub-agent card mode.
-    Public market context comes from symbol_cards and macro_card
-    instead of raw symbol_public_context.
+    Alternative to raw-pack builder: symbol/macro context arrives as
+    pre-summarized cards rather than raw data, avoiding double-processing.
     """
     pack = empty_evidence_pack(
         agent_name="daily_position_review_agent",
@@ -292,6 +292,7 @@ def build_daily_position_review_evidence_pack_from_cards(card_pack: dict) -> dic
         "subagent_trace": subagent_trace,
     })
 
+    # Budget report tracks card counts, limits, and fallback usage for observability
     pack["budget_report"] = {
         "core_account_facts_budget": budget_report,
         "symbol_cards_budget": {
@@ -315,7 +316,8 @@ def build_daily_position_review_evidence_pack_from_cards(card_pack: dict) -> dic
 def _apply_section_budgets(
     pack: dict, *, budget_overrides: dict[str, int] | None = None,
 ) -> dict:
-    """Apply context budget enforcement to all sections of an evidence pack."""
+    """Apply token-budget enforcement to each section, mutating a copy."""
+    # Deep copy to avoid mutating the caller's dict when trimming/truncating
     result = deepcopy(pack)
     reports = {}
     for section in EVIDENCE_SECTIONS:
@@ -349,9 +351,11 @@ def _select_review_trades(trades: Any, limit: int = 20) -> list[dict]:
     selected: list[dict] = []
 
     def add(item: Any) -> None:
+        """Append item to selected if it is a dict and not already present."""
         if isinstance(item, dict) and item not in selected:
             selected.append(item)
 
+    # Prioritize: first buy, all sells, largest by amount, largest PnL, most recent
     buys = [item for item in trades if isinstance(item, dict) and str(item.get("side") or "").upper() == "BUY"]
     sells = [item for item in trades if isinstance(item, dict) and str(item.get("side") or "").upper() == "SELL"]
     if buys:
@@ -377,6 +381,7 @@ def _select_review_trades(trades: Any, limit: int = 20) -> list[dict]:
 
 # ---- Evidence summary (safe for frontend) ----
 
+# Keys containing these substrings are redacted in frontend-facing summaries
 SENSITIVE_KEYS = {
     "token", "api_key", "secret", "password", "smtp", "cookie",
     "authorization", "auth", "credential", "private_key",
@@ -397,6 +402,7 @@ def _sanitize_value(value: Any) -> Any:
     return value
 
 
+# Human-readable descriptions for each evidence section — shown in frontend UI
 SECTION_SUMMARIES: dict[str, str] = {
     "account_context": "Account equity, cash, liquidity, top positions",
     "position_context": "Current holdings, weights, cost and unrealized PnL",
@@ -417,7 +423,7 @@ def build_evidence_summary(
 ) -> dict:
     """Build a safe, readable evidence summary for frontend display.
 
-    Does NOT expose raw evidence_pack, raw_llm_response, or sensitive fields.
+    Strips sensitive fields and raw data — only section statuses and summaries pass through.
     """
     data_sources = evidence_pack.get("data_sources", {})
     section_order = [
@@ -455,6 +461,7 @@ def build_evidence_summary(
 def _build_section_summary(
     section_name: str, section_data: Any, budget_report: dict | None,
 ) -> dict:
+    # Status reflects both presence and completeness of the section data
     status = "missing"
     if section_data and section_data != {} and section_data != []:
         status = "partial" if (budget_report and budget_report.get("truncated")) else "available"
@@ -468,6 +475,7 @@ def _build_section_summary(
 
 
 def _collect_missing_data(evidence_pack: dict) -> list[str]:
+    # Only flag core sections as missing — optional sections (e.g., macro) are not required
     missing = []
     for section in [
         "account_context", "position_context", "company_context",

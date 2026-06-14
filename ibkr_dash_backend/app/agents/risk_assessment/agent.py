@@ -101,6 +101,7 @@ async def assess_risk(
         },
         "raw_llm_response": result.raw_response if result.ok else "",
         "fallback_used": not result.ok,
+        "run_trace": result.trace if hasattr(result, "trace") else [],
         "prompt_metadata": {"risk_assessment_composer": prompt_metadata},
     }
     saved = _save_assessment(db, document)

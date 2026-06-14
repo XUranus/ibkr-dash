@@ -22,6 +22,69 @@ VALID_STATUSES = {"pending", "running", "completed", "failed", "cancelled"}
 TERMINAL_STATUSES = {"completed", "failed", "cancelled"}
 
 
+def extract_trace_metrics(trace: list[dict[str, Any]]) -> dict[str, Any]:
+    """Extract tool and LLM metrics from an agent runtime trace.
+
+    Handles two trace formats:
+    - ToolCallingRuntime: ``llm_finish``, ``tool_finish``/``tool_error`` events
+    - StructuredOutputRuntime: ``structured_output_llm_finish``,
+      ``structured_output_repair_finish`` events (with latency_ms, tokens)
+
+    Returns a dict with ``tools_called`` and ``llm_calls`` keys that the
+    monitoring endpoint understands.
+    """
+    tool_map: dict[str, dict[str, Any]] = {}
+    llm_calls_count = 0
+    total_llm_latency = 0
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
+    total_tokens = 0
+    model_name = ""
+
+    for event in trace:
+        event_type = event.get("event", "")
+
+        # ToolCallingRuntime LLM events
+        if event_type == "llm_finish":
+            llm_calls_count += 1
+            total_llm_latency += event.get("latency_ms", 0)
+
+        # ToolCallingRuntime tool events
+        elif event_type in ("tool_finish", "tool_error"):
+            name = event.get("tool", "unknown")
+            if name not in tool_map:
+                tool_map[name] = {"name": name, "calls": 0, "successes": 0, "failures": 0, "total_latency": 0}
+            tool_map[name]["calls"] += 1
+            tool_map[name]["total_latency"] += event.get("latency_ms", 0)
+            if event.get("ok", False):
+                tool_map[name]["successes"] += 1
+            else:
+                tool_map[name]["failures"] += 1
+
+        # StructuredOutputRuntime LLM events (with usage data)
+        elif event_type in ("structured_output_llm_finish", "structured_output_repair_finish"):
+            llm_calls_count += 1
+            total_llm_latency += event.get("latency_ms", 0)
+            total_prompt_tokens += event.get("prompt_tokens", 0)
+            total_completion_tokens += event.get("completion_tokens", 0)
+            total_tokens += event.get("total_tokens", 0)
+            if event.get("model"):
+                model_name = event["model"]
+
+    return {
+        "tools_called": list(tool_map.values()),
+        "llm_calls": {
+            "model": model_name,
+            "calls": llm_calls_count,
+            "total_latency_ms": total_llm_latency,
+            "avg_latency_ms": total_llm_latency // llm_calls_count if llm_calls_count else 0,
+            "prompt_tokens": total_prompt_tokens,
+            "completion_tokens": total_completion_tokens,
+            "total_tokens": total_tokens,
+        },
+    }
+
+
 class AgentTaskService:
     """Manages background agent tasks with status tracking."""
 

@@ -20,7 +20,6 @@ check() {
   matches="$(git grep -n --untracked "$pattern" -- \
     ':!*.svg' ':!*.png' ':!*.jpg' ':!*.lock' \
     ':!scripts/check_release_safety.sh' \
-    ':!.env.example' \
     ':!SECURITY.md' \
     ':!README.md' \
     ':!CONTRIBUTING.md' \

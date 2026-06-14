@@ -10,6 +10,7 @@ router = APIRouter()
 
 @router.get("/health", response_model=HealthResponse, tags=["health"])
 def health_check() -> HealthResponse:
+    """Return service health status."""
     return HealthResponse(status="ok", service="ibkr_dash_backend")
 
 

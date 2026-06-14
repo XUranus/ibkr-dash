@@ -15,10 +15,12 @@ from app.utils.dates import utc_now_iso
 
 
 def new_eval_case_id(agent_name: str) -> str:
+    """Generate a unique eval case ID for the given agent."""
     return f"{agent_name}_case_{uuid4().hex[:12]}"
 
 
 def new_eval_run_id() -> str:
+    """Generate a unique eval run ID."""
     return f"eval_run_{uuid4().hex[:16]}"
 
 
@@ -42,6 +44,7 @@ class EvalCase:
     metadata: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a dict representation of the eval case."""
         return asdict(self)
 
 
@@ -57,6 +60,7 @@ class CheckResult:
     details: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a dict representation of the check result."""
         return asdict(self)
 
 
@@ -78,6 +82,7 @@ class EvalCaseResult:
     metadata: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a dict representation of the eval case result."""
         return asdict(self)
 
 
@@ -96,6 +101,7 @@ class EvalRun:
     results: list[dict] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a dict representation of the eval run."""
         return asdict(self)
 
 

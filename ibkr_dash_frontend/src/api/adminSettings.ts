@@ -5,9 +5,10 @@ export interface SettingItem {
   label: string
   value: string
   display_value: string
-  type: string
+  type: 'text' | 'number' | 'password' | 'boolean' | 'select'
   default: string
   is_set: boolean
+  options?: string[]
 }
 
 export interface SettingsByCategory {

@@ -71,7 +71,7 @@ def _fetch_fomc_events() -> list[dict]:
     """
     events = []
     try:
-        resp = httpx.get(FOMC_CALENDAR_URL, headers=HTTP_HEADERS, timeout=HTTP_TIMEOUT, follow_redirects=True)
+        resp = httpx.get(FOMC_CALENDAR_URL, headers=HTTP_HEADERS, timeout=HTTP_TIMEOUT, follow_redirects=False)
         resp.raise_for_status()
         html = resp.text
     except httpx.HTTPStatusError as exc:

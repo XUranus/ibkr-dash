@@ -127,7 +127,9 @@ Create `.vscode/launch.json` in the project root:
       "module": "uvicorn",
       "args": ["app.main:app", "--reload", "--port", "8000"],
       "cwd": "${workspaceFolder}/ibkr_dash_backend",
-      "envFile": "${workspaceFolder}/.env",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/ibkr_dash_backend"
+      },
       "env": {
         "PYTHONPATH": "${workspaceFolder}/ibkr_dash_backend"
       }
@@ -162,9 +164,9 @@ Solution: Reinstall dependencies:
 pip install -r requirements.txt
 ```
 
-**Settings not picking up `.env` changes:**
+**Settings not taking effect:**
 
-The `Settings` object is cached with `@lru_cache`. Restart the server to pick up new environment variables.
+Settings are read live from `data/config.json` — no restart needed. If changes made via the Admin UI are not visible, check that the JSON file was written correctly.
 
 ---
 
@@ -295,12 +297,12 @@ Check that the CSV file matches the expected IBKR Flex format. The parser expect
 
 **Scheduler not running:**
 
-Verify `SCHEDULER_ENABLED=true` in `.env`. Check that the cron schedule is correct:
+Verify `scheduler.enabled` is `true` in Admin Settings. Check that the cron schedule is correct:
 
-```env
-SCHEDULER_HOUR=12
-SCHEDULER_MINUTE=30
-SCHEDULER_TIMEZONE=Asia/Shanghai
+```
+scheduler.hour = 12
+scheduler.minute = 30
+scheduler.timezone = Asia/Shanghai
 ```
 
 **Flex API errors:**

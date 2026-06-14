@@ -17,6 +17,7 @@ def get_cash_flow_summary(
     service: CashFlowService = Depends(get_cash_flow_service),
     _user: str | None = Depends(get_current_user),
 ) -> CashFlowSummaryResponse:
+    """Return aggregated cash flow totals grouped by currency."""
     return service.get_summary(
         start_date=start_date,
         end_date=end_date,
@@ -37,6 +38,7 @@ def list_cash_flows(
     service: CashFlowService = Depends(get_cash_flow_service),
     _user: str | None = Depends(get_current_user),
 ) -> CashFlowListResponse:
+    """Return a paginated list of cash flow transactions."""
     try:
         return service.list_cash_flows(
             start_date=start_date,

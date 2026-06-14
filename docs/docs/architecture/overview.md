@@ -107,17 +107,19 @@ graph LR
 ibkr_dash_backend/app/
 ├── main.py                    # FastAPI application factory
 ├── core/
-│   ├── config.py              # Settings (pydantic-settings)
+│   ├── config.py              # Settings (JSON-backed)
+│   ├── settings_manager.py    # Thread-safe JSON settings manager
 │   ├── database.py            # SQLite connection + schema DDL
 │   ├── auth.py                # HMAC session tokens
 │   ├── cors.py                # CORS configuration
-│   ├── rate_limit.py          # Rate limiting middleware
+│   ├── rate_limit.py          # Sliding-window rate limiter
+│   ├── cache.py               # In-memory TTL cache
 │   └── logger.py              # Logging setup
 ├── api/
 │   ├── deps.py                # Shared dependencies (get_current_user)
 │   └── routes/
 │       ├── health.py          # GET /api/health
-│       ├── auth.py            # POST /api/auth/login, logout
+│       ├── auth.py            # POST /api/auth/login, logout (SQLite-backed rate limiting)
 │       ├── account.py         # Account overview endpoints
 │       ├── positions.py       # Position data endpoints
 │       ├── trades.py          # Trade history endpoints
@@ -132,10 +134,11 @@ ibkr_dash_backend/app/
 │       ├── risk_assessment_agent.py
 │       ├── symbols.py         # Symbol lookup
 │       ├── admin_system.py    # System admin endpoints
-│       ├── admin_llm.py       # LLM configuration
+│       ├── admin_settings.py  # Unified settings management
 │       ├── admin_prompts.py   # Prompt management
-│       ├── admin_ibkr.py      # IBKR settings
-│       └── admin_email.py     # Email configuration
+│       ├── admin_monitoring.py # Agent monitoring
+│       ├── admin_scheduler.py # Data import scheduler
+│       └── position_analysis.py # AI position analysis
 ├── services/
 │   ├── account_service.py     # Account data queries
 │   ├── position_service.py    # Position queries
@@ -144,7 +147,8 @@ ibkr_dash_backend/app/
 │   ├── dividend_service.py    # Dividend queries
 │   ├── chart_service.py       # Chart data generation
 │   ├── llm_service.py         # LLM HTTP client
-│   ├── ibkr_tool_service.py   # IBKR data tools for agents
+│   ├── settings_service.py    # Settings management
+│   ├── import_service.py      # Data import orchestration
 │   └── agent_services.py      # Agent orchestration
 ├── agents/
 │   ├── runtime.py             # ReAct tool-calling runtime
@@ -154,11 +158,8 @@ ibkr_dash_backend/app/
 │   ├── trade_decision/        # Trade decision agent
 │   ├── trade_review/          # Trade review agent
 │   ├── risk_assessment/       # Risk assessment agent
-│   ├── eval_cases/            # Evaluation test cases
-│   ├── eval_harness.py        # Evaluation framework
 │   ├── prompt_registry.py     # Prompt versioning
-│   ├── evidence.py            # Evidence collection
-│   └── sensitive.py           # Sensitive data filtering
+│   └── evidence.py            # Evidence collection
 ├── schemas/                   # Pydantic request/response models
 └── utils/                     # Date, pagination, JSON helpers
 ```
@@ -197,28 +198,22 @@ graph TB
 
 | View | Route | Description |
 |------|-------|-------------|
-| `DashboardView` | `/` | Portfolio overview with charts and stats |
-| `PositionsView` | `/positions` | Detailed position table |
-| `TradesView` | `/trades` | Trade history |
+| `DashboardView` | `/` | Portfolio overview with charts, stats, calendar, and market events |
+| `PositionsView` | `/positions` | Position table with treemap visualization and AI analysis |
+| `TradesView` | `/trades` | Trade history with filtering and sorting |
 | `CashFlowsView` | `/cash-flows` | Cash flow tracking |
 | `DividendsView` | `/dividends` | Dividend history |
 | `AccountCopilotView` | `/copilot` | AI chat assistant |
-| `DailyPositionReviewView` | `/daily-position-review` | AI daily reviews |
-| `TradeDecisionAgentView` | `/trade-decision` | Pre-trade analysis |
-| `TradeReviewAgentView` | `/trade-review` | Post-trade review |
-| `StockResearchView` | `/stock-research` | Symbol research |
-| `AdminSystemView` | `/admin/system` | System settings |
-| `AdminLlmView` | `/admin/llm` | LLM configuration |
+| `TradeDecisionAgentView` | `/trade-decision` | AI Decision hub (trade decisions, reviews, risk assessment) |
+| `AdminSettingsView` | `/admin/settings` | Unified settings management |
+| `AdminSystemView` | `/admin/system` | System status and health |
 | `AdminPromptsView` | `/admin/prompts` | Prompt management |
-| `AdminAgentMonitoringView` | `/admin/agent-monitoring` | Agent task history |
-| `AdminIbkrView` | `/admin/ibkr` | IBKR settings |
-| `AdminEmailView` | `/admin/email` | Email configuration |
-| `AdminHarnessView` | `/admin/harness` | Agent evaluation |
-| `AdminLongbridgeMcpView` | `/admin/longbridge-mcp` | Longbridge MCP config |
+| `AdminAgentMonitoringView` | `/admin/agent-monitoring` | Agent task history and monitoring |
+| `AdminSchedulerView` | `/admin/scheduler` | Data import scheduler |
 | `BootstrapView` | `/bootstrap` | First-time setup |
 
 :::info
-AI-powered views (Copilot, Daily Review, Trade Decision, Trade Review, Stock Research) require authentication. Data views (Dashboard, Positions, Trades, etc.) are accessible without login when auth is disabled.
+AI-powered views (Copilot, AI Decision) require authentication. Data views (Dashboard, Positions, Trades, etc.) are accessible without login when auth is disabled.
 :::
 
 ---
@@ -558,13 +553,13 @@ The worker can optionally call the backend API to trigger daily reviews after da
 Worker --[POST /api/daily-position-review/generate]--> Backend
 ```
 
-This is configured via `BACKEND_BASE_URL` in the worker's `.env` file.
+This is configured via `worker.backend_base_url` in Admin Settings.
 
 ---
 
 ## Security Model
 
-IBKR Dash has a simple security model appropriate for a personal tool:
+IBKR Dash implements several security measures appropriate for a personal tool:
 
 ```mermaid
 graph LR
@@ -572,6 +567,7 @@ graph LR
         Login["POST /api/auth/login"]
         Session["HMAC Session Token"]
         Cookie["HttpOnly Cookie"]
+        RateLimit["Rate Limiting<br/>(SQLite-backed)"]
     end
 
     subgraph Protected ["Protected Routes"]
@@ -584,19 +580,29 @@ graph LR
         Health["Health Check"]
     end
 
-    Login --> Session
+    Login --> RateLimit
+    RateLimit --> Session
     Session --> Cookie
     Cookie --> Protected
 ```
 
-- **Session Tokens** -- HMAC-SHA256 signed tokens stored in HttpOnly cookies
-- **7-Day Expiry** -- Sessions expire after 7 days
-- **Optional Auth** -- If `AUTH_PASSWORD` is empty, all routes are public
-- **Protected Routes** -- AI agent endpoints and admin routes require authentication
-- **CORS** -- Configurable allowed origins
+### Security Features
 
-:::warning
-IBKR Dash is designed for personal use on a trusted network. It does not implement rate limiting per user, CSRF protection, or OAuth. If you expose it to the internet, use a reverse proxy with proper security headers.
+| Feature | Implementation | Description |
+|---------|---------------|-------------|
+| **Session Tokens** | HMAC-SHA256 | Signed tokens stored in HttpOnly cookies |
+| **Token Expiry** | 7 days | Sessions expire after 7 days |
+| **Rate Limiting** | SQLite-backed | 5 attempts per 5min window, 15min block (persists across restarts) |
+| **SameSite Cookies** | `strict` | Strong CSRF protection (blocks cross-site cookie sending) |
+| **Secure Flag** | Auto-detected | `true` in production, `false` in development |
+| **Timing-Safe Comparison** | `secrets.compare_digest()` | Prevents timing attacks on credential comparison |
+| **CORS** | Configurable | Allowed origins configured via settings |
+| **Request Body Limit** | 1MB | Prevents abuse via large request bodies |
+| **Input Validation** | Pydantic | All API inputs validated against schemas |
+| **Thread-Safe Settings** | `threading.Lock` | Settings manager uses locks for concurrent access |
+
+:::tip
+IBKR Dash is designed for personal use on a trusted network. For internet deployment, use a reverse proxy (nginx, Caddy) with proper security headers and HTTPS.
 :::
 
 ---

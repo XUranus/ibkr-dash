@@ -60,13 +60,13 @@ export default function MarketEventsPanel() {
       <div className="surface-panel__content" style={{ padding: '10px 12px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <p className="eyebrow" style={{ margin: 0 }}>{t('dashboard.keyEvents')}</p>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--color-text-muted)' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
             {events.length} {t('dashboard.events')}
           </span>
         </div>
 
         {events.length === 0 ? (
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.78rem', padding: '12px 0' }}>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.88rem', padding: '12px 0' }}>
             {t('dashboard.noEvents')}
           </p>
         ) : (
@@ -87,20 +87,20 @@ export default function MarketEventsPanel() {
 
                 return (
                   <tr key={event.id}>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--color-text-secondary)' }}>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>
                       {date}
                     </td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
                         <span style={{ width: 3, height: 3, borderRadius: '50%', background: catColor, flexShrink: 0 }} />
-                        <span style={{ fontSize: '0.78rem', color: 'var(--color-text-bright)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: '0.88rem', color: 'var(--color-text-bright)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {title}
                         </span>
                       </div>
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <span style={{
-                        fontSize: '0.6rem',
+                        fontSize: '0.72rem',
                         fontWeight: 600,
                         padding: '1px 5px',
                         borderRadius: 2,

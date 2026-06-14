@@ -213,35 +213,17 @@ def _mark_imported(data_dir: Path, file_name: str) -> None:
 | `SCHEDULER_TIMEZONE` | `Asia/Shanghai` | cron 调度的时区。 |
 | `DATA_DIR` | `data/flex_exports` | Flex CSV/XML 文件和跟踪的目录。 |
 
-### 环境文件示例
+### 通过 Admin Settings 配置
 
-```bash
-# .env 文件
-SCHEDULER_ENABLED=true
-SCHEDULER_HOUR=12
-SCHEDULER_MINUTE=30
-SCHEDULER_TIMEZONE=Asia/Shanghai
-DATA_DIR=data/flex_exports
-```
+这些设置通过管理面板 (`/admin/settings`) 的 UI 配置，存储在 `data/config.json` 中。无需手动编辑配置文件。
 
 ### 不同调度示例
 
-```bash
-# 美国东部时间上午 9:00 运行（开盘）
-SCHEDULER_HOUR=9
-SCHEDULER_MINUTE=0
-SCHEDULER_TIMEZONE=America/New_York
-
-# 香港时间下午 6:00 运行（港股收盘后）
-SCHEDULER_HOUR=18
-SCHEDULER_MINUTE=0
-SCHEDULER_TIMEZONE=Asia/Hong_Kong
-
-# UTC 午夜运行
-SCHEDULER_HOUR=0
-SCHEDULER_MINUTE=0
-SCHEDULER_TIMEZONE=UTC
-```
+| 场景 | HOUR | MINUTE | TIMEZONE |
+|------|------|--------|----------|
+| 美国东部时间上午 9:00（开盘） | `9` | `0` | `America/New_York` |
+| 香港时间下午 6:00（港股收盘后） | `18` | `0` | `Asia/Hong_Kong` |
+| UTC 午夜 | `0` | `0` | `UTC` |
 
 ## 手动操作
 

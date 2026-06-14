@@ -19,6 +19,8 @@ from app.schemas.account import (
 
 
 class AccountService:
+    """Service for retrieving account overview and summary data."""
+
     def __init__(self, db: Database) -> None:
         self.db = db
 

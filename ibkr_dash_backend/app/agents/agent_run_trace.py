@@ -17,6 +17,7 @@ from app.utils.dates import utc_now_iso
 
 
 def new_agent_run_id(agent_name: str) -> str:
+    """Generate a unique, filesystem-safe run ID for an agent."""
     safe_name = re.sub(r"[^a-zA-Z0-9_]+", "_", agent_name.strip().lower()).strip("_") or "agent"
     return f"{safe_name}_run_{uuid4().hex[:16]}"
 
@@ -49,6 +50,7 @@ class AgentRunTrace:
     metadata: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialise the trace to a sanitised dictionary."""
         return sanitize_trace_payload(asdict(self))
 
 

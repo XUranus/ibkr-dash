@@ -31,12 +31,16 @@ PERFORMANCE_CALENDAR_VIEWS = {"month", "year", "all-years"}
 
 @dataclass
 class DailyPerformanceEntry:
+    """Single-day performance snapshot with M2M and TWR values."""
+
     report_date: date
     daily_mtm: float | None
     daily_twr: float | None
 
 
 class ChartService:
+    """Service for building chart and performance analytics data."""
+
     def __init__(self, db: Database) -> None:
         self.db = db
 

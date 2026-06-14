@@ -180,7 +180,7 @@ sequenceDiagram
 
 1. **SQLite 作为唯一数据源** -- 后端和 Worker 读写同一个 SQLite 文件。没有消息队列，没有独立数据库。
 2. **解耦模块** -- 后端和 Worker 在运行时不共享 Python 代码。它们仅通过数据库通信。
-3. **OpenAI 兼容的 AI** -- LLM 客户端适用于任何 OpenAI 兼容提供商。通过更改环境变量切换模型。
+3. **OpenAI 兼容的 AI** -- LLM 客户端适用于任何 OpenAI 兼容提供商。通过 Admin Settings UI 切换模型。
 4. **结构化输出** -- 所有 AI 代理输出都通过 Pydantic 模式验证，支持自动修复和回退。
 5. **本地优先** -- 设计为在您的机器上运行。无需云服务（除非您启用 AI 功能的 LLM API）。
 
@@ -305,12 +305,12 @@ ibkr-dash/
 │
 ├── data/                       # 运行时数据目录
 │   ├── ibkr_dash.db            # SQLite 数据库（运行时创建）
+│   ├── config.json             # 应用配置（通过 Admin Settings UI 管理）
 │   └── flex_exports/           # IBKR Flex CSV 文件
 │
 ├── docker/                     # Docker 构建配置
 ├── scripts/                    # 实用脚本
 ├── wiki/                       # 本文档 (Docusaurus)
-├── .env.example                # 环境配置示例
 ├── docker-compose.yml          # Docker Compose 配置
 └── README.md                   # 项目 README
 ```

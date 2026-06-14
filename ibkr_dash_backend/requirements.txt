@@ -1,8 +1,6 @@
 fastapi>=0.110
 uvicorn[standard]
-python-dotenv
 pydantic>=2,<3
-pydantic-settings
 apscheduler
 pytest
 httpx
