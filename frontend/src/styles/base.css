@@ -609,6 +609,10 @@ button, input, textarea, select { font: inherit; }
 .stagger-reveal > *:nth-child(5) { animation-delay: 0.16s; }
 .stagger-reveal > *:nth-child(6) { animation-delay: 0.20s; }
 
+/* ── Responsive grid utilities ── */
+.grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.grid-3col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-3); }
+
 /* ── Responsive ── */
 @media (max-width: 1200px) {
   .filters-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -619,6 +623,7 @@ button, input, textarea, select { font: inherit; }
 @media (max-width: 900px) {
   .summary-layout { grid-template-columns: 1fr; }
   .list-detail-layout { grid-template-columns: 1fr; }
+  .grid-3col { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 768px) {
@@ -628,6 +633,13 @@ button, input, textarea, select { font: inherit; }
   .filters-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .surface-panel__content { padding: 10px 12px; }
   .account-strip__item { padding: 6px 10px; }
+  .grid-2col { grid-template-columns: 1fr; }
+  .grid-3col { grid-template-columns: 1fr; }
+
+  /* Header: hide account metrics strip, scrollable nav */
+  header > div > div:nth-child(2) { display: none; }
+  header nav { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  header nav::-webkit-scrollbar { display: none; }
 }
 
 /* ── Two-column list+detail layout ── */

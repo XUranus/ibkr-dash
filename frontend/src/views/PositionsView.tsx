@@ -356,7 +356,7 @@ export default function PositionsView() {
           )}
 
           {/* Distribution charts + AI Analysis */}
-          <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-3)' }}>
+          <section className="grid-3col">
             <PieDistributionCard title={t('positions.assetClasses')} subtitle={t('positions.assetClassesDesc')} items={assetPieItems} />
             <PieDistributionCard title={t('positions.industryDistribution')} subtitle={t('positions.industryDistributionDesc')} items={industryPieItems} />
             <PositionAnalysisCard />

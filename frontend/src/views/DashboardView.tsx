@@ -117,7 +117,7 @@ export default function DashboardView() {
           />
 
           {/* Performance calendar + Market events */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+          <div className="grid-2col">
             <PerformanceCalendar latestReportDate={overview?.report_date ?? null} />
             <MarketEventsPanel />
           </div>
