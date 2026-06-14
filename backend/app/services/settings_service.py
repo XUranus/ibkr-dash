@@ -147,7 +147,13 @@ def get_all_settings() -> dict[str, list[dict[str, Any]]]:
 
         dot_path = _KEY_TO_PATH.get(key, "")
         raw_value = mgr.get(dot_path, meta["default"])
-        value = str(raw_value) if raw_value is not None else str(meta["default"])
+        # Normalize booleans to lowercase strings so frontend toggles work
+        if isinstance(raw_value, bool):
+            value = str(raw_value).lower()
+        elif raw_value is not None:
+            value = str(raw_value)
+        else:
+            value = str(meta["default"])
 
         # Mask passwords
         display_value = value
