@@ -156,6 +156,8 @@ docker compose up -d --build
 
 If port 8080 is in use: `FRONTEND_PORT=8081 docker compose up -d`.
 
+The Docker setup runs 2 containers: **backend** (FastAPI + worker scheduler) and **frontend** (Nginx + React SPA).
+
 ---
 
 ## Configuration
@@ -456,7 +458,7 @@ Yes. Follow the [Local Development](#local-development) instructions. Each modul
 
 Copy `data/ibkr_dash.db` and `data/config.json`. For Docker:
 ```bash
-docker compose exec backend cp /app/data/ibkr_dash.db /tmp/backup.db
+docker compose exec backend cp /app/backend/data/ibkr_dash.db /tmp/backup.db
 docker compose cp backend:/tmp/backup.db ./backup.db
 ```
 </details>

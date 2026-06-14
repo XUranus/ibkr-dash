@@ -652,7 +652,7 @@ class CopilotPlannerAction(BaseModel):
 
 ### Docker
 
-IBKR Dash 支持使用三个容器的 Docker 部署：
+IBKR Dash 支持使用两个容器的 Docker 部署（后端 + Worker 合并）：
 
 ```mermaid
 graph LR

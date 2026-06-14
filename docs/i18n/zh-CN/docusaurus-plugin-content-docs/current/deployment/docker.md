@@ -5,7 +5,7 @@ title: Docker 部署
 
 # Docker 部署
 
-IBKR Dash 提供 Docker Compose 配置，用于在容器中运行所有三个服务（后端、前端、Worker）。这是在本地不安装 Python 或 Node.js 的情况下运行完整技术栈的最简单方式。
+IBKR Dash 提供 Docker Compose 配置，用于在容器中运行两个服务（后端含 Worker、前端）。这是在本地不安装 Python 或 Node.js 的情况下运行完整技术栈的最简单方式。
 
 ---
 

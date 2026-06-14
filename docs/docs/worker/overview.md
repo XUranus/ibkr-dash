@@ -206,7 +206,7 @@ flowchart TD
 
 ## Worker vs. Backend
 
-The worker and backend are separate processes that share the same SQLite database:
+The worker runs as a background scheduler inside the backend container, sharing the same SQLite database:
 
 | Aspect | Worker | Backend |
 |--------|--------|---------|

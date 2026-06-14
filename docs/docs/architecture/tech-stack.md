@@ -650,7 +650,7 @@ This gives the system more control over the agent's behavior:
 
 ### Docker
 
-IBKR Dash supports Docker deployment with three containers:
+IBKR Dash supports Docker deployment with two containers (backend + worker merged):
 
 ```mermaid
 graph LR

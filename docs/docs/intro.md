@@ -201,7 +201,7 @@ This documentation is organized to take you from zero to a running dashboard. He
 
 - Installing prerequisites (Python 3.11+, Node.js 18+)
 - Cloning and configuring the project
-- Starting all three services (backend, frontend, worker)
+- Starting both services (backend + worker, frontend)
 - Importing sample data
 - Logging in and exploring the dashboard
 - Troubleshooting common issues

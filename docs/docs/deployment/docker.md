@@ -5,7 +5,7 @@ title: Docker Deployment
 
 # Docker Deployment
 
-IBKR Dash provides a Docker Compose setup for running all three services (backend, frontend, worker) in containers. This is the easiest way to run the full stack without installing Python or Node.js locally.
+IBKR Dash provides a Docker Compose setup for running two containers (backend with worker, frontend). This is the easiest way to run the full stack without installing Python or Node.js locally.
 
 ---
 

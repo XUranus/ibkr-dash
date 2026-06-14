@@ -5,7 +5,7 @@ title: Getting Started
 
 # Getting Started
 
-This guide walks you through setting up IBKR Dash from scratch. By the end, you will have a running dashboard with sample data and all three services (backend, frontend, worker) operational.
+This guide walks you through setting up IBKR Dash from scratch. By the end, you will have a running dashboard with sample data and two services (backend with worker scheduler, frontend) operational.
 
 ---
 
