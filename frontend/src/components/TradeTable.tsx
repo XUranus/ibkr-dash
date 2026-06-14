@@ -73,8 +73,8 @@ export default function TradeTable({ items, sortKey, sortOrder, onSort }: Props)
         <tbody>
           {items.length === 0 ? (
             <tr><td colSpan={10} style={{ textAlign: 'center', padding: '2rem' }}>{t('trades.noTradeData')}</td></tr>
-          ) : items.map((item) => (
-            <tr key={item.trade_id || item.transaction_id || `${item.date_time}-${item.symbol}`}>
+          ) : items.map((item, index) => (
+            <tr key={item.trade_id || item.transaction_id || `${item.date_time}-${item.symbol}-${index}`}>
               <td style={{ whiteSpace: 'normal' }}>
                 <div className="table-symbol">
                   <span className="table-symbol__code">{extractDate(item.date_time) || item.trade_date || '--'}</span>
