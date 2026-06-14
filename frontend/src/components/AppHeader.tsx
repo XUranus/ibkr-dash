@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
 import { useAccountOverview } from '@/hooks/useAccountOverview'
+import { fetchAppInfo } from '@/api/appInfo'
 import { formatNumber, pnlClass } from '@/utils/format'
 import Modal from './Modal'
 
@@ -15,6 +16,7 @@ export default function AppHeader() {
   const [showLogin, setShowLogin] = useState(false)
   const [loginForm, setLoginForm] = useState({ username: '', password: '' })
   const [loginError, setLoginError] = useState('')
+  const [appName, setAppName] = useState('IBKR DASH')
 
   const handleCloseLogin = useCallback(() => setShowLogin(false), [])
 
@@ -35,6 +37,7 @@ export default function AppHeader() {
   useEffect(() => {
     void ensureAuth()
     void ensureLoaded()
+    void fetchAppInfo().then((info) => setAppName(info.app_name)).catch(() => {})
   }, [])
 
   const navItems = authenticated ? [...baseNavItems, ...protectedNavItems] : baseNavItems
@@ -92,7 +95,7 @@ export default function AppHeader() {
               color: 'var(--color-text-bright)',
               letterSpacing: '0.04em',
             }}>
-              IBKR DASH
+              {appName}
             </span>
             <span style={{
               width: 6, height: 6, borderRadius: '50%',
