@@ -1,8 +1,12 @@
-"""Trade Decision card dataclasses (re-exported from shared module)."""
+"""Trade Decision card dataclasses.
+
+High-density summary cards consumed by the Composer and RiskGate.
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any
 
 from app.utils.dates import now_iso
@@ -69,6 +73,13 @@ class MarketTrendCard:
     evidence_quality: str = "low"
     data_limitations: list[str] = field(default_factory=list)
     created_at: str = ""
+    # TechnicalSignalEngine outputs
+    technical_signals: dict = field(default_factory=dict)
+    trend_break_level: str = "unknown"  # none | warning | broken | severe | unknown
+    trend_break_reasons: list[str] = field(default_factory=list)
+    support_levels: list[float] = field(default_factory=list)
+    resistance_levels: list[float] = field(default_factory=list)
+    relative_strength_score: float | None = None
 
     def to_dict(self) -> dict:
         """Return a plain dict of all card fields."""
@@ -98,6 +109,16 @@ class FundamentalValuationCard:
     evidence_quality: str = "low"
     data_limitations: list[str] = field(default_factory=list)
     created_at: str = ""
+    # FundamentalChangeEngine outputs
+    fundamental_status: str = "unknown"  # green | yellow | orange | red | unknown
+    thesis_broken: bool = False
+    change_signals: list[str] = field(default_factory=list)
+    positive_signals: list[str] = field(default_factory=list)
+    negative_signals: list[str] = field(default_factory=list)
+    revenue_growth_trend: str | None = None
+    margin_trend: str | None = None
+    cash_flow_trend: str | None = None
+    guidance_change: str | None = None
 
     def to_dict(self) -> dict:
         """Return a plain dict of all card fields."""
@@ -129,6 +150,100 @@ class EventCatalystCard:
     def to_dict(self) -> dict:
         """Return a plain dict of all card fields."""
         return {k: v for k, v in self.__dict__.items()}
+
+
+@dataclass
+class RiskRewardCard:
+    """Risk/reward assessment card produced by deterministic engines."""
+
+    symbol: str = ""
+    decision_type: str = ""
+    summary: str = ""
+    score: float = 0
+    max_score: float = 15
+    stance: str = CardStance.INSUFFICIENT_DATA
+    upside_potential_pct: float | None = None
+    downside_risk_pct: float | None = None
+    reward_risk_ratio: float | None = None
+    max_position_pct: float | None = None
+    wait_for_pullback: bool = False
+    wait_for_pullback_pct: float | None = None
+    pullback_entry_level: float | None = None
+    action_guidance: str | None = None
+    position_size_label: str = "unknown"
+    key_points: list[str] = field(default_factory=list)
+    risks: list[str] = field(default_factory=list)
+    evidence_quality: str = "low"
+    data_limitations: list[str] = field(default_factory=list)
+    created_at: str = ""
+    # RiskRewardEngine outputs
+    downside_scenarios: list[dict] = field(default_factory=list)
+    upside_scenarios: list[dict] = field(default_factory=list)
+    stop_add_level: float | None = None
+    invalidation_level: float | None = None
+    trim_level: float | None = None
+    risk_reward_confidence: str = "unknown"
+
+    def to_dict(self) -> dict:
+        """Return a plain dict of all card fields."""
+        return {k: v for k, v in self.__dict__.items()}
+
+
+@dataclass
+class TradeDecisionCardPack:
+    """Container for all sub-agent cards — consumed by Composer and RiskGate."""
+
+    decision_type: str
+    symbol: str
+    account_facts: dict
+    account_fit_card: AccountFitCard | None = None
+    market_trend_card: MarketTrendCard | None = None
+    fundamental_valuation_card: FundamentalValuationCard | None = None
+    event_catalyst_card: EventCatalystCard | None = None
+    risk_reward_card: RiskRewardCard | None = None
+    investment_thesis: dict | None = None
+
+    def to_dict(self) -> dict:
+        return {
+            "decision_type": self.decision_type,
+            "symbol": self.symbol,
+            "account_facts": self.account_facts,
+            "account_fit_card": self.account_fit_card.to_dict() if self.account_fit_card else None,
+            "market_trend_card": self.market_trend_card.to_dict() if self.market_trend_card else None,
+            "fundamental_valuation_card": self.fundamental_valuation_card.to_dict() if self.fundamental_valuation_card else None,
+            "event_catalyst_card": self.event_catalyst_card.to_dict() if self.event_catalyst_card else None,
+            "risk_reward_card": self.risk_reward_card.to_dict() if self.risk_reward_card else None,
+            "investment_thesis": self.investment_thesis,
+        }
+
+
+# --- AccountFactSnapshot helper for RiskGate ---
+
+@dataclass
+class AccountFactSnapshot:
+    """Lightweight snapshot of account facts used by RiskGate."""
+
+    is_holding: bool = False
+    position_pct: float | None = None
+    current_position_pct: float | None = None
+
+    def to_dict(self) -> dict:
+        return {k: v for k, v in self.__dict__.items()}
+
+
+# --- Fallback card builders ---
+
+
+def build_fallback_risk_reward_card(symbol: str, decision_type: str, reason: str) -> RiskRewardCard:
+    """Build a RiskRewardCard with conservative defaults when data is unavailable."""
+    return RiskRewardCard(
+        symbol=symbol, decision_type=decision_type,
+        summary="Risk/reward assessment unavailable; using conservative defaults.",
+        score=0, max_score=15, stance=CardStance.INSUFFICIENT_DATA,
+        evidence_quality="low",
+        data_limitations=[f"Risk/reward fallback: {reason[:200]}"],
+        created_at=now_iso(),
+    )
 
 
 def build_fallback_account_fit_card(symbol: str, decision_type: str, reason: str) -> AccountFitCard:
