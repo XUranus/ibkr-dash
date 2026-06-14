@@ -108,7 +108,7 @@ EOF
 ### Parser Code Example
 
 ```python
-# ibkr_dash_worker/worker/parsers/flex_csv_parser.py
+# worker/worker/parsers/flex_csv_parser.py
 def parse_flex_csv(file_path: Path) -> FlexStatement:
     """Parse an IBKR Flex CSV file into a FlexStatement."""
     sections: dict[str, FlexSection] = {}
@@ -187,7 +187,7 @@ When the worker pulls data from IBKR Flex Web Service, the response is XML. The 
 ### XML Parsing Code Example
 
 ```python
-# ibkr_dash_worker/worker/parsers/flex_xml_parser.py
+# worker/worker/parsers/flex_xml_parser.py
 def parse_flex_xml(xml_text: str) -> FlexXmlResult:
     """Parse an IBKR Flex XML response into a FlexXmlResult."""
     root = ET.fromstring(xml_text)
@@ -285,7 +285,7 @@ class TransformResult:
 IBKR exports use inconsistent column names. The transformer handles this with fuzzy matching:
 
 ```python
-# ibkr_dash_worker/worker/parsers/transformers.py
+# worker/worker/parsers/transformers.py
 def _normalize_key(value: str) -> str:
     """Lowercase and strip all non-alphanumeric characters."""
     return re.sub(r"[^a-z0-9]+", "", value.lower())
@@ -315,7 +315,7 @@ The writer performs **bulk upsert** operations. Each write method:
 ### Upsert Code Example
 
 ```python
-# ibkr_dash_worker/worker/writers/sqlite_writer.py
+# worker/worker/writers/sqlite_writer.py
 def write_position_snapshots(self, documents: list[dict]) -> int:
     """Upsert position snapshots into the database."""
     conn = sqlite3.connect(self.db_path)

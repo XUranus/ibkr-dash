@@ -63,10 +63,10 @@ graph TB
 
 ## 模块结构
 
-源代码位于 `ibkr_dash_frontend/src/`，按功能划分组织：
+源代码位于 `frontend/src/`，按功能划分组织：
 
 ```
-ibkr_dash_frontend/src/
+frontend/src/
 ├── api/              # API 客户端函数（每个领域一个文件）
 │   ├── http.ts       # 共享 Axios 实例，带 JWT 拦截器
 │   ├── account.ts    # 账户概览和快照
@@ -187,7 +187,7 @@ Vite 配置（`vite.config.ts`）设置了：
 ### vite.config.ts
 
 ```typescript
-// ibkr_dash_frontend/vite.config.ts
+// frontend/vite.config.ts
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
@@ -224,7 +224,7 @@ export default defineConfig({
 ### 开发环境
 
 ```bash
-cd ibkr_dash_frontend
+cd frontend
 npm install
 npm run dev
 ```
@@ -274,7 +274,7 @@ npm run build
 所有 API 调用通过共享的 HTTP 客户端（`src/api/http.ts`），该客户端处理认证头、错误响应和基础 URL 配置。
 
 ```typescript
-// ibkr_dash_frontend/src/api/http.ts
+// frontend/src/api/http.ts
 import axios from 'axios'
 
 const http = axios.create({
@@ -309,7 +309,7 @@ export default http
 ### API 调用示例
 
 ```typescript
-// ibkr_dash_frontend/src/api/account.ts
+// frontend/src/api/account.ts
 import http from './http'
 import type { AccountOverview } from '@/types/account'
 

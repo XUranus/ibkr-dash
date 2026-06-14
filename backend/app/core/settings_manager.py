@@ -17,7 +17,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 # Path to the JSON config file
-_PROJECT_ROOT = Path(__file__).resolve().parents[3]  # ibkr-dash/
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]  # ibkr-dash/
 CONFIG_PATH = _PROJECT_ROOT / "data" / "config.json"
 
 # ---------------------------------------------------------------------------

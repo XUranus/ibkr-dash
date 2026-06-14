@@ -25,7 +25,7 @@ graph TB
         Manual["手动 CSV 导出"]
     end
 
-    subgraph Worker["ibkr_dash_worker"]
+    subgraph Worker["worker"]
         CLI["main.py（CLI）"]
         Scheduler["scheduler.py（APScheduler）"]
         Job["daily_incremental_job.py"]
@@ -78,7 +78,7 @@ graph TB
 ## 目录布局
 
 ```
-ibkr_dash_worker/
+worker/
   worker/
     main.py                     # CLI 入口点（import, run-scheduler, init-db, scan）
     core/
@@ -282,7 +282,7 @@ Worker 设计为与后端一起作为长时间运行的进程：
 # docker-compose.yml（摘录）
 services:
   worker:
-    build: ./ibkr_dash_worker
+    build: ./worker
     command: python -m worker.main run-scheduler
     volumes:
       - ./data:/app/data

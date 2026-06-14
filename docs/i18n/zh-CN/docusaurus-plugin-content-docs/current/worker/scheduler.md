@@ -67,7 +67,7 @@ flowchart TD
 **文件：** `worker/core/scheduler.py`
 
 ```python
-# ibkr_dash_worker/worker/core/scheduler.py
+# worker/worker/core/scheduler.py
 from apscheduler.schedulers.background import BackgroundScheduler
 from worker.core.config import get_settings
 from worker.jobs.daily_incremental_job import run_daily_incremental_job
@@ -101,7 +101,7 @@ python -m worker.main run-scheduler
 这会启动调度器并保持主线程活跃：
 
 ```python
-# ibkr_dash_worker/worker/main.py（简化版）
+# worker/worker/main.py（简化版）
 scheduler.start()
 try:
     while True:
@@ -127,7 +127,7 @@ except (KeyboardInterrupt, SystemExit):
 5. 解析 XML 并导入 SQLite。
 
 ```python
-# ibkr_dash_worker/worker/jobs/daily_incremental_job.py
+# worker/worker/jobs/daily_incremental_job.py
 def _pull_from_ibkr(flex_client: FlexClient, data_dir: Path) -> list[Path]:
     settings = get_settings()
     query_ids = DEFAULT_QUERY_IDS

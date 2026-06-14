@@ -75,13 +75,13 @@ This decoupled architecture means you can develop and test each module in isolat
 
 ## Module Breakdown
 
-### Backend Module (`ibkr_dash_backend/`)
+### Backend Module (`backend/`)
 
 The backend is the brain of the system. It serves the REST API, runs AI agents, and manages all business logic.
 
 ```mermaid
 graph LR
-    subgraph Backend ["ibkr_dash_backend/app/"]
+    subgraph Backend ["backend/app/"]
         Main["main.py<br/>FastAPI App"]
         Core["core/<br/>config, db, auth"]
         API["api/routes/<br/>20 Route Modules"]
@@ -104,7 +104,7 @@ graph LR
 #### Directory Structure
 
 ```
-ibkr_dash_backend/app/
+backend/app/
 ├── main.py                    # FastAPI application factory
 ├── core/
 │   ├── config.py              # Settings (JSON-backed)
@@ -166,13 +166,13 @@ ibkr_dash_backend/app/
 
 ---
 
-### Frontend Module (`ibkr_dash_frontend/`)
+### Frontend Module (`frontend/`)
 
 The frontend is a single-page application (SPA) built with React and TypeScript. It communicates with the backend exclusively through REST API calls.
 
 ```mermaid
 graph TB
-    subgraph Frontend ["ibkr_dash_frontend/src/"]
+    subgraph Frontend ["frontend/src/"]
         Main["main.tsx<br/>Entry Point"]
         App["App.tsx<br/>Shell Layout"]
         Router["router/<br/>Route Config"]
@@ -218,13 +218,13 @@ AI-powered views (Copilot, AI Decision) require authentication. Data views (Dash
 
 ---
 
-### Worker Module (`ibkr_dash_worker/`)
+### Worker Module (`worker/`)
 
 The worker is a standalone ETL (Extract, Transform, Load) pipeline. It reads IBKR Flex CSV exports and writes structured data into SQLite.
 
 ```mermaid
 graph LR
-    subgraph Worker ["ibkr_dash_worker/worker/"]
+    subgraph Worker ["worker/worker/"]
         Main["main.py<br/>CLI Entry Point"]
         Parsers["parsers/<br/>CSV + XML Parsers"]
         Transformers["parsers/transformers.py<br/>Data Transformation"]

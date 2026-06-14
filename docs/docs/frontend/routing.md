@@ -47,7 +47,7 @@ graph TB
 ## Router Setup
 
 ```tsx
-// ibkr_dash_frontend/src/router/index.tsx
+// frontend/src/router/index.tsx
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import App from '@/App'
 
@@ -65,7 +65,7 @@ export const router = createBrowserRouter([
 The `<App />` component serves as the layout wrapper, rendering `<AppHeader />` and an `<Outlet />` for the active route.
 
 ```tsx
-// ibkr_dash_frontend/src/App.tsx
+// frontend/src/App.tsx
 function App() {
   return (
     <ErrorBoundary>
@@ -83,7 +83,7 @@ function App() {
 All views are lazy-loaded using React's `lazy()` and `Suspense`:
 
 ```tsx
-// ibkr_dash_frontend/src/router/index.tsx
+// frontend/src/router/index.tsx
 const DashboardView = lazy(() => import('@/views/DashboardView'))
 const PositionsView = lazy(() => import('@/views/PositionsView'))
 const TradesView = lazy(() => import('@/views/TradesView'))
@@ -131,7 +131,7 @@ This means:
 Some routes require authentication. These are wrapped in a `ProtectedRoute` component:
 
 ```tsx
-// ibkr_dash_frontend/src/router/index.tsx
+// frontend/src/router/index.tsx
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { authenticated, initialized } = useAuth()
 

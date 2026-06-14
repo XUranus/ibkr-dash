@@ -272,7 +272,7 @@ Here is a high-level overview of the project directory:
 
 ```
 ibkr-dash/
-├── ibkr_dash_backend/          # FastAPI server + AI agents
+├── backend/          # FastAPI server + AI agents
 │   ├── app/
 │   │   ├── agents/             # AI agent system (5 agent types)
 │   │   ├── api/routes/         # REST API endpoints (20+ routes)
@@ -282,7 +282,7 @@ ibkr-dash/
 │   │   └── utils/              # Date, pagination, JSON helpers
 │   └── tests/                  # Backend test suite
 │
-├── ibkr_dash_frontend/         # React + TypeScript dashboard
+├── frontend/         # React + TypeScript dashboard
 │   ├── src/
 │   │   ├── views/              # Page components
 │   │   ├── components/         # Reusable UI components (Modal, StatCard, etc.)
@@ -295,7 +295,7 @@ ibkr-dash/
 │   │   └── utils/              # Formatting helpers
 │   └── package.json
 │
-├── ibkr_dash_worker/           # Data ETL worker
+├── worker/           # Data ETL worker
 │   ├── worker/
 │   │   ├── parsers/            # IBKR Flex CSV/XML parsers
 │   │   ├── importers/          # Import pipeline

@@ -100,7 +100,7 @@ graph LR
 头部使用 `useAuth` hook 获取认证状态，使用 `useAccountOverview` hook 获取账户指标。
 
 ```tsx
-// ibkr_dash_frontend/src/App.tsx
+// frontend/src/App.tsx
 <AppHeader />
 // 在 <App /> 内作为第一个子组件渲染，在 <Outlet /> 之上
 ```
@@ -211,7 +211,7 @@ graph LR
 - 等宽数字，使用 tabular-nums
 
 ```tsx
-// ibkr_dash_frontend/src/views/PositionsView.tsx
+// frontend/src/views/PositionsView.tsx
 <PositionTable
   positions={positions}
   onSelectSymbol={(symbol) => setSelectedSymbol(symbol)}

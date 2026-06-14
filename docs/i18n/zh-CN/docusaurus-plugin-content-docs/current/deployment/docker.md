@@ -120,9 +120,9 @@ backend:
   ports:
     - "${BACKEND_PORT:-8000}:8000"
   volumes:
-    - backend-data:/app/ibkr_dash_backend/data
+    - backend-data:/app/backend/data
   environment:
-    - SQLITE_PATH=/app/ibkr_dash_backend/data/ibkr_dash.db
+    - SQLITE_PATH=/app/backend/data/ibkr_dash.db
     - APP_ENV=docker
   restart: unless-stopped
 ```
@@ -140,9 +140,9 @@ worker:
     context: .
     dockerfile: docker/worker.Dockerfile
   volumes:
-    - backend-data:/app/ibkr_dash_backend/data
+    - backend-data:/app/backend/data
   environment:
-    - SQLITE_PATH=/app/ibkr_dash_backend/data/ibkr_dash.db
+    - SQLITE_PATH=/app/backend/data/ibkr_dash.db
   restart: unless-stopped
 ```
 
@@ -176,9 +176,9 @@ frontend:
 ```dockerfile
 FROM python:3.12-slim
 WORKDIR /app
-COPY ibkr_dash_backend/requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY ibkr_dash_backend/ .
+COPY backend/ .
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
@@ -187,9 +187,9 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```dockerfile
 FROM python:3.12-slim
 WORKDIR /app
-COPY ibkr_dash_worker/requirements.txt .
+COPY worker/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY ibkr_dash_worker/ .
+COPY worker/ .
 CMD ["python", "-m", "worker.main", "run-scheduler"]
 ```
 
@@ -198,9 +198,9 @@ CMD ["python", "-m", "worker.main", "run-scheduler"]
 ```dockerfile
 FROM node:20-alpine AS build
 WORKDIR /app
-COPY ibkr_dash_frontend/package*.json ./
+COPY frontend/package*.json ./
 RUN npm ci
-COPY ibkr_dash_frontend/ .
+COPY frontend/ .
 RUN npm run build
 
 FROM nginx:alpine
@@ -260,7 +260,7 @@ docker volume inspect ibkr-dash_backend-data
 备份数据库：
 
 ```bash
-docker compose exec backend cp /app/ibkr_dash_backend/data/ibkr_dash.db /tmp/backup.db
+docker compose exec backend cp /app/backend/data/ibkr_dash.db /tmp/backup.db
 docker compose cp backend:/tmp/backup.db ./backup.db
 ```
 
@@ -301,7 +301,7 @@ docker compose exec backend bash
 
 | 变量 | Docker 默认值 | 说明 |
 |------|---------------|------|
-| `SQLITE_PATH` | `/app/ibkr_dash_backend/data/ibkr_dash.db` | 容器内的路径 |
+| `SQLITE_PATH` | `/app/backend/data/ibkr_dash.db` | 容器内的路径 |
 | `APP_ENV` | `docker` | 环境名称 |
 | `BACKEND_PORT` | `8000` | 后端的宿主机端口 |
 | `FRONTEND_PORT` | `8080` | 前端的宿主机端口 |

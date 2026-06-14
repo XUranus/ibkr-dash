@@ -57,9 +57,9 @@ Directory structure:
 
 ```
 ibkr-dash/
-├── ibkr_dash_backend/       # FastAPI server + AI agents
-├── ibkr_dash_frontend/      # React dashboard
-├── ibkr_dash_worker/        # Data ETL worker
+├── backend/       # FastAPI server + AI agents
+├── frontend/      # React dashboard
+├── worker/        # Data ETL worker
 ├── data/                    # SQLite database + Flex exports + config.json
 ├── docker/                  # Docker configurations
 ├── scripts/                 # Utility scripts
@@ -71,7 +71,7 @@ ibkr-dash/
 ## Step 2: Start the Backend
 
 ```bash
-cd ibkr_dash_backend
+cd backend
 
 # Create and activate a Python virtual environment
 python -m venv .venv
@@ -99,7 +99,7 @@ curl http://localhost:8000/api/health
 Open a **second terminal**:
 
 ```bash
-cd ibkr_dash_frontend
+cd frontend
 npm install
 npm run dev
 ```
@@ -138,7 +138,7 @@ For automatic data pulls from IBKR (instead of manual CSV imports), configure in
 ### Option A: Sample Data (Recommended for First Run)
 
 ```bash
-cd ibkr_dash_worker
+cd worker
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python -m worker.main import worker/fixtures/daily_sample.csv
@@ -151,7 +151,7 @@ python -m worker.main import worker/fixtures/daily_sample.csv
 3. Run:
 
 ```bash
-cd ibkr_dash_worker
+cd worker
 python -m worker.main import ../data/flex_exports/your_file.csv
 ```
 
@@ -160,7 +160,7 @@ python -m worker.main import ../data/flex_exports/your_file.csv
 If you configured the Flex token in Step 4:
 
 ```bash
-cd ibkr_dash_worker
+cd worker
 python -m worker.main run-scheduler   # Scheduled pulls
 python -m worker.main scan            # Immediate pull
 ```
@@ -210,14 +210,14 @@ docker compose down
 ### Backend
 
 ```bash
-cd ibkr_dash_backend
+cd backend
 .venv/bin/python -m pytest tests/ -v
 ```
 
 ### Frontend
 
 ```bash
-cd ibkr_dash_frontend
+cd frontend
 npx vitest run
 ```
 
@@ -245,10 +245,10 @@ Key sections:
 
 ### "ModuleNotFoundError: No module named 'app'"
 
-Run from inside `ibkr_dash_backend/`:
+Run from inside `backend/`:
 
 ```bash
-cd ibkr_dash_backend
+cd backend
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -286,17 +286,17 @@ Two processes are writing simultaneously. Stop the worker, wait a few seconds, r
 
 ```bash
 # --- Backend ---
-cd ibkr_dash_backend
+cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 
 # --- Frontend ---
-cd ibkr_dash_frontend
+cd frontend
 npm install && npm run dev
 
 # --- Worker (import sample data) ---
-cd ibkr_dash_worker
+cd worker
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python -m worker.main import worker/fixtures/daily_sample.csv

@@ -271,7 +271,7 @@ IBKR Dash 面向多类用户：
 
 ```
 ibkr-dash/
-├── ibkr_dash_backend/          # FastAPI 服务器 + AI 代理
+├── backend/          # FastAPI 服务器 + AI 代理
 │   ├── app/
 │   │   ├── agents/             # AI 代理系统（5 种代理类型）
 │   │   ├── api/routes/         # REST API 端点（20+ 路由）
@@ -281,7 +281,7 @@ ibkr-dash/
 │   │   └── utils/              # 日期、分页、JSON 辅助函数
 │   └── tests/                  # 后端测试套件（43 个测试）
 │
-├── ibkr_dash_frontend/         # React + TypeScript 仪表盘
+├── frontend/         # React + TypeScript 仪表盘
 │   ├── src/
 │   │   ├── views/              # 页面组件（19 个视图）
 │   │   ├── components/         # 可复用 UI 组件
@@ -293,7 +293,7 @@ ibkr-dash/
 │   │   └── utils/              # 格式化辅助函数
 │   └── package.json
 │
-├── ibkr_dash_worker/           # 数据 ETL Worker
+├── worker/           # 数据 ETL Worker
 │   ├── worker/
 │   │   ├── parsers/            # IBKR Flex CSV/XML 解析器
 │   │   ├── importers/          # 导入管道

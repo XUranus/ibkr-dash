@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 # Add the backend to the path so we can import its database module
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ibkr_dash_backend"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
 
 from app.core.database import Database, init_database
 from worker.core.config import Settings

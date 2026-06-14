@@ -21,7 +21,7 @@ description: CSS 架构、设计令牌和组件样式模式
 `theme.css` 和 `base.css` 都在 `main.tsx` 中导入：
 
 ```tsx
-// ibkr_dash_frontend/src/main.tsx
+// frontend/src/main.tsx
 import './styles/theme.css'
 import './styles/base.css'
 ```
@@ -95,7 +95,7 @@ graph TB
 ### 颜色调色板 CSS
 
 ```css
-/* ibkr_dash_frontend/src/styles/theme.css */
+/* frontend/src/styles/theme.css */
 :root {
   /* 表面色板 */
   --color-bg:              #080b12;     /* 页面背景 */
@@ -184,7 +184,7 @@ graph TB
 `.app-shell` 类居中内容并限制宽度：
 
 ```css
-/* ibkr_dash_frontend/src/styles/base.css */
+/* frontend/src/styles/base.css */
 .app-shell {
   width: min(1520px, calc(100% - 48px));
   margin: 0 auto;

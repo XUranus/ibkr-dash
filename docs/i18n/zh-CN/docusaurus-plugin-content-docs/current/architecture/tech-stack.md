@@ -677,13 +677,13 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - backend-data:/app/ibkr_dash_backend/data
+      - backend-data:/app/backend/data
 
   worker:
     build:
       dockerfile: docker/worker.Dockerfile
     volumes:
-      - backend-data:/app/ibkr_dash_backend/data
+      - backend-data:/app/backend/data
 
   frontend:
     build:
@@ -706,7 +706,7 @@ volumes:
 **后端：pytest**
 
 ```bash
-cd ibkr_dash_backend
+cd backend
 .venv/bin/python -m pytest tests/ -v
 ```
 
@@ -721,7 +721,7 @@ cd ibkr_dash_backend
 **前端：Vitest**
 
 ```bash
-cd ibkr_dash_frontend
+cd frontend
 npx vitest run
 ```
 

@@ -15,15 +15,15 @@ IBKR Dash 是一个包含三个模块的 monorepo：
 
 ```
 ibkr-dash/
-  ibkr_dash_backend/     # FastAPI REST API (Python)
-  ibkr_dash_frontend/    # React SPA (TypeScript)
-  ibkr_dash_worker/      # ETL 调度器 (Python)
+  backend/     # FastAPI REST API (Python)
+  frontend/    # React SPA (TypeScript)
+  worker/      # ETL 调度器 (Python)
   data/                  # SQLite 数据库 + Flex CSV 导出
   docker/                # Dockerfile + nginx 配置
   wiki/                  # Docusaurus 文档
 ```
 
-### 后端 (`ibkr_dash_backend/`)
+### 后端 (`backend/`)
 
 - **框架**：FastAPI + Pydantic v2 schemas
 - **数据库**：SQLite（无 Redis、无 Elasticsearch）
@@ -41,7 +41,7 @@ app/
   core/           # 配置、数据库、身份验证、日志
 ```
 
-### 前端 (`ibkr_dash_frontend/`)
+### 前端 (`frontend/`)
 
 - **框架**：React 18 + TypeScript（严格模式）
 - **构建工具**：Vite
@@ -61,7 +61,7 @@ src/
   utils/          # 工具函数
 ```
 
-### Worker (`ibkr_dash_worker/`)
+### Worker (`worker/`)
 
 - **用途**：从 IBKR Flex CSV 到 SQLite 的 ETL 管道
 - **调度器**：APScheduler（基于 cron）

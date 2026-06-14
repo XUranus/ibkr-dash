@@ -15,15 +15,15 @@ IBKR Dash is a monorepo with three modules:
 
 ```
 ibkr-dash/
-  ibkr_dash_backend/     # FastAPI REST API (Python)
-  ibkr_dash_frontend/    # React SPA (TypeScript)
-  ibkr_dash_worker/      # ETL scheduler (Python)
+  backend/     # FastAPI REST API (Python)
+  frontend/    # React SPA (TypeScript)
+  worker/      # ETL scheduler (Python)
   data/                  # SQLite DB + Flex CSV exports
   docker/                # Dockerfiles + nginx config
   wiki/                  # Docusaurus documentation
 ```
 
-### Backend (`ibkr_dash_backend/`)
+### Backend (`backend/`)
 
 - **Framework**: FastAPI with Pydantic v2 schemas
 - **Database**: SQLite (no Redis, no Elasticsearch)
@@ -41,7 +41,7 @@ app/
   core/           # Config, database, auth, logging
 ```
 
-### Frontend (`ibkr_dash_frontend/`)
+### Frontend (`frontend/`)
 
 - **Framework**: React 18 + TypeScript (strict mode)
 - **Build tool**: Vite
@@ -61,7 +61,7 @@ src/
   utils/          # Utility functions
 ```
 
-### Worker (`ibkr_dash_worker/`)
+### Worker (`worker/`)
 
 - **Purpose**: ETL pipeline from IBKR Flex CSV to SQLite
 - **Scheduler**: APScheduler (cron-based)

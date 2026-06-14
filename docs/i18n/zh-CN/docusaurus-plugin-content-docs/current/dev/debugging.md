@@ -64,7 +64,7 @@ LOG_LEVEL=DEBUG
 更改这些值后重启后端：
 
 ```bash
-cd ibkr_dash_backend
+cd backend
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -126,9 +126,9 @@ def list_positions(self, ...):
       "request": "launch",
       "module": "uvicorn",
       "args": ["app.main:app", "--reload", "--port", "8000"],
-      "cwd": "${workspaceFolder}/ibkr_dash_backend",
+      "cwd": "${workspaceFolder}/backend",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}/ibkr_dash_backend"
+        "PYTHONPATH": "${workspaceFolder}/backend"
       }
     }
   ]
@@ -211,7 +211,7 @@ server: {
 运行 TypeScript 编译器检查类型错误：
 
 ```bash
-cd ibkr_dash_frontend
+cd frontend
 npx tsc --noEmit
 ```
 
@@ -247,7 +247,7 @@ npm install
 通过手动运行来测试导入管道：
 
 ```bash
-cd ibkr_dash_worker
+cd worker
 
 # 导入特定文件
 python -m worker.main import path/to/flex_export.csv
@@ -410,7 +410,7 @@ ORDER BY prompt_key, version DESC;
 rm data/ibkr_dash.db
 
 # 重新初始化
-cd ibkr_dash_worker && python -m worker.main init-db
+cd worker && python -m worker.main init-db
 
 # 重新导入数据
 python -m worker.main import path/to/file.csv

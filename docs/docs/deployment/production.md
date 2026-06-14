@@ -263,7 +263,7 @@ The SQLite database is stored in a Docker volume. Back it up regularly.
 
 ```bash
 # Copy the database out of the container
-docker compose exec backend cp /app/ibkr_dash_backend/data/ibkr_dash.db /tmp/backup.db
+docker compose exec backend cp /app/backend/data/ibkr_dash.db /tmp/backup.db
 docker compose cp backend:/tmp/backup.db ./backup-$(date +%Y%m%d).db
 ```
 
@@ -282,7 +282,7 @@ mkdir -p "$BACKUP_DIR"
 DATE=$(date +%Y%m%d_%H%M%S)
 
 docker compose -f /opt/ibkr-dash/docker-compose.yml \
-  exec -T backend cp /app/ibkr_dash_backend/data/ibkr_dash.db /tmp/backup.db
+  exec -T backend cp /app/backend/data/ibkr_dash.db /tmp/backup.db
 
 docker compose -f /opt/ibkr-dash/docker-compose.yml \
   cp backend:/tmp/backup.db "$BACKUP_DIR/backup_$DATE.db"
@@ -303,7 +303,7 @@ crontab -e
 
 ```bash
 docker compose stop backend worker
-docker compose cp ./backup.db backend:/app/ibkr_dash_backend/data/ibkr_dash.db
+docker compose cp ./backup.db backend:/app/backend/data/ibkr_dash.db
 docker compose start backend worker
 ```
 
@@ -317,7 +317,7 @@ The backend exposes a health check at `/api/health`:
 
 ```bash
 curl http://localhost:8000/api/health
-# {"status":"ok","service":"ibkr_dash_backend"}
+# {"status":"ok","service":"backend"}
 ```
 
 ### System status endpoint
@@ -400,12 +400,12 @@ If you experience slow queries with large datasets:
 
 ```bash
 # Check database size
-docker compose exec backend ls -lh /app/ibkr_dash_backend/data/ibkr_dash.db
+docker compose exec backend ls -lh /app/backend/data/ibkr_dash.db
 
 # Run VACUUM to reclaim space
 docker compose exec backend python -c "
 import sqlite3
-conn = sqlite3.connect('/app/ibkr_dash_backend/data/ibkr_dash.db')
+conn = sqlite3.connect('/app/backend/data/ibkr_dash.db')
 conn.execute('VACUUM')
 conn.close()
 "

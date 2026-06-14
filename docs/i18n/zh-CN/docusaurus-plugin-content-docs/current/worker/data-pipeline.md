@@ -108,7 +108,7 @@ EOF
 ### 解析器代码示例
 
 ```python
-# ibkr_dash_worker/worker/parsers/flex_csv_parser.py
+# worker/worker/parsers/flex_csv_parser.py
 def parse_flex_csv(file_path: Path) -> FlexStatement:
     """将 IBKR Flex CSV 文件解析为 FlexStatement。"""
     sections: dict[str, FlexSection] = {}
@@ -187,7 +187,7 @@ class FlexStatement:
 ### XML 解析代码示例
 
 ```python
-# ibkr_dash_worker/worker/parsers/flex_xml_parser.py
+# worker/worker/parsers/flex_xml_parser.py
 def parse_flex_xml(xml_text: str) -> FlexXmlResult:
     """将 IBKR Flex XML 响应解析为 FlexXmlResult。"""
     root = ET.fromstring(xml_text)
@@ -285,7 +285,7 @@ class TransformResult:
 IBKR 导出使用不一致的列名。转换器通过模糊匹配处理：
 
 ```python
-# ibkr_dash_worker/worker/parsers/transformers.py
+# worker/worker/parsers/transformers.py
 def _normalize_key(value: str) -> str:
     """小写并去除所有非字母数字字符。"""
     return re.sub(r"[^a-z0-9]+", "", value.lower())
@@ -315,7 +315,7 @@ price = _get_value(row, "MarkPrice", "Mark Price", "ClosePrice", "Close Price")
 ### Upsert 代码示例
 
 ```python
-# ibkr_dash_worker/worker/writers/sqlite_writer.py
+# worker/worker/writers/sqlite_writer.py
 def write_position_snapshots(self, documents: list[dict]) -> int:
     """将持仓快照 upsert 到数据库。"""
     conn = sqlite3.connect(self.db_path)

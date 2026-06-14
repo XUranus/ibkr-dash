@@ -56,7 +56,7 @@ sequenceDiagram
 ### Step 1: Send Request
 
 ```python
-# ibkr_dash_worker/worker/clients/flex_client.py
+# worker/worker/clients/flex_client.py
 def send_request(self, query_id: str) -> str:
     """Submit a flex query and return the reference code."""
     token = self._require_token()

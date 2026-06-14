@@ -18,9 +18,9 @@ A personal investment portfolio dashboard with AI agent capabilities, powered by
 
 | Module | Tech Stack | Description |
 |--------|-----------|-------------|
-| `ibkr_dash_backend` | Python, FastAPI, SQLite | API server + AI agents |
-| `ibkr_dash_worker` | Python, APScheduler | IBKR Flex CSV data import |
-| `ibkr_dash_frontend` | React, TypeScript, Vite | Dashboard UI |
+| `backend` | Python, FastAPI, SQLite | API server + AI agents |
+| `worker` | Python, APScheduler | IBKR Flex CSV data import |
+| `frontend` | React, TypeScript, Vite | Dashboard UI |
 
 ## Quick Start
 
@@ -35,7 +35,7 @@ cd ibkr-dash
 
 **Terminal 1 — Backend:**
 ```bash
-cd ibkr_dash_backend
+cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -44,14 +44,14 @@ uvicorn app.main:app --reload --port 8000
 
 **Terminal 2 — Frontend:**
 ```bash
-cd ibkr_dash_frontend
+cd frontend
 npm install
 npm run dev
 ```
 
 **Terminal 3 — Worker (optional, for data import):**
 ```bash
-cd ibkr_dash_worker
+cd worker
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -81,7 +81,7 @@ Open **http://localhost:5173/admin/settings** and set:
 2. Place the file in `data/flex_exports/`
 3. Run the import:
 ```bash
-cd ibkr_dash_worker
+cd worker
 python -m worker.main import ../data/flex_exports/your_file.csv
 ```
 
@@ -89,14 +89,14 @@ python -m worker.main import ../data/flex_exports/your_file.csv
 
 Configure the Flex token in Admin Settings, then:
 ```bash
-cd ibkr_dash_worker
+cd worker
 python -m worker.main run-scheduler
 ```
 
 ### Option C: Use sample data (for testing)
 
 ```bash
-cd ibkr_dash_worker
+cd worker
 python -m worker.main import worker/fixtures/daily_sample.csv
 ```
 
@@ -130,17 +130,17 @@ All configuration is stored in `data/config.json` and managed via the **Admin Se
 
 ```bash
 # Backend tests (43 tests)
-cd ibkr_dash_backend && .venv/bin/python -m pytest tests/ -v
+cd backend && .venv/bin/python -m pytest tests/ -v
 
 # Frontend tests (74 tests)
-cd ibkr_dash_frontend && npx vitest run
+cd frontend && npx vitest run
 ```
 
 ## Project Structure
 
 ```
 ibkr-dash/
-├── ibkr_dash_backend/          # FastAPI server + AI agents
+├── backend/          # FastAPI server + AI agents
 │   ├── app/
 │   │   ├── agents/             # AI agent system
 │   │   │   ├── account_copilot/ # Chat agent
@@ -154,14 +154,14 @@ ibkr-dash/
 │   │   ├── schemas/            # Pydantic models
 │   │   └── core/               # Config, DB, auth
 │   └── tests/                  # Backend tests
-├── ibkr_dash_frontend/         # React + TypeScript
+├── frontend/         # React + TypeScript
 │   ├── src/
 │   │   ├── views/              # Page components (19 views)
 │   │   ├── components/         # Reusable components
 │   │   ├── api/                # API clients
 │   │   └── types/              # TypeScript types
 │   └── package.json
-├── ibkr_dash_worker/           # Data ETL
+├── worker/           # Data ETL
 │   ├── worker/
 │   │   ├── parsers/            # IBKR Flex CSV parser
 │   │   ├── clients/            # DB and API clients

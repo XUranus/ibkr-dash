@@ -2,10 +2,10 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
-COPY ibkr_dash_frontend/package*.json ./
+COPY frontend/package*.json ./
 RUN npm ci
 
-COPY ibkr_dash_frontend/ .
+COPY frontend/ .
 RUN npm run build
 
 FROM nginx:alpine

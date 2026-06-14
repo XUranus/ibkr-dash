@@ -4,20 +4,20 @@
 
 ```bash
 # Backend
-cd ibkr_dash_backend
+cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 
 # Worker
-cd ibkr_dash_worker
+cd worker
 pip install -r requirements.txt
 python -m worker.main init-db
 python -m worker.main import data/sample.csv
 
 # Frontend
-cd ibkr_dash_frontend
+cd frontend
 npm install
 npm run dev
 ```
@@ -32,13 +32,13 @@ npm run dev
 
 ```bash
 # Backend tests
-cd ibkr_dash_backend && pytest
+cd backend && pytest
 
 # Worker tests
-cd ibkr_dash_worker && pytest
+cd worker && pytest
 
 # Frontend tests
-cd ibkr_dash_frontend && npm test
+cd frontend && npm test
 ```
 
 ## Architecture Decisions

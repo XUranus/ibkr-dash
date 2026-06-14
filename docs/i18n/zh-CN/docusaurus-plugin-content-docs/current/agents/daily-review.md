@@ -222,11 +222,11 @@ class DailyPositionReviewOutput(FlexibleModel):
 
 ## 邮件集成
 
-每日复盘可以通过管理面板中的 SMTP 配置发送邮件。工作服务（`ibkr_dash_worker`）可以按计划触发每日复盘生成和邮件发送。
+每日复盘可以通过管理面板中的 SMTP 配置发送邮件。工作服务（`worker`）可以按计划触发每日复盘生成和邮件发送。
 
 ```mermaid
 flowchart LR
-    A[调度器 / Cron] --> B[ibkr_dash_worker]
+    A[调度器 / Cron] --> B[worker]
     B --> C[generate_daily_review]
     C --> D[复盘保存到数据库]
     D --> E[格式化为邮件 HTML]

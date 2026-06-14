@@ -25,7 +25,7 @@ graph TB
         Manual["Manual CSV Export"]
     end
 
-    subgraph Worker["ibkr_dash_worker"]
+    subgraph Worker["worker"]
         CLI["main.py (CLI)"]
         Scheduler["scheduler.py (APScheduler)"]
         Job["daily_incremental_job.py"]
@@ -78,7 +78,7 @@ graph TB
 ## Directory Layout
 
 ```
-ibkr_dash_worker/
+worker/
   worker/
     main.py                     # CLI entry point (import, run-scheduler, init-db, scan)
     core/
@@ -282,7 +282,7 @@ The worker is designed to run as a long-lived process alongside the backend:
 # docker-compose.yml (excerpt)
 services:
   worker:
-    build: ./ibkr_dash_worker
+    build: ./worker
     command: python -m worker.main run-scheduler
     volumes:
       - ./data:/app/data

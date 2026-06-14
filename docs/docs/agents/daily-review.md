@@ -222,11 +222,11 @@ If the LLM fails, the fallback generates a report using only deterministic data:
 
 ## Email Integration
 
-The daily review can be sent via email using the SMTP configuration in the Admin panel. The worker service (`ibkr_dash_worker`) can trigger daily review generation and email delivery on a schedule.
+The daily review can be sent via email using the SMTP configuration in the Admin panel. The worker service (`worker`) can trigger daily review generation and email delivery on a schedule.
 
 ```mermaid
 flowchart LR
-    A[Scheduler / Cron] --> B[ibkr_dash_worker]
+    A[Scheduler / Cron] --> B[worker]
     B --> C[generate_daily_review]
     C --> D[Review Saved to DB]
     D --> E[Format as Email HTML]

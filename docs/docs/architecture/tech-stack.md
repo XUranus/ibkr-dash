@@ -675,13 +675,13 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - backend-data:/app/ibkr_dash_backend/data
+      - backend-data:/app/backend/data
 
   worker:
     build:
       dockerfile: docker/worker.Dockerfile
     volumes:
-      - backend-data:/app/ibkr_dash_backend/data
+      - backend-data:/app/backend/data
 
   frontend:
     build:
@@ -704,7 +704,7 @@ The shared volume (`backend-data`) contains the SQLite database, which both the 
 **Backend: pytest**
 
 ```bash
-cd ibkr_dash_backend
+cd backend
 .venv/bin/python -m pytest tests/ -v
 ```
 
@@ -719,7 +719,7 @@ The backend has 43 tests covering:
 **Frontend: Vitest**
 
 ```bash
-cd ibkr_dash_frontend
+cd frontend
 npx vitest run
 ```
 

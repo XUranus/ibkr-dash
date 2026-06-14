@@ -53,9 +53,9 @@ cd ibkr-dash
 
 ```
 ibkr-dash/
-├── ibkr_dash_backend/       # FastAPI 服务器 + AI 代理
-├── ibkr_dash_frontend/      # React 仪表盘
-├── ibkr_dash_worker/        # 数据 ETL Worker
+├── backend/       # FastAPI 服务器 + AI 代理
+├── frontend/      # React 仪表盘
+├── worker/        # 数据 ETL Worker
 ├── data/                    # SQLite 数据库 + Flex 导出 + config.json
 ├── docker/                  # Docker 配置
 ├── scripts/                 # 实用脚本
@@ -67,7 +67,7 @@ ibkr-dash/
 ## 步骤 2：启动后端
 
 ```bash
-cd ibkr_dash_backend
+cd backend
 python -m venv .venv
 source .venv/bin/activate   # macOS/Linux
 # .venv\Scripts\activate    # Windows
@@ -89,7 +89,7 @@ curl http://localhost:8000/api/health
 打开**第二个终端**：
 
 ```bash
-cd ibkr_dash_frontend
+cd frontend
 npm install
 npm run dev
 ```
@@ -128,7 +128,7 @@ IBKR Dash 使用 JSON 配置文件（`data/config.json`），通过**管理后�
 ### 选项 A：示例数据（首次运行推荐）
 
 ```bash
-cd ibkr_dash_worker
+cd worker
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python -m worker.main import worker/fixtures/daily_sample.csv
@@ -141,7 +141,7 @@ python -m worker.main import worker/fixtures/daily_sample.csv
 3. 运行：
 
 ```bash
-cd ibkr_dash_worker
+cd worker
 python -m worker.main import ../data/flex_exports/your_file.csv
 ```
 
@@ -150,7 +150,7 @@ python -m worker.main import ../data/flex_exports/your_file.csv
 如在步骤 4 中配置了 Flex Token：
 
 ```bash
-cd ibkr_dash_worker
+cd worker
 python -m worker.main run-scheduler   # 定时拉取
 python -m worker.main scan            # 立即拉取
 ```
@@ -200,14 +200,14 @@ docker compose down
 ### 后端
 
 ```bash
-cd ibkr_dash_backend
+cd backend
 .venv/bin/python -m pytest tests/ -v
 ```
 
 ### 前端
 
 ```bash
-cd ibkr_dash_frontend
+cd frontend
 npx vitest run
 ```
 
@@ -233,10 +233,10 @@ npx vitest run
 
 ### "ModuleNotFoundError: No module named 'app'"
 
-在 `ibkr_dash_backend/` 目录内运行：
+在 `backend/` 目录内运行：
 
 ```bash
-cd ibkr_dash_backend
+cd backend
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -274,17 +274,17 @@ sqlite3 data/ibkr_dash.db "SELECT COUNT(*) FROM position_snapshots;"
 
 ```bash
 # --- 后端 ---
-cd ibkr_dash_backend
+cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 
 # --- 前端 ---
-cd ibkr_dash_frontend
+cd frontend
 npm install && npm run dev
 
 # --- Worker（导入示例数据）---
-cd ibkr_dash_worker
+cd worker
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python -m worker.main import worker/fixtures/daily_sample.csv

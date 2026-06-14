@@ -13,13 +13,13 @@ IBKR Dash 使用 **pytest** 进行 Python（后端 + worker）测试，使用 **
 
 ```bash
 # 后端测试
-cd ibkr_dash_backend && pytest
+cd backend && pytest
 
 # Worker 测试
-cd ibkr_dash_worker && pytest
+cd worker && pytest
 
 # 前端测试
-cd ibkr_dash_frontend && npm test
+cd frontend && npm test
 ```
 
 ---
@@ -28,7 +28,7 @@ cd ibkr_dash_frontend && npm test
 
 ```mermaid
 graph TD
-    subgraph Backend["ibkr_dash_backend/tests/"]
+    subgraph Backend["backend/tests/"]
         B1["conftest.py -- fixtures 和设置"]
         B2["test_health.py"]
         B3["test_position_service.py"]
@@ -42,7 +42,7 @@ graph TD
         B11["test_structured_output.py"]
     end
 
-    subgraph Worker["ibkr_dash_worker/tests/"]
+    subgraph Worker["worker/tests/"]
         W1["conftest.py -- fixtures 和设置"]
         W2["test_config.py"]
         W3["test_flex_csv_parser.py"]
@@ -51,7 +51,7 @@ graph TD
         W6["test_import_daily_snapshot.py"]
     end
 
-    subgraph Frontend["ibkr_dash_frontend/src/"]
+    subgraph Frontend["frontend/src/"]
         F1["api/__tests__/http.test.ts"]
         F2["components/__tests__/*.test.tsx"]
         F3["hooks/__tests__/useAuth.test.tsx"]
@@ -67,7 +67,7 @@ graph TD
 ### 运行测试
 
 ```bash
-cd ibkr_dash_backend
+cd backend
 
 # 运行所有测试
 pytest
@@ -229,7 +229,7 @@ def test_positions_endpoint():
 ### 运行测试
 
 ```bash
-cd ibkr_dash_worker
+cd worker
 
 # 运行所有测试
 pytest
@@ -300,7 +300,7 @@ def test_parse_empty_csv(tmp_path):
 ### 运行测试
 
 ```bash
-cd ibkr_dash_frontend
+cd frontend
 
 # 运行所有测试（单次运行）
 npm test
@@ -425,7 +425,7 @@ describe('formatPercent', () => {
 ### 后端覆盖率
 
 ```bash
-cd ibkr_dash_backend
+cd backend
 pytest --cov=app --cov-report=html
 # 在浏览器中打开 htmlcov/index.html
 ```
@@ -433,7 +433,7 @@ pytest --cov=app --cov-report=html
 ### 前端覆盖率
 
 ```bash
-cd ibkr_dash_frontend
+cd frontend
 npx vitest run --coverage
 ```
 

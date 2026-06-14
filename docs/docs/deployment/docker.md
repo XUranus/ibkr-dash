@@ -108,9 +108,9 @@ backend:
   ports:
     - "${BACKEND_PORT:-8000}:8000"
   volumes:
-    - backend-data:/app/ibkr_dash_backend/data
+    - backend-data:/app/backend/data
   environment:
-    - SQLITE_PATH=/app/ibkr_dash_backend/data/ibkr_dash.db
+    - SQLITE_PATH=/app/backend/data/ibkr_dash.db
     - APP_ENV=${APP_ENV:-docker}
   restart: unless-stopped
 ```
@@ -128,9 +128,9 @@ worker:
     context: .
     dockerfile: docker/worker.Dockerfile
   volumes:
-    - backend-data:/app/ibkr_dash_backend/data
+    - backend-data:/app/backend/data
   environment:
-    - SQLITE_PATH=/app/ibkr_dash_backend/data/ibkr_dash.db
+    - SQLITE_PATH=/app/backend/data/ibkr_dash.db
   restart: unless-stopped
 ```
 
@@ -164,9 +164,9 @@ frontend:
 ```dockerfile
 FROM python:3.12-slim
 WORKDIR /app
-COPY ibkr_dash_backend/requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY ibkr_dash_backend/ .
+COPY backend/ .
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
@@ -175,9 +175,9 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```dockerfile
 FROM python:3.12-slim
 WORKDIR /app
-COPY ibkr_dash_worker/requirements.txt .
+COPY worker/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY ibkr_dash_worker/ .
+COPY worker/ .
 CMD ["python", "-m", "worker.main", "run-scheduler"]
 ```
 
@@ -186,9 +186,9 @@ CMD ["python", "-m", "worker.main", "run-scheduler"]
 ```dockerfile
 FROM node:20-alpine AS build
 WORKDIR /app
-COPY ibkr_dash_frontend/package*.json ./
+COPY frontend/package*.json ./
 RUN npm ci
-COPY ibkr_dash_frontend/ .
+COPY frontend/ .
 RUN npm run build
 
 FROM nginx:alpine
@@ -248,7 +248,7 @@ docker volume inspect ibkr-dash_backend-data
 To back up the database:
 
 ```bash
-docker compose exec backend cp /app/ibkr_dash_backend/data/ibkr_dash.db /tmp/backup.db
+docker compose exec backend cp /app/backend/data/ibkr_dash.db /tmp/backup.db
 docker compose cp backend:/tmp/backup.db ./backup.db
 ```
 
@@ -291,7 +291,7 @@ Docker-specific overrides in `docker-compose.yml`:
 
 | Variable | Docker Default | Description |
 |----------|---------------|-------------|
-| `SQLITE_PATH` | `/app/ibkr_dash_backend/data/ibkr_dash.db` | Path inside the container |
+| `SQLITE_PATH` | `/app/backend/data/ibkr_dash.db` | Path inside the container |
 | `APP_ENV` | `docker` | Environment name |
 | `BACKEND_PORT` | `8000` | Host port for the backend |
 | `FRONTEND_PORT` | `8080` | Host port for the frontend |

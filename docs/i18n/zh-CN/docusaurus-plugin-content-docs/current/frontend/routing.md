@@ -47,7 +47,7 @@ graph TB
 ## 路由器配置
 
 ```tsx
-// ibkr_dash_frontend/src/router/index.tsx
+// frontend/src/router/index.tsx
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import App from '@/App'
 
@@ -65,7 +65,7 @@ export const router = createBrowserRouter([
 `<App />` 组件作为布局包装器，渲染 `<AppHeader />` 和用于活动路由的 `<Outlet />`。
 
 ```tsx
-// ibkr_dash_frontend/src/App.tsx
+// frontend/src/App.tsx
 function App() {
   return (
     <ErrorBoundary>
@@ -83,7 +83,7 @@ function App() {
 所有视图使用 React 的 `lazy()` 和 `Suspense` 进行懒加载：
 
 ```tsx
-// ibkr_dash_frontend/src/router/index.tsx
+// frontend/src/router/index.tsx
 const DashboardView = lazy(() => import('@/views/DashboardView'))
 const PositionsView = lazy(() => import('@/views/PositionsView'))
 const TradesView = lazy(() => import('@/views/TradesView'))
@@ -131,7 +131,7 @@ sequenceDiagram
 某些路由需要认证。这些路由被包装在 `ProtectedRoute` 组件中：
 
 ```tsx
-// ibkr_dash_frontend/src/router/index.tsx
+// frontend/src/router/index.tsx
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { authenticated, initialized } = useAuth()
 

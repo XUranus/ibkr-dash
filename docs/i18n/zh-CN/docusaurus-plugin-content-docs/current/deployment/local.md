@@ -27,9 +27,9 @@ title: 本地开发环境搭建
 
 ```
 ibkr-dash/
-  ibkr_dash_backend/    # FastAPI REST API
-  ibkr_dash_frontend/   # React + Vite SPA
-  ibkr_dash_worker/     # ETL 调度器（IBKR Flex -> SQLite）
+  backend/    # FastAPI REST API
+  frontend/   # React + Vite SPA
+  worker/     # ETL 调度器（IBKR Flex -> SQLite）
   data/                 # SQLite 数据库 + Flex CSV 导出 + 配置文件
   docker-compose.yml    # Docker 编排
 ```
@@ -70,7 +70,7 @@ cd ibkr-dash
 打开 **终端 1**：
 
 ```bash
-cd ibkr_dash_backend
+cd backend
 
 # 创建虚拟环境
 python -m venv .venv
@@ -88,7 +88,7 @@ API 现在运行在 `http://localhost:8000`。您可以验证：
 
 ```bash
 curl http://localhost:8000/api/health
-# {"status":"ok","service":"ibkr_dash_backend"}
+# {"status":"ok","service":"backend"}
 ```
 
 交互式 API 文档位于 `http://localhost:8000/docs`。
@@ -104,7 +104,7 @@ curl http://localhost:8000/api/health
 打开 **终端 2**：
 
 ```bash
-cd ibkr_dash_frontend
+cd frontend
 
 # 安装依赖
 npm install
@@ -130,7 +130,7 @@ npm run dev
 如果您有 IBKR Flex CSV 示例文件：
 
 ```bash
-cd ibkr_dash_worker
+cd worker
 
 # 创建虚拟环境（如未创建）
 python -m venv .venv
@@ -149,7 +149,7 @@ python -m worker.main import path/to/your/flex_export.csv
 如果您有配置了 Flex Web Service 的 IBKR 账户：
 
 ```bash
-cd ibkr_dash_worker
+cd worker
 python -m worker.main init-db
 python -m worker.main scan
 ```
@@ -174,9 +174,9 @@ python -m worker.main run-scheduler
 
 | 终端 | 命令 | URL |
 |------|------|-----|
-| 1 | `cd ibkr_dash_backend && uvicorn app.main:app --reload --port 8000` | `http://localhost:8000` |
-| 2 | `cd ibkr_dash_frontend && npm run dev` | `http://localhost:5173` |
-| 3 | `cd ibkr_dash_worker && python -m worker.main run-scheduler` | （后台） |
+| 1 | `cd backend && uvicorn app.main:app --reload --port 8000` | `http://localhost:8000` |
+| 2 | `cd frontend && npm run dev` | `http://localhost:5173` |
+| 3 | `cd worker && python -m worker.main run-scheduler` | （后台） |
 
 ```mermaid
 graph LR

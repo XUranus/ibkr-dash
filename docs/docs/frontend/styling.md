@@ -21,7 +21,7 @@ The styling is organized into three files:
 Both `theme.css` and `base.css` are imported in `main.tsx`:
 
 ```tsx
-// ibkr_dash_frontend/src/main.tsx
+// frontend/src/main.tsx
 import './styles/theme.css'
 import './styles/base.css'
 ```

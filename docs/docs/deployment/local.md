@@ -25,9 +25,9 @@ You do not need Docker for local development. Each module runs independently.
 
 ```
 ibkr-dash/
-  ibkr_dash_backend/    # FastAPI REST API
-  ibkr_dash_frontend/   # React + Vite SPA
-  ibkr_dash_worker/     # ETL scheduler (IBKR Flex -> SQLite)
+  backend/    # FastAPI REST API
+  frontend/   # React + Vite SPA
+  worker/     # ETL scheduler (IBKR Flex -> SQLite)
   data/                 # SQLite DB + Flex CSV exports + config.json
   docker-compose.yml    # Docker orchestration
 ```
@@ -48,7 +48,7 @@ cd ibkr-dash
 Open **Terminal 1**:
 
 ```bash
-cd ibkr_dash_backend
+cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -59,7 +59,7 @@ Verify:
 
 ```bash
 curl http://localhost:8000/api/health
-# {"status":"ok","service":"ibkr_dash_backend"}
+# {"status":"ok","service":"backend"}
 ```
 
 ---
@@ -69,7 +69,7 @@ curl http://localhost:8000/api/health
 Open **Terminal 2**:
 
 ```bash
-cd ibkr_dash_frontend
+cd frontend
 npm install
 npm run dev
 ```
@@ -101,7 +101,7 @@ Open **Terminal 3**:
 ### Option A: Sample Data
 
 ```bash
-cd ibkr_dash_worker
+cd worker
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python -m worker.main import worker/fixtures/daily_sample.csv
@@ -128,9 +128,9 @@ python -m worker.main run-scheduler   # Scheduled daily pulls
 
 | Terminal | Command | URL |
 |----------|---------|-----|
-| 1 | `cd ibkr_dash_backend && uvicorn app.main:app --reload --port 8000` | `http://localhost:8000` |
-| 2 | `cd ibkr_dash_frontend && npm run dev` | `http://localhost:5173` |
-| 3 | `cd ibkr_dash_worker && python -m worker.main run-scheduler` | (background) |
+| 1 | `cd backend && uvicorn app.main:app --reload --port 8000` | `http://localhost:8000` |
+| 2 | `cd frontend && npm run dev` | `http://localhost:5173` |
+| 3 | `cd worker && python -m worker.main run-scheduler` | (background) |
 
 ```mermaid
 graph LR

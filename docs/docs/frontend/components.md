@@ -101,7 +101,7 @@ The main navigation header displayed on every page. It includes:
 The header uses the `useAuth` hook for authentication state and the `useAccountOverview` hook for account metrics.
 
 ```tsx
-// ibkr_dash_frontend/src/App.tsx
+// frontend/src/App.tsx
 <AppHeader />
 // Renders inside <App /> as the first child, above the <Outlet />
 ```

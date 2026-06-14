@@ -10,8 +10,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-# Project root: worker/core/config.py -> worker/core -> worker -> ibkr_dash_worker -> project root
-_BASE_DIR = Path(__file__).resolve().parents[2]  # ibkr_dash_worker/
+# Project root: worker/core/config.py -> worker/core -> worker -> worker -> project root
+_BASE_DIR = Path(__file__).resolve().parents[2]  # worker/
 _PROJECT_ROOT = _BASE_DIR.parent  # ibkr-dash/
 _CONFIG_PATH = _PROJECT_ROOT / "data" / "config.json"
 

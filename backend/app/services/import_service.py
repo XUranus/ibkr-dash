@@ -18,16 +18,16 @@ from app.core.settings_manager import get_manager
 
 logger = logging.getLogger(__name__)
 
-# Project root: ibkr_dash_backend/ -> ibkr-dash/
-_PROJECT_ROOT = Path(__file__).resolve().parents[3]
-_WORKER_DIR = _PROJECT_ROOT / "ibkr_dash_worker"
+# Project root: backend/ -> ibkr-dash/
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_WORKER_DIR = _PROJECT_ROOT / "worker"
 
 
 def _ensure_worker_importable() -> None:
     """Add the worker package parent dir to sys.path if not already present.
 
-    The worker package lives at: <project>/ibkr_dash_worker/worker/
-    So we add ibkr_dash_worker/ to sys.path so `from worker.xxx import yyy` resolves.
+    The worker package lives at: <project>/worker/worker/
+    So we add worker/ to sys.path so `from worker.xxx import yyy` resolves.
     """
     worker_parent = str(_WORKER_DIR)
     if worker_parent not in sys.path:

@@ -11,7 +11,7 @@ The IBKR Dash backend is a **FastAPI** application that serves the REST API for 
 ## Directory Layout
 
 ```
-ibkr_dash_backend/
+backend/
   app/
     main.py                 # FastAPI app factory, middleware, router registration
     core/
@@ -224,7 +224,7 @@ flowchart TD
 
 ## Testing
 
-Tests live in `ibkr_dash_backend/tests/` and use **pytest**. The test suite covers:
+Tests live in `backend/tests/` and use **pytest**. The test suite covers:
 
 - Service layer logic (account, position, trade, cash flow, chart, LLM, agent)
 - API route behavior (admin, copilot, agent tasks)
@@ -235,7 +235,7 @@ Tests live in `ibkr_dash_backend/tests/` and use **pytest**. The test suite cove
 Run tests with:
 
 ```bash
-cd ibkr_dash_backend
+cd backend
 pytest tests/ -v
 ```
 

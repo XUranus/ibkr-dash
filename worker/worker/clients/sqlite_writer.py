@@ -2,7 +2,7 @@
 
 Writes parsed/transformed Flex CSV data into the same SQLite database
 that the backend reads from.  Uses the schema defined in
-ibkr_dash_backend/app/core/database.py.
+backend/app/core/database.py.
 """
 
 from __future__ import annotations

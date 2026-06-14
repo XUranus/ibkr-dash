@@ -64,7 +64,7 @@ LOG_LEVEL=DEBUG
 Restart the backend after changing these values:
 
 ```bash
-cd ibkr_dash_backend
+cd backend
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -126,12 +126,12 @@ Create `.vscode/launch.json` in the project root:
       "request": "launch",
       "module": "uvicorn",
       "args": ["app.main:app", "--reload", "--port", "8000"],
-      "cwd": "${workspaceFolder}/ibkr_dash_backend",
+      "cwd": "${workspaceFolder}/backend",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}/ibkr_dash_backend"
+        "PYTHONPATH": "${workspaceFolder}/backend"
       },
       "env": {
-        "PYTHONPATH": "${workspaceFolder}/ibkr_dash_backend"
+        "PYTHONPATH": "${workspaceFolder}/backend"
       }
     }
   ]
@@ -214,7 +214,7 @@ If API requests fail from the frontend but work from curl, check that:
 Run the TypeScript compiler to check for type errors:
 
 ```bash
-cd ibkr_dash_frontend
+cd frontend
 npx tsc --noEmit
 ```
 
@@ -250,7 +250,7 @@ Common React pitfalls:
 Test the import pipeline by running it manually:
 
 ```bash
-cd ibkr_dash_worker
+cd worker
 
 # Import a specific file
 python -m worker.main import path/to/flex_export.csv
@@ -419,7 +419,7 @@ If you need a clean start:
 rm data/ibkr_dash.db
 
 # Reinitialize
-cd ibkr_dash_worker && python -m worker.main init-db
+cd worker && python -m worker.main init-db
 
 # Re-import data
 python -m worker.main import path/to/file.csv

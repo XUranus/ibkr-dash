@@ -56,7 +56,7 @@ sequenceDiagram
 ### 步骤 1：发送请求
 
 ```python
-# ibkr_dash_worker/worker/clients/flex_client.py
+# worker/worker/clients/flex_client.py
 def send_request(self, query_id: str) -> str:
     """提交 flex 查询并返回参考代码。"""
     token = self._require_token()

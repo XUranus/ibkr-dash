@@ -11,7 +11,7 @@ IBKR Dash 后端是一个 **FastAPI** 应用，为仪表盘提供 REST API。它
 ## 目录布局
 
 ```
-ibkr_dash_backend/
+backend/
   app/
     main.py                 # FastAPI 应用工厂、中间件、路由注册
     core/
@@ -223,7 +223,7 @@ flowchart TD
 
 ## 测试
 
-测试位于 `ibkr_dash_backend/tests/`，使用 **pytest**。测试套件涵盖：
+测试位于 `backend/tests/`，使用 **pytest**。测试套件涵盖：
 
 - 服务层逻辑（账户、持仓、交易、现金流、图表、LLM、代理）
 - API 路由行为（管理、Copilot、代理任务）
@@ -234,7 +234,7 @@ flowchart TD
 运行测试：
 
 ```bash
-cd ibkr_dash_backend
+cd backend
 pytest tests/ -v
 ```
 

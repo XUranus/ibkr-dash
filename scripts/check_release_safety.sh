@@ -78,21 +78,21 @@ check_file_pattern '*/data/config/*.json' "tracked config JSON"
 # ---------------------------------------------------------------------------
 
 log "Running backend tests..."
-(cd ibkr_dash_backend && python -m pytest tests/ -v --tb=short 2>&1) || {
+(cd backend && python -m pytest tests/ -v --tb=short 2>&1) || {
   echo ""
   printf '\033[1;31m>>> backend tests FAILED\033[0m\n'
   FOUND=1
 }
 
 log "Running worker tests..."
-(cd ibkr_dash_worker && python -m pytest tests/ -v --tb=short 2>&1) || {
+(cd worker && python -m pytest tests/ -v --tb=short 2>&1) || {
   echo ""
   printf '\033[1;31m>>> worker tests FAILED\033[0m\n'
   FOUND=1
 }
 
 log "Checking frontend build..."
-(cd ibkr_dash_frontend && npm run build 2>&1) || {
+(cd frontend && npm run build 2>&1) || {
   echo ""
   printf '\033[1;31m>>> frontend build FAILED\033[0m\n'
   FOUND=1

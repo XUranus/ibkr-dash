@@ -63,10 +63,10 @@ graph TB
 
 ## Module Structure
 
-The source code lives in `ibkr_dash_frontend/src/` and is organized by concern:
+The source code lives in `frontend/src/` and is organized by concern:
 
 ```
-ibkr_dash_frontend/src/
+frontend/src/
 ├── api/              # API client functions (one file per domain)
 │   ├── http.ts       # Shared Axios instance with JWT interceptor
 │   ├── account.ts    # Account overview & snapshots
@@ -187,7 +187,7 @@ The Vite config (`vite.config.ts`) sets up:
 ### vite.config.ts
 
 ```typescript
-// ibkr_dash_frontend/vite.config.ts
+// frontend/vite.config.ts
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
@@ -224,7 +224,7 @@ export default defineConfig({
 ### Development
 
 ```bash
-cd ibkr_dash_frontend
+cd frontend
 npm install
 npm run dev
 ```
@@ -274,7 +274,7 @@ Each backend domain has a corresponding API client file in `src/api/`:
 All API calls go through a shared HTTP client (`src/api/http.ts`) that handles authentication headers, error responses, and base URL configuration.
 
 ```typescript
-// ibkr_dash_frontend/src/api/http.ts
+// frontend/src/api/http.ts
 import axios from 'axios'
 
 const http = axios.create({
@@ -309,7 +309,7 @@ export default http
 ### Example API Call
 
 ```typescript
-// ibkr_dash_frontend/src/api/account.ts
+// frontend/src/api/account.ts
 import http from './http'
 import type { AccountOverview } from '@/types/account'
 
