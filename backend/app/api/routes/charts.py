@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.api.deps import get_chart_service, get_current_user
+from app.api.deps import get_chart_service, get_current_user, get_optional_user
 from app.schemas.charts import EquityCurveResponse, PerformanceCalendarResponse
 from app.services.chart_service import ChartService
 
@@ -14,7 +14,7 @@ def get_equity_curve(
     start_date: str | None = Query(default=None),
     end_date: str | None = Query(default=None),
     service: ChartService = Depends(get_chart_service),
-    _user: str | None = Depends(get_current_user),
+    _user: str | None = Depends(get_optional_user),
 ) -> EquityCurveResponse:
     """Return time-series data for the portfolio equity curve chart."""
     try:
@@ -28,7 +28,7 @@ def get_performance_calendar(
     view: str = Query(default="month"),
     anchor: str | None = Query(default=None),
     service: ChartService = Depends(get_chart_service),
-    _user: str | None = Depends(get_current_user),
+    _user: str | None = Depends(get_optional_user),
 ) -> PerformanceCalendarResponse:
     """Return calendar-heatmap data of daily/monthly portfolio performance."""
     try:

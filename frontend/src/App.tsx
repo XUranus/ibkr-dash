@@ -25,13 +25,7 @@ export default function App() {
       <AppHeader />
       <main className="app-content">
         <ErrorBoundary>
-          {!initialized ? (
-            <div style={{ display: 'grid', placeItems: 'center', minHeight: '40vh', color: '#adc0df' }}>
-              {t('common.loading')}
-            </div>
-          ) : (
-            <Outlet />
-          )}
+          <Outlet />
         </ErrorBoundary>
       </main>
 

@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.api.deps import get_account_service, get_current_user
+from app.api.deps import get_account_service, get_current_user, get_optional_user
 from app.schemas.account import AccountOverviewResponse, AccountSnapshotListResponse
 from app.services.account_service import AccountService
 
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/account", tags=["account"])
 @router.get("/overview", response_model=AccountOverviewResponse)
 def get_account_overview(
     service: AccountService = Depends(get_account_service),
-    _user: str | None = Depends(get_current_user),
+    _user: str | None = Depends(get_optional_user),
 ) -> AccountOverviewResponse:
     """Return the current account overview including balances and margin."""
     overview = service.get_overview()

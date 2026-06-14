@@ -142,3 +142,32 @@ def get_current_user(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Authentication required",
     )
+
+
+def get_optional_user(
+    request: Request,
+    credentials: HTTPBasicCredentials | None = Depends(security),
+    settings: Settings = Depends(get_app_settings),
+) -> str | None:
+    """Like ``get_current_user`` but never raises — returns None if unauthenticated.
+
+    Use for public-facing endpoints (dashboard, positions) that should
+    work for everyone but still identify logged-in users.
+    """
+    if not settings.auth_password:
+        return None
+
+    session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    if session_token:
+        secret = hashlib.sha256(settings.auth_password.encode()).hexdigest()
+        session = verify_session_token(session_token, secret=secret)
+        if session:
+            return session.username
+
+    if credentials:
+        correct_username = secrets.compare_digest(credentials.username, settings.auth_username)
+        correct_password = secrets.compare_digest(credentials.password, settings.auth_password)
+        if correct_username and correct_password:
+            return credentials.username
+
+    return None
