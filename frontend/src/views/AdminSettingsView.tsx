@@ -250,7 +250,7 @@ export default function AdminSettingsView() {
     try {
       setLongbridgeTestResult(await testLongbridgeConnection())
     } catch (err) {
-      setLongbridgeTestResult({ success: false, message: err instanceof Error ? err.message : t('adminSettings.testFailed'), error_code: null, quote_sample: null, data_limitations: null })
+      setLongbridgeTestResult({ success: false, message: err instanceof Error ? err.message : t('adminSettings.testFailed'), error_code: null, quote_sample: null, tool_count: null, data_limitations: [] })
     } finally {
       setLongbridgeTesting(false)
     }
