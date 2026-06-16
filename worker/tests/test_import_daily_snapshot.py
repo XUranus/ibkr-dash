@@ -23,11 +23,12 @@ def _make_settings(tmp_path: Path) -> Settings:
         log_level="DEBUG",
         flex_base_url="https://example.com/flex",
         flex_token="test-token",
-        flex_query_id_daily="12345",
+        flex_query_ids="12345",
         flex_poll_interval_seconds=1,
         flex_max_poll_retries=3,
         backend_base_url="http://localhost:8000",
-        daily_review_internal_token="test-token",
+        market_events_sync_interval_hours=24,
+        bls_api_key="",
     )
 
 
@@ -133,11 +134,12 @@ def test_import_latest_finds_most_recent_csv(tmp_path: None) -> None:
             log_level="DEBUG",
             flex_base_url="https://example.com/flex",
             flex_token="test-token",
-            flex_query_id_daily="12345",
+            flex_query_ids="12345",
             flex_poll_interval_seconds=1,
             flex_max_poll_retries=3,
             backend_base_url="http://localhost:8000",
-            daily_review_internal_token="test-token",
+            market_events_sync_interval_hours=24,
+            bls_api_key="",
         )
         importer = DailySnapshotImporter(settings)
 

@@ -47,10 +47,8 @@
     "log_level": "INFO",
     "cors_origins": "http://localhost:5173",
     "data_dir": "data/flex_exports",
-    "cache_ttl_seconds": 86400
+    "cache_ttl_seconds": 86400,
+    "worker_backend_url": "http://localhost:8000"
   },
-  "worker": {
-    "backend_base_url": "http://localhost:8000",
-    "daily_review_internal_token": ""
-  }
+  "worker": {}
 }

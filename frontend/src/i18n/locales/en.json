@@ -405,13 +405,13 @@
   "adminSettings": {
     "subtitle": "Manage all system settings. Overrides .env file.",
     "cat": {
-      "ibkr": "IBKR Connection",
+      "ibkr": "IBKR Flex Query",
       "llm": "AI / LLM",
       "scheduler": "Scheduler",
       "auth": "Authentication",
       "advanced": "Advanced",
       "email": "Email",
-      "longbridge": "Longbridge MCP",
+      "longbridge": "LongBridge MCP",
       "worker": "Worker"
     },
     "resetAll": "Reset All",
@@ -438,6 +438,10 @@
     "smtpPort": "Port",
     "smtpUsername": "Username",
     "smtpPassword": "Password",
+    "encryption": "Encryption",
+    "authMethod": "Auth Method",
+    "authPassword": "Password",
+    "authModern": "Modern Auth",
     "fromAddress": "From",
     "toAddresses": "To",
     "passwordSet": "Set",
@@ -450,6 +454,7 @@
     "notConfiguredDesc": "Configure Longbridge MCP via environment variables",
     "testIbkr": "Test IBKR Connection",
     "testLlm": "Test LLM Connection",
+    "testLongbridge": "Test Longbridge Connection",
     "testEmail": "Send Test Email",
     "smtpSettings": "SMTP Settings",
     "longbridgeStatus": "Longbridge MCP Status",
@@ -484,8 +489,7 @@
       "APP_NAME": "App Name",
       "APP_ENV": "App Environment",
       "CACHE_TTL_SECONDS": "Cache TTL (seconds)",
-      "WORKER_BACKEND_BASE_URL": "Worker Backend URL",
-      "WORKER_DAILY_REVIEW_INTERNAL_TOKEN": "Worker Daily Review Token"
+      "WORKER_BACKEND_BASE_URL": "Worker Backend URL"
     }
   },
   "adminSystem": {
@@ -516,7 +520,8 @@
     "noData": "No Data",
     "path": "Path",
     "passwordSet": "Password Set",
-    "latestDate": "Latest Date"
+    "latestDate": "Latest Date",
+    "connectivity": "Connectivity"
   },
   "adminScheduler": {
     "title": "Import Scheduler",
@@ -643,7 +648,14 @@
     "adminLabel": "ADMIN",
     "createPrompt": "CREATE PROMPT",
     "failedToLoad": "Failed to load prompts",
-    "failedToCreate": "Failed to create prompt"
+    "failedToCreate": "Failed to create prompt",
+    "failedToDelete": "Failed to delete prompt",
+    "delete": "Delete",
+    "deleteVersion": "Delete this version",
+    "deleteAllVersions": "Delete all versions",
+    "actions": "Actions",
+    "confirmDeleteVersion": "Are you sure you want to delete version v{{version}}?",
+    "confirmDeleteKey": "Are you sure you want to delete all versions of '{{key}}'?"
   },
   "adminHarness": {
     "title": "Harness Console",

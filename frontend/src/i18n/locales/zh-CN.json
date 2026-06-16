@@ -405,13 +405,13 @@
   "adminSettings": {
     "subtitle": "管理所有系统配置，优先级高于 .env 文件",
     "cat": {
-      "ibkr": "IBKR 连接",
+      "ibkr": "IBKR 自主查询",
       "llm": "AI / LLM",
       "scheduler": "调度器",
-      "auth": "认证",
+      "auth": "管理员",
       "advanced": "高级",
       "email": "邮件",
-      "longbridge": "Longbridge MCP",
+      "longbridge": "LongBridge MCP",
       "worker": "Worker"
     },
     "resetAll": "全部重置",
@@ -438,6 +438,10 @@
     "smtpPort": "端口",
     "smtpUsername": "用户名",
     "smtpPassword": "密码",
+    "encryption": "加密方式",
+    "authMethod": "认证方式",
+    "authPassword": "密码认证",
+    "authModern": "现代认证",
     "fromAddress": "发件人",
     "toAddresses": "收件人",
     "passwordSet": "已设置",
@@ -450,6 +454,7 @@
     "notConfiguredDesc": "请通过环境变量配置 Longbridge MCP",
     "testIbkr": "测试 IBKR 连接",
     "testLlm": "测试 LLM 连接",
+    "testLongbridge": "测试 Longbridge 连接",
     "testEmail": "发送测试邮件",
     "smtpSettings": "SMTP 设置",
     "longbridgeStatus": "Longbridge MCP 状态",
@@ -484,8 +489,7 @@
       "APP_NAME": "应用名称",
       "APP_ENV": "运行环境",
       "CACHE_TTL_SECONDS": "缓存有效期（秒）",
-      "WORKER_BACKEND_BASE_URL": "Worker 后端地址",
-      "WORKER_DAILY_REVIEW_INTERNAL_TOKEN": "Worker 每日复盘 Token"
+      "WORKER_BACKEND_BASE_URL": "Worker 后端地址"
     }
   },
   "adminSystem": {
@@ -516,7 +520,8 @@
     "noData": "无数据",
     "path": "路径",
     "passwordSet": "密码已设置",
-    "latestDate": "最新日期"
+    "latestDate": "最新日期",
+    "connectivity": "连通性"
   },
   "adminScheduler": {
     "title": "调度器",
@@ -643,7 +648,14 @@
     "adminLabel": "管理",
     "createPrompt": "创建 PROMPT",
     "failedToLoad": "加载 Prompt 失败",
-    "failedToCreate": "创建 Prompt 失败"
+    "failedToCreate": "创建 Prompt 失败",
+    "failedToDelete": "删除 Prompt 失败",
+    "delete": "删除",
+    "deleteVersion": "删除此版本",
+    "deleteAllVersions": "删除所有版本",
+    "actions": "操作",
+    "confirmDeleteVersion": "确定要删除版本 v{{version}} 吗？",
+    "confirmDeleteKey": "确定要删除 '{{key}}' 的所有版本吗？"
   },
   "adminHarness": {
     "title": "测试控制台",

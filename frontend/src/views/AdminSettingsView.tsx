@@ -4,11 +4,13 @@ import { fetchAllSettings, updateSettings, resetSettings, type SettingItem, type
 import { testIbkrConnection } from '@/api/adminIbkr'
 import { testLlmProvider } from '@/api/adminLlm'
 import { fetchEmailSettings, updateEmailSettings, sendEmailTest } from '@/api/adminEmail'
+import { testLongbridgeConnection } from '@/api/adminLongbridge'
 import { useAuth } from '@/hooks/useAuth'
 import AdminTabs from '@/components/AdminTabs'
 import type { IbkrTestResponse } from '@/types/adminIbkr'
 import type { LlmProviderTestResponse } from '@/types/adminLlm'
 import type { EmailSettings, EmailTestResponse } from '@/types/adminEmail'
+import type { LongbridgeMcpTestResponse } from '@/types/adminLongbridgeMcp'
 
 /* ---------- toggle switch styles ---------- */
 const switchStyle: React.CSSProperties = {
@@ -52,6 +54,10 @@ export default function AdminSettingsView() {
   const [llmTestPrompt, setLlmTestPrompt] = useState('Please reply with OK')
   const [llmTestResult, setLlmTestResult] = useState<LlmProviderTestResponse | null>(null)
 
+  // Longbridge test state
+  const [longbridgeTesting, setLongbridgeTesting] = useState(false)
+  const [longbridgeTestResult, setLongbridgeTestResult] = useState<LongbridgeMcpTestResponse | null>(null)
+
   // Email state
   const [emailLoading, setEmailLoading] = useState(true)
   const [emailSaving, setEmailSaving] = useState(false)
@@ -63,6 +69,8 @@ export default function AdminSettingsView() {
     smtp_port: 587,
     smtp_username: '',
     smtp_password: '',
+    encryption: 'STARTTLS' as 'SSL' | 'STARTTLS' | 'None',
+    auth_method: 'password' as 'password' | 'oauth2' | 'modern_auth',
     from_address: '',
     to_addresses: '',
     enabled: false,
@@ -102,6 +110,8 @@ export default function AdminSettingsView() {
         smtp_port: s.smtp_port ?? 587,
         smtp_username: s.smtp_username ?? '',
         smtp_password: '',
+        encryption: s.encryption ?? 'STARTTLS',
+        auth_method: s.auth_method ?? 'password',
         from_address: s.from_address ?? '',
         to_addresses: s.to_addresses?.join(', ') ?? '',
         enabled: s.enabled,
@@ -234,6 +244,18 @@ export default function AdminSettingsView() {
     }
   }
 
+  async function handleLongbridgeTest() {
+    setLongbridgeTesting(true)
+    setLongbridgeTestResult(null)
+    try {
+      setLongbridgeTestResult(await testLongbridgeConnection())
+    } catch (err) {
+      setLongbridgeTestResult({ success: false, message: err instanceof Error ? err.message : t('adminSettings.testFailed'), error_code: null, quote_sample: null, data_limitations: null })
+    } finally {
+      setLongbridgeTesting(false)
+    }
+  }
+
   async function handleEmailSave() {
     setEmailSaving(true)
     setErrorMessage('')
@@ -243,6 +265,8 @@ export default function AdminSettingsView() {
         smtp_host: emailForm.smtp_host || null,
         smtp_port: emailForm.smtp_port,
         smtp_username: emailForm.smtp_username || null,
+        encryption: emailForm.encryption,
+        auth_method: emailForm.auth_method,
         from_address: emailForm.from_address || null,
         to_addresses: emailForm.to_addresses ? emailForm.to_addresses.split(',').map((s) => s.trim()).filter(Boolean) : [],
         enabled: emailForm.enabled,
@@ -383,6 +407,11 @@ export default function AdminSettingsView() {
                         {llmTesting ? t('adminSettings.testing') : t('adminSettings.testLlm')}
                       </button>
                     )}
+                    {cat === 'longbridge' && (
+                      <button className="btn btn--sm" onClick={handleLongbridgeTest} disabled={longbridgeTesting}>
+                        {longbridgeTesting ? t('adminSettings.testing') : t('adminSettings.testLongbridge')}
+                      </button>
+                    )}
                     <button className="btn btn--sm btn--accent" onClick={() => handleCategorySave(cat)} disabled={!catHasEdits || catSaving}>
                       {catSaving ? t('adminSettings.saving') : t('adminSettings.save')}
                     </button>
@@ -419,6 +448,38 @@ export default function AdminSettingsView() {
                       )}
                     </>
                   )}
+
+                  {/* Longbridge Test Result */}
+                  {cat === 'longbridge' && longbridgeTestResult && (
+                    <div style={{ padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: `1px solid ${longbridgeTestResult.success ? 'rgba(61,214,140,0.2)' : 'rgba(242,92,92,0.2)'}`, background: longbridgeTestResult.success ? 'rgba(61,214,140,0.05)' : 'rgba(242,92,92,0.05)' }}>
+                      <span className={`tag ${longbridgeTestResult.success ? 'tag--positive' : 'tag--negative'}`}>{longbridgeTestResult.success ? t('adminSettings.success') : t('adminSettings.failed')}</span>
+                      <p style={{ margin: '6px 0 0', fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>{longbridgeTestResult.message}</p>
+                      {longbridgeTestResult.quote_sample && (
+                        <div style={{ marginTop: 8, display: 'grid', gap: 4 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                            <span style={{ color: 'var(--color-text-muted)' }}>Symbol</span>
+                            <span style={{ color: 'var(--color-text-bright)' }}>{String(longbridgeTestResult.quote_sample.symbol)}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                            <span style={{ color: 'var(--color-text-muted)' }}>Last Price</span>
+                            <span style={{ color: 'var(--color-text-bright)' }}>{String(longbridgeTestResult.quote_sample.last_done)}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                            <span style={{ color: 'var(--color-text-muted)' }}>Prev Close</span>
+                            <span style={{ color: 'var(--color-text-bright)' }}>{String(longbridgeTestResult.quote_sample.prev_close)}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                            <span style={{ color: 'var(--color-text-muted)' }}>Volume</span>
+                            <span style={{ color: 'var(--color-text-bright)' }}>{Number(longbridgeTestResult.quote_sample.volume).toLocaleString()}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                            <span style={{ color: 'var(--color-text-muted)' }}>Turnover</span>
+                            <span style={{ color: 'var(--color-text-bright)' }}>{String(longbridgeTestResult.quote_sample.turnover)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -449,7 +510,7 @@ export default function AdminSettingsView() {
                 <div style={{ color: 'var(--color-text-muted)', fontSize: '0.78rem', fontFamily: 'var(--font-mono)' }}>{t('common.loading')}</div>
               ) : (
                 <>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 6 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 8, alignItems: 'center', padding: '6px 8px' }}>
                       <div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--color-text-bright)', fontWeight: 500 }}>{t('adminSettings.smtpHost')}</div>
@@ -457,12 +518,37 @@ export default function AdminSettingsView() {
                       </div>
                       <input className="input" value={emailForm.smtp_host} onChange={(e) => setEmailForm({ ...emailForm, smtp_host: e.target.value })} placeholder="smtp.gmail.com" style={{ minHeight: 28, fontSize: '0.78rem' }} />
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr', gap: 8, alignItems: 'center', padding: '6px 8px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 8, alignItems: 'center', padding: '6px 8px' }}>
                       <div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--color-text-bright)', fontWeight: 500 }}>{t('adminSettings.smtpPort')}</div>
                         <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>email_smtp_port</div>
                       </div>
                       <input className="input" type="number" value={emailForm.smtp_port} onChange={(e) => setEmailForm({ ...emailForm, smtp_port: Number(e.target.value) })} style={{ minHeight: 28, fontSize: '0.78rem' }} />
+                    </div>
+                  </div>
+                  {/* Encryption and Auth Method */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 8, alignItems: 'center', padding: '6px 8px' }}>
+                      <div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-bright)', fontWeight: 500 }}>{t('adminSettings.encryption')}</div>
+                        <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>encryption</div>
+                      </div>
+                      <select className="input" value={emailForm.encryption} onChange={(e) => setEmailForm({ ...emailForm, encryption: e.target.value as 'SSL' | 'STARTTLS' | 'None' })} style={{ minHeight: 28, fontSize: '0.78rem' }}>
+                        <option value="STARTTLS">STARTTLS</option>
+                        <option value="SSL">SSL</option>
+                        <option value="None">None</option>
+                      </select>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 8, alignItems: 'center', padding: '6px 8px' }}>
+                      <div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-bright)', fontWeight: 500 }}>{t('adminSettings.authMethod')}</div>
+                        <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>auth_method</div>
+                      </div>
+                      <select className="input" value={emailForm.auth_method} onChange={(e) => setEmailForm({ ...emailForm, auth_method: e.target.value as 'password' | 'oauth2' | 'modern_auth' })} style={{ minHeight: 28, fontSize: '0.78rem' }}>
+                        <option value="password">{t('adminSettings.authPassword')}</option>
+                        <option value="oauth2">OAuth2</option>
+                        <option value="modern_auth">{t('adminSettings.authModern')}</option>
+                      </select>
                     </div>
                   </div>
                   {([

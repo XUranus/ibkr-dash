@@ -8,10 +8,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-from app.api.deps import get_agent_task_service, get_current_user, get_llm_service
+from app.api.deps import get_agent_task_service, get_current_user, get_llm_service, get_prompt_service
 from app.core.rate_limit import check_llm_rate_limit
 from app.services.agent_services import AgentTaskService
 from app.services.llm_service import LLMService
+from app.services.prompt_service import PromptService
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
@@ -56,6 +57,7 @@ def run_agent(
     request: AgentRunRequest,
     llm_service: LLMService = Depends(get_llm_service),
     task_service: AgentTaskService = Depends(get_agent_task_service),
+    prompt_service: PromptService = Depends(get_prompt_service),
     _rate: None = Depends(check_llm_rate_limit),
     _user: str | None = Depends(get_current_user),
 ) -> AgentTaskResponse:
@@ -69,6 +71,7 @@ def run_agent(
             "daily_review",
             generate_daily_review,
             db, llm_service, request.report_date or "",
+            prompt_service=prompt_service,
         )
 
     elif agent_name == "trade_decision":
@@ -81,6 +84,7 @@ def run_agent(
             db, llm_service, request.symbol,
             decision_type=request.decision_type or "entry_decision",
             question=request.question,
+            prompt_service=prompt_service,
         )
 
     elif agent_name == "trade_review":
@@ -94,6 +98,7 @@ def run_agent(
             trade_id=request.trade_id,
             start_date=request.start_date,
             end_date=request.end_date,
+            prompt_service=prompt_service,
         )
 
     elif agent_name == "risk_assessment":
@@ -103,6 +108,7 @@ def run_agent(
             assess_risk,
             db, llm_service,
             question=request.question,
+            prompt_service=prompt_service,
         )
 
     else:

@@ -33,7 +33,22 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logging.getLogger(__name__).warning("Market events auto-seed failed: %s", exc)
 
+    # Start Longbridge connectivity monitor in background
+    try:
+        from app.api.routes.admin_system import _lb_monitor
+        _lb_monitor.start()
+        logging.getLogger(__name__).debug("Longbridge connectivity monitor started")
+    except Exception as exc:
+        logging.getLogger(__name__).debug("Longbridge monitor start failed: %s", exc)
+
     yield
+
+    # Shutdown: stop background monitor
+    try:
+        from app.api.routes.admin_system import _lb_monitor
+        _lb_monitor.stop()
+    except Exception:
+        pass
 
 
 def create_app() -> FastAPI:

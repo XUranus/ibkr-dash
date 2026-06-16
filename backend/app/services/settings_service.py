@@ -49,8 +49,7 @@ _KEY_TO_PATH: dict[str, str] = {
     "APP_NAME": "advanced.app_name",
     "APP_ENV": "advanced.app_env",
     "CACHE_TTL_SECONDS": "advanced.cache_ttl_seconds",
-    "WORKER_BACKEND_BASE_URL": "worker.backend_base_url",
-    "WORKER_DAILY_REVIEW_INTERNAL_TOKEN": "worker.daily_review_internal_token",
+    "WORKER_BACKEND_BASE_URL": "advanced.worker_backend_url",
 }
 
 # Reverse mapping for convenience
@@ -92,8 +91,7 @@ SETTINGS_SCHEMA: dict[str, dict[str, Any]] = {
     "APP_NAME": {"category": "advanced", "label": "App Name", "type": "text", "default": "IBKR Dash"},
     "APP_ENV": {"category": "advanced", "label": "App Environment", "type": "select", "default": "development", "options": ["development", "staging", "production"]},
     "CACHE_TTL_SECONDS": {"category": "advanced", "label": "Cache TTL (seconds)", "type": "number", "default": "86400"},
-    "WORKER_BACKEND_BASE_URL": {"category": "worker", "label": "Backend URL", "type": "text", "default": "http://localhost:8000"},
-    "WORKER_DAILY_REVIEW_INTERNAL_TOKEN": {"category": "worker", "label": "Daily Review Token", "type": "password", "default": ""},
+    "WORKER_BACKEND_BASE_URL": {"category": "advanced", "label": "Worker Backend URL", "type": "text", "default": "http://localhost:8000"},
 }
 
 # Email keys map to the "email" section (not in SETTINGS_SCHEMA — handled specially by frontend)

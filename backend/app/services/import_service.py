@@ -21,18 +21,20 @@ logger = logging.getLogger(__name__)
 
 # Project root: backend/ -> ibkr-dash/
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
-_WORKER_DIR = Path(os.environ.get("WORKER_DIR", str(_PROJECT_ROOT / "worker")))
 
 
 def _ensure_worker_importable() -> None:
-    """Add the worker package parent dir to sys.path if not already present.
+    """Ensure worker package is importable.
 
-    The worker package lives at: <project>/worker/worker/
-    So we add worker/ to sys.path so `from worker.xxx import yyy` resolves.
+    In Docker, PYTHONPATH=/app/backend:/app/worker handles this.
+    For local dev, add worker/ to sys.path if needed.
     """
-    worker_parent = str(_WORKER_DIR)
-    if worker_parent not in sys.path:
-        sys.path.insert(0, worker_parent)
+    try:
+        import worker  # noqa: F401
+    except ImportError:
+        worker_dir = str(_PROJECT_ROOT / "worker")
+        if worker_dir not in sys.path:
+            sys.path.insert(0, worker_dir)
 
 
 def run_import(db: Database) -> dict:
@@ -44,8 +46,18 @@ def run_import(db: Database) -> dict:
     """
     _ensure_worker_importable()
 
-    from worker.jobs.fetch_job import fetch_flex_statements
-    from worker.jobs.import_job import import_all_archived
+    try:
+        from worker.jobs.fetch_job import fetch_flex_statements
+        from worker.jobs.import_job import import_all_archived
+    except ImportError as exc:
+        msg = f"Worker module not available: {exc}"
+        logger.error(msg)
+        return {
+            "files": {},
+            "errors": [msg],
+            "started_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+            "duration_ms": 0,
+        }
 
     started_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     t0 = time.monotonic()

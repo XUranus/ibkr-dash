@@ -86,3 +86,31 @@ def get_active_prompt(
     if not row:
         raise HTTPException(status_code=404, detail=f"No active prompt found for key: {prompt_key}")
     return PromptResponse(**row)
+
+
+@router.delete("/{prompt_id}")
+def delete_prompt(
+    prompt_id: int,
+    db: Database = Depends(get_db),
+    _user: str | None = Depends(get_current_user),
+) -> dict:
+    """Delete a specific prompt version by ID."""
+    existing = db.execute_one("SELECT * FROM agent_prompts WHERE id = ?", (prompt_id,))
+    if not existing:
+        raise HTTPException(status_code=404, detail=f"Prompt not found: {prompt_id}")
+    db.execute("DELETE FROM agent_prompts WHERE id = ?", (prompt_id,))
+    return {"success": True, "message": f"Prompt {prompt_id} deleted"}
+
+
+@router.delete("/key/{prompt_key}")
+def delete_prompt_key(
+    prompt_key: str,
+    db: Database = Depends(get_db),
+    _user: str | None = Depends(get_current_user),
+) -> dict:
+    """Delete all versions of a prompt by key."""
+    existing = db.execute("SELECT id FROM agent_prompts WHERE prompt_key = ?", (prompt_key,))
+    if not existing:
+        raise HTTPException(status_code=404, detail=f"No prompts found for key: {prompt_key}")
+    db.execute("DELETE FROM agent_prompts WHERE prompt_key = ?", (prompt_key,))
+    return {"success": True, "message": f"All versions of '{prompt_key}' deleted", "count": len(existing)}

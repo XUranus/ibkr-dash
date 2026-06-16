@@ -172,11 +172,19 @@ export default function AdminSystemView() {
     })
 
     // Longbridge
+    const lb = status.longbridge
+    const lbConnectivityLabel = lb.connectivity === 'ok' ? 'Connected' : lb.connectivity === 'error' ? 'Failed' : lb.connectivity === 'degraded' ? 'Degraded' : '—'
     cards.push({
       name: 'Longbridge',
-      level: status.longbridge.configured ? 'ok' : 'warning',
-      statusLabel: status.longbridge.configured ? t('adminSystem.configured') : t('adminSystem.notSet'),
-      details: [],
+      level: lb.configured ? (lb.connectivity === 'ok' ? 'ok' : lb.connectivity === 'error' ? 'error' : 'warning') : 'warning',
+      statusLabel: lb.configured ? (lb.connectivity === 'ok' ? t('adminSystem.configured') : lbConnectivityLabel) : t('adminSystem.notSet'),
+      details: [
+        { label: 'App Key', value: lb.app_key_configured ? '✓' : '—' },
+        { label: 'App Secret', value: lb.app_secret_configured ? '✓' : '—' },
+        { label: 'Access Token', value: lb.access_token_configured ? '✓' : '—' },
+        { label: 'SDK', value: lb.sdk_installed ? (lb.sdk_version ? `longport ${lb.sdk_version}` : 'longport ✓') : 'Not Installed' },
+        { label: t('adminSystem.connectivity'), value: lbConnectivityLabel },
+      ],
     })
 
     // Auth

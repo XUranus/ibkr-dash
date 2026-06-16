@@ -32,10 +32,7 @@ class DailySnapshotEmailTrigger:
         """
         base_url = self.settings.backend_base_url.rstrip("/")
         url = f"{base_url}/api/account-snapshot-email/internal/latest"
-        headers = {}
-        if self.settings.daily_review_internal_token:
-            headers["x-internal-token"] = self.settings.daily_review_internal_token
-        response = requests.post(url, headers=headers, timeout=30)
+        response = requests.post(url, timeout=30)
         response.raise_for_status()
         payload = response.json()
         logger.info("daily account snapshot email triggered: %s", payload)

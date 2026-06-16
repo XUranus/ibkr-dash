@@ -7,3 +7,4 @@ httpx
 requests
 openai
 langchain-core
+longport>=3.0

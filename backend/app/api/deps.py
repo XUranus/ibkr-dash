@@ -101,6 +101,12 @@ def get_agent_task_service(db: Database = Depends(get_db)) -> "AgentTaskService"
     return AgentTaskService(db)
 
 
+def get_prompt_service(db: Database = Depends(get_db)) -> "PromptService":
+    """Provide a PromptService instance."""
+    from app.services.prompt_service import PromptService
+    return PromptService(db)
+
+
 # ---------------------------------------------------------------------------
 # Optional basic auth
 # ---------------------------------------------------------------------------

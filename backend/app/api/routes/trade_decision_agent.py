@@ -10,7 +10,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.api.deps import get_agent_task_service, get_current_user, get_db, get_llm_service
+from app.api.deps import get_agent_task_service, get_current_user, get_db, get_llm_service, get_prompt_service
 from app.core.config import Settings, get_settings
 from app.core.database import Database
 from app.core.rate_limit import check_llm_rate_limit
@@ -22,6 +22,7 @@ from app.schemas.trade_decision import (
 )
 from app.services.agent_services import AgentTaskService, extract_trace_metrics
 from app.services.llm_service import LLMService
+from app.services.prompt_service import PromptService
 from app.utils.json_fields import parse_json_fields
 
 router = APIRouter(prefix="/trade-decision", tags=["trade-decision-agent"])
@@ -40,6 +41,7 @@ async def analyze_trade_decision(
     request: TradeDecisionRequest,
     llm_service: LLMService = Depends(get_llm_service),
     task_service: AgentTaskService = Depends(get_agent_task_service),
+    prompt_service: PromptService = Depends(get_prompt_service),
     _user: str | None = Depends(get_current_user),
     _rate: None = Depends(check_llm_rate_limit),
 ) -> TradeDecisionResponse:
@@ -55,6 +57,7 @@ async def analyze_trade_decision(
             db, llm_service, request.symbol,
             decision_type=request.decision_type,
             question=request.question,
+            prompt_service=prompt_service,
         )
     except Exception as exc:
         logger.exception("Trade decision analysis failed: %s", exc)

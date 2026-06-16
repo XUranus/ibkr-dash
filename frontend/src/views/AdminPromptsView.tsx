@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { fetchAdminPrompts, createAdminPrompt, fetchActivePrompt } from '@/api/adminPrompts'
+import { fetchAdminPrompts, createAdminPrompt, fetchActivePrompt, deletePromptVersion, deletePromptKey } from '@/api/adminPrompts'
 import AdminTabs from '@/components/AdminTabs'
 import type { PromptItem } from '@/types/adminPrompts'
 
@@ -55,6 +55,27 @@ export default function AdminPromptsView() {
       await loadData()
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : t('adminPrompts.failedToCreate'))
+    }
+  }
+
+  async function handleDeleteVersion(promptId: number, version: number) {
+    if (!window.confirm(t('adminPrompts.confirmDeleteVersion', { version }))) return
+    try {
+      await deletePromptVersion(promptId)
+      await loadData()
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : t('adminPrompts.failedToDelete'))
+    }
+  }
+
+  async function handleDeleteKey(key: string) {
+    if (!window.confirm(t('adminPrompts.confirmDeleteKey', { key }))) return
+    try {
+      await deletePromptKey(key)
+      if (selectedKey === key) setSelectedKey('')
+      await loadData()
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : t('adminPrompts.failedToDelete'))
     }
   }
 
@@ -119,26 +140,36 @@ export default function AdminPromptsView() {
                 <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>{t('adminPrompts.noPrompts')}</p>
               ) : (
                 uniqueKeys.map((key) => (
-                  <button
-                    key={key}
-                    className={`btn btn--ghost btn--sm ${selectedKey === key ? 'is-active' : ''}`}
-                    onClick={() => setSelectedKey(key)}
-                    style={{
-                      justifyContent: 'flex-start',
-                      textAlign: 'left',
-                      borderRadius: 'var(--radius-sm)',
-                      background: selectedKey === key ? 'rgba(212,168,67,0.08)' : 'transparent',
-                      borderColor: selectedKey === key ? 'rgba(212,168,67,0.2)' : 'transparent',
-                      color: selectedKey === key ? 'var(--color-accent-strong)' : 'var(--color-text-secondary)',
-                      fontSize: '0.82rem',
-                      fontFamily: 'var(--font-mono)',
-                    }}
-                  >
-                    {key}
-                    <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
-                      v{groupedPrompts[key][0]?.version ?? '?'}
-                    </span>
-                  </button>
+                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <button
+                      className={`btn btn--ghost btn--sm ${selectedKey === key ? 'is-active' : ''}`}
+                      onClick={() => setSelectedKey(key)}
+                      style={{
+                        flex: 1,
+                        justifyContent: 'flex-start',
+                        textAlign: 'left',
+                        borderRadius: 'var(--radius-sm)',
+                        background: selectedKey === key ? 'rgba(212,168,67,0.08)' : 'transparent',
+                        borderColor: selectedKey === key ? 'rgba(212,168,67,0.2)' : 'transparent',
+                        color: selectedKey === key ? 'var(--color-accent-strong)' : 'var(--color-text-secondary)',
+                        fontSize: '0.82rem',
+                        fontFamily: 'var(--font-mono)',
+                      }}
+                    >
+                      {key}
+                      <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
+                        v{groupedPrompts[key][0]?.version ?? '?'}
+                      </span>
+                    </button>
+                    <button
+                      className="btn btn--ghost btn--sm"
+                      onClick={(e) => { e.stopPropagation(); handleDeleteKey(key) }}
+                      title={t('adminPrompts.deleteAllVersions')}
+                      style={{ minHeight: 26, padding: '0 6px', fontSize: '0.65rem', color: 'var(--color-negative)' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
                 ))
               )}
             </div>
@@ -172,6 +203,7 @@ export default function AdminPromptsView() {
                         <th>{t('adminPrompts.version')}</th>
                         <th>{t('adminPrompts.status')}</th>
                         <th>{t('adminPrompts.created')}</th>
+                        <th style={{ width: 60 }}>{t('adminPrompts.actions')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -180,6 +212,16 @@ export default function AdminPromptsView() {
                           <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>v{v.version}</td>
                           <td><span className={`tag ${v.status === 'active' ? 'tag--positive' : v.status === 'archived' ? 'tag--warning' : ''}`}>{v.status}</span></td>
                           <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>{v.created_at}</td>
+                          <td>
+                            <button
+                              className="btn btn--ghost btn--sm"
+                              onClick={() => handleDeleteVersion(v.id, v.version)}
+                              title={t('adminPrompts.deleteVersion')}
+                              style={{ minHeight: 26, padding: '0 6px', fontSize: '0.65rem', color: 'var(--color-negative)' }}
+                            >
+                              {t('adminPrompts.delete')}
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>

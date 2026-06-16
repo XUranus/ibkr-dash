@@ -10,7 +10,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.api.deps import get_agent_task_service, get_current_user, get_db, get_llm_service
+from app.api.deps import get_agent_task_service, get_current_user, get_db, get_llm_service, get_prompt_service
 from app.core.config import Settings, get_settings
 from app.core.database import Database
 from app.core.rate_limit import check_llm_rate_limit
@@ -22,6 +22,7 @@ from app.schemas.trade_review import (
 )
 from app.services.agent_services import AgentTaskService, extract_trace_metrics
 from app.services.llm_service import LLMService
+from app.services.prompt_service import PromptService
 from app.utils.json_fields import parse_json_fields
 
 router = APIRouter(prefix="/trade-review", tags=["trade-review-agent"])
@@ -40,6 +41,7 @@ async def trigger_trade_review(
     request: TradeReviewRequest,
     llm_service: LLMService = Depends(get_llm_service),
     task_service: AgentTaskService = Depends(get_agent_task_service),
+    prompt_service: PromptService = Depends(get_prompt_service),
     _user: str | None = Depends(get_current_user),
     _rate: None = Depends(check_llm_rate_limit),
 ) -> TradeReviewResponse:
@@ -56,6 +58,7 @@ async def trigger_trade_review(
             trade_id=request.trade_id,
             start_date=request.start_date,
             end_date=request.end_date,
+            prompt_service=prompt_service,
         )
     except Exception as exc:
         logger.exception("Trade review failed: %s", exc)

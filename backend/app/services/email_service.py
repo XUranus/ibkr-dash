@@ -33,14 +33,22 @@ class EmailSendError(RuntimeError):
 @dataclass
 class EmailConfig:
     smtp_host: str = ""
-    smtp_port: int = 465
+    smtp_port: int = 587
     smtp_username: str = ""
     smtp_password: str = ""
-    smtp_use_ssl: bool = True
-    smtp_use_starttls: bool = False
+    encryption: str = "STARTTLS"  # "SSL", "STARTTLS", "None"
+    auth_method: str = "password"  # "password", "oauth2", "modern_auth"
     email_from: str = ""
     email_to: str = ""
     enabled: bool = False
+
+    @property
+    def smtp_use_ssl(self) -> bool:
+        return self.encryption == "SSL"
+
+    @property
+    def smtp_use_starttls(self) -> bool:
+        return self.encryption == "STARTTLS"
 
 
 def utc_now_iso() -> str:
@@ -105,22 +113,48 @@ class EmailConfigStore:
             raise EmailConfigError("邮件配置文件不是合法 JSON") from exc
         if not isinstance(payload, dict):
             raise EmailConfigError("邮件配置文件必须是 JSON object")
+
+        # Determine encryption from new field or legacy fields
+        encryption = payload.get("encryption", "")
+        if not encryption:
+            # Backward compatibility with old config
+            if payload.get("smtp_use_ssl", True):
+                encryption = "SSL"
+            elif payload.get("smtp_use_starttls", False):
+                encryption = "STARTTLS"
+            else:
+                encryption = "None"
+
+        # Handle different field names: email_from vs from_address
+        email_from = payload.get("email_from") or payload.get("from_address") or ""
+        # Handle different field names: email_to (string) vs to_addresses (array)
+        email_to_raw = payload.get("email_to") or payload.get("to_addresses") or ""
+        if isinstance(email_to_raw, list):
+            email_to = ", ".join(str(addr) for addr in email_to_raw)
+        else:
+            email_to = str(email_to_raw)
+
         return EmailConfig(
             smtp_host=str(payload.get("smtp_host") or ""),
-            smtp_port=int(payload.get("smtp_port") or 465),
+            smtp_port=int(payload.get("smtp_port") or 587),
             smtp_username=str(payload.get("smtp_username") or ""),
             smtp_password=str(payload.get("smtp_password") or ""),
-            smtp_use_ssl=bool(payload.get("smtp_use_ssl", True)),
-            smtp_use_starttls=bool(payload.get("smtp_use_starttls", False)),
-            email_from=str(payload.get("email_from") or ""),
-            email_to=str(payload.get("email_to") or ""),
+            encryption=str(encryption),
+            auth_method=str(payload.get("auth_method") or "password"),
+            email_from=str(email_from),
+            email_to=str(email_to),
             enabled=bool(payload.get("enabled", False)),
         )
 
     def save(self, config: EmailConfig) -> None:
         self.config_file.parent.mkdir(parents=True, exist_ok=True)
+        # Convert to dict and use consistent field names
+        data = asdict(config)
+        # Remove properties that are derived from encryption
+        data.pop("smtp_use_ssl", None)
+        data.pop("smtp_use_starttls", None)
         with self.config_file.open("w", encoding="utf-8") as f:
-            json.dump(asdict(config), f, ensure_ascii=False, indent=2)
+            json.dump(data, f, ensure_ascii=False, indent=2)
             f.write("\n")
 
 
@@ -137,13 +171,23 @@ class EmailService:
         if payload.get("smtp_password") and not is_masked_password(payload["smtp_password"]):
             password = payload["smtp_password"].strip()
 
+        # Determine encryption from new field or legacy fields
+        encryption = payload.get("encryption", "")
+        if not encryption:
+            if payload.get("smtp_use_ssl", True):
+                encryption = "SSL"
+            elif payload.get("smtp_use_starttls", False):
+                encryption = "STARTTLS"
+            else:
+                encryption = "None"
+
         config = EmailConfig(
             smtp_host=str(payload.get("smtp_host") or "").strip(),
-            smtp_port=int(payload.get("smtp_port") or 465),
+            smtp_port=int(payload.get("smtp_port") or 587),
             smtp_username=str(payload.get("smtp_username") or "").strip(),
             smtp_password=password,
-            smtp_use_ssl=bool(payload.get("smtp_use_ssl", True)),
-            smtp_use_starttls=bool(payload.get("smtp_use_starttls", False)),
+            encryption=str(encryption),
+            auth_method=str(payload.get("auth_method") or "password"),
             email_from=str(payload.get("email_from") or "").strip(),
             email_to=str(payload.get("email_to") or "").strip(),
             enabled=bool(payload.get("enabled", False)),
@@ -227,26 +271,46 @@ class EmailService:
                 smtp.login(config.smtp_username, config.smtp_password)
                 smtp.send_message(message)
         except (OSError, smtplib.SMTPException) as exc:
-            raise EmailSendError(f"邮件发送失败：{exc}") from exc
+            error_msg = str(exc)
+            hint = ""
+            if "timed out" in error_msg.lower():
+                hint = " (可能原因：1. 端口/加密方式不匹配 - 465用SSL, 587用STARTTLS; 2. 防火墙阻止连接; 3. Docker网络限制)"
+            elif "connection refused" in error_msg.lower():
+                hint = " (SMTP服务器拒绝连接，请检查主机和端口)"
+            elif "authentication" in error_msg.lower():
+                hint = " (认证失败，请检查用户名和密码)"
+            raise EmailSendError(f"邮件发送失败：{error_msg}{hint}") from exc
 
     def _effective_config(self) -> EmailConfig:
         if self.store.exists():
             return self.store.read()
+
+        # Determine encryption from env vars (backward compatibility)
+        encryption = os.getenv("SMTP_ENCRYPTION", "").strip()
+        if not encryption:
+            if os.getenv("SMTP_USE_SSL", "true").lower() in ("1", "true", "yes"):
+                encryption = "SSL"
+            elif os.getenv("SMTP_USE_STARTTLS", "false").lower() in ("1", "true", "yes"):
+                encryption = "STARTTLS"
+            else:
+                encryption = "None"
+
         return EmailConfig(
             smtp_host=os.getenv("SMTP_HOST", ""),
-            smtp_port=int(os.getenv("SMTP_PORT", "465") or "465"),
+            smtp_port=int(os.getenv("SMTP_PORT", "587") or "587"),
             smtp_username=os.getenv("SMTP_USERNAME", ""),
             smtp_password=os.getenv("SMTP_PASSWORD", ""),
-            smtp_use_ssl=os.getenv("SMTP_USE_SSL", "true").lower() in ("1", "true", "yes"),
-            smtp_use_starttls=os.getenv("SMTP_USE_STARTTLS", "false").lower() in ("1", "true", "yes"),
+            encryption=encryption,
+            auth_method=os.getenv("SMTP_AUTH_METHOD", "password"),
             email_from=os.getenv("EMAIL_FROM", ""),
             email_to=os.getenv("EMAIL_TO", ""),
             enabled=os.getenv("EMAIL_ENABLED", "false").lower() in ("1", "true", "yes"),
         )
 
     def _validate(self, config: EmailConfig, *, require_all: bool) -> None:
-        if config.smtp_use_ssl and config.smtp_use_starttls:
-            raise EmailConfigError("SMTP SSL 和 STARTTLS 不能同时开启")
+        valid_encryptions = {"SSL", "STARTTLS", "None"}
+        if config.encryption not in valid_encryptions:
+            raise EmailConfigError(f"加密方式必须是：{', '.join(valid_encryptions)}")
         if config.smtp_port < 1 or config.smtp_port > 65535:
             raise EmailConfigError("SMTP 端口必须在 1-65535 之间")
         if require_all:

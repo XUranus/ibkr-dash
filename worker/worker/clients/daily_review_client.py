@@ -32,10 +32,7 @@ class DailyPositionReviewTrigger:
         """
         base_url = self.settings.backend_base_url.rstrip("/")
         url = f"{base_url}/api/agent/daily-position-review/internal/latest/tasks"
-        headers = {}
-        if self.settings.daily_review_internal_token:
-            headers["x-internal-token"] = self.settings.daily_review_internal_token
-        response = requests.post(url, headers=headers, timeout=10)
+        response = requests.post(url, timeout=10)
         response.raise_for_status()
         payload = response.json()
         logger.info("daily position review task triggered: %s", payload)

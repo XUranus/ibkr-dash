@@ -75,11 +75,9 @@ DEFAULTS: dict[str, Any] = {
         "data_dir": "data/flex_exports",
         "cache_ttl_seconds": 86400,
         "audit_llm_calls": False,
+        "worker_backend_url": "http://localhost:8000",
     },
-    "worker": {
-        "backend_base_url": "http://localhost:8000",
-        "daily_review_internal_token": "",
-    },
+    "worker": {},
 }
 
 

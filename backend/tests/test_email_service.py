@@ -127,10 +127,9 @@ class TestEmailService:
                 "smtp_password": "pass",
                 "email_from": "from@test.com",
                 "email_to": "to@test.com",
-                "smtp_use_ssl": True,
-                "smtp_use_starttls": True,
+                "encryption": "INVALID",
                 "enabled": False,
             })
             assert False, "Should have raised"
         except EmailConfigError as e:
-            assert "不能同时开启" in str(e)
+            assert "加密方式必须是" in str(e)

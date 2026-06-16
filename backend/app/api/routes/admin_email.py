@@ -128,11 +128,23 @@ def test_email(
     msg["From"] = from_address
     msg["To"] = ", ".join(to_addresses)
 
+    # Determine encryption from config or port
+    encryption = raw.get("encryption", "")
+    if not encryption:
+        # Auto-detect based on port
+        encryption = "SSL" if smtp_port == 465 else "STARTTLS"
+
     try:
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
-            server.starttls()
-            server.login(smtp_username, smtp_password)
-            server.sendmail(from_address, to_addresses, msg.as_string())
+        if encryption == "SSL":
+            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=10) as server:
+                server.login(smtp_username, smtp_password)
+                server.sendmail(from_address, to_addresses, msg.as_string())
+        else:
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
+                if encryption == "STARTTLS":
+                    server.starttls()
+                server.login(smtp_username, smtp_password)
+                server.sendmail(from_address, to_addresses, msg.as_string())
         return EmailTestResponse(
             success=True,
             message=f"Test email sent successfully to {', '.join(to_addresses)}",

@@ -13,6 +13,12 @@ export interface AdminSystemStatus {
   }
   longbridge: {
     configured: boolean
+    app_key_configured: boolean
+    app_secret_configured: boolean
+    access_token_configured: boolean
+    sdk_installed: boolean
+    sdk_version: string | null
+    connectivity: 'ok' | 'degraded' | 'error' | 'unchecked'
   }
   ibkr: {
     configured: boolean
