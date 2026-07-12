@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { fetchUpcomingEvents, type MarketEvent } from '@/api/marketEvents'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { fetchUpcomingEvents, fetchMarketEventAnalysis, type MarketEvent, type MarketEventAnalysis } from '@/api/marketEvents'
 
 const CATEGORY_COLORS: Record<string, string> = {
   FED: '#D29922',
@@ -25,18 +27,43 @@ function formatEventDate(iso: string): { date: string; time: string } {
   return { date: `${month}-${day}`, time: `${hours}:${minutes}` }
 }
 
+function formatRelativeTime(iso: string, locale?: string): string {
+  const now = Date.now()
+  const then = new Date(iso).getTime()
+  const diffSec = Math.floor((now - then) / 1000)
+  const rtf = new Intl.RelativeTimeFormat(locale || 'en', { numeric: 'auto' })
+  if (diffSec < 60) return rtf.format(-diffSec, 'second')
+  const diffMin = Math.floor(diffSec / 60)
+  if (diffMin < 60) return rtf.format(-diffMin, 'minute')
+  const diffHr = Math.floor(diffMin / 60)
+  if (diffHr < 24) return rtf.format(-diffHr, 'hour')
+  const diffDay = Math.floor(diffHr / 24)
+  return rtf.format(-diffDay, 'day')
+}
+
 export default function MarketEventsPanel() {
   const { t, i18n } = useTranslation()
   const [events, setEvents] = useState<MarketEvent[]>([])
+  const [analysis, setAnalysis] = useState<MarketEventAnalysis | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const isZh = i18n.language?.startsWith('zh')
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    fetchUpcomingEvents(30)
-      .then((res) => { if (!cancelled) setEvents(res.items || []) })
-      .catch(() => { /* no events available */ })
-      .finally(() => { if (!cancelled) setLoading(false) })
+
+    Promise.all([
+      fetchUpcomingEvents(30).catch(() => ({ items: [], total: 0 })),
+      fetchMarketEventAnalysis().catch(() => ({ analysis: null })),
+    ]).then(([eventsRes, analysisRes]) => {
+      if (cancelled) return
+      setEvents(eventsRes.items || [])
+      setAnalysis(analysisRes.analysis)
+    }).finally(() => {
+      if (!cancelled) setLoading(false)
+    })
+
     return () => { cancelled = true }
   }, [])
 
@@ -51,9 +78,9 @@ export default function MarketEventsPanel() {
     return map[imp] || imp
   }
 
-  const isZh = i18n.language?.startsWith('zh')
-
   if (loading) return null
+
+  const analysisContent = analysis ? (isZh ? analysis.content_zh : analysis.content_en) : null
 
   return (
     <div className="surface-panel">
@@ -64,6 +91,57 @@ export default function MarketEventsPanel() {
             {events.length} {t('dashboard.events')}
           </span>
         </div>
+
+        {/* AI Risk Analysis */}
+        {analysisContent && (
+          <div style={{
+            marginBottom: 10,
+            padding: '8px 10px',
+            borderRadius: 6,
+            border: '1px solid rgba(88,166,255,0.15)',
+            background: 'rgba(88,166,255,0.04)',
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              marginBottom: 6,
+            }}>
+              <span style={{
+                fontSize: '0.65rem',
+                fontWeight: 700,
+                padding: '1px 5px',
+                borderRadius: 3,
+                background: 'rgba(88,166,255,0.15)',
+                color: '#58A6FF',
+                letterSpacing: '0.05em',
+              }}>
+                AI
+              </span>
+              <span style={{
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: 'var(--color-text-secondary)',
+              }}>
+                {t('dashboard.marketRiskAnalysis')}
+              </span>
+              {analysis?.created_at && (
+                <span style={{
+                  fontSize: '0.65rem',
+                  color: 'var(--color-text-muted)',
+                  marginLeft: 'auto',
+                }}>
+                  {formatRelativeTime(analysis.created_at, i18n.language)}
+                </span>
+              )}
+            </div>
+            <div className="copilot-markdown" style={{ fontSize: '0.82rem', lineHeight: 1.6 }}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {analysisContent}
+              </ReactMarkdown>
+            </div>
+          </div>
+        )}
 
         {events.length === 0 ? (
           <p style={{ color: 'var(--color-text-muted)', fontSize: '0.88rem', padding: '12px 0' }}>

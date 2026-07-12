@@ -279,6 +279,8 @@ _MIGRATIONS = [
     "CREATE TABLE IF NOT EXISTS agent_replays (replay_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, agent_name TEXT NOT NULL, final_status TEXT DEFAULT 'success', created_at TEXT, payload_json TEXT NOT NULL)",
     "CREATE INDEX IF NOT EXISTS idx_agent_replays_run_id ON agent_replays(run_id)",
     "CREATE INDEX IF NOT EXISTS idx_agent_replays_agent ON agent_replays(agent_name, created_at DESC)",
+    "CREATE TABLE IF NOT EXISTS market_event_analysis (id TEXT PRIMARY KEY, content_zh TEXT NOT NULL, content_en TEXT NOT NULL, event_ids TEXT, created_at TEXT DEFAULT (datetime('now')))",
+    "CREATE INDEX IF NOT EXISTS idx_market_event_analysis_created ON market_event_analysis(created_at DESC)",
 ]
 
 

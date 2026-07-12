@@ -17,6 +17,14 @@ export interface MarketEventResponse {
   total: number
 }
 
+export interface MarketEventAnalysis {
+  id: string
+  content_zh: string
+  content_en: string
+  event_ids: string | null
+  created_at: string
+}
+
 export function fetchUpcomingEvents(days: number = 30): Promise<MarketEventResponse> {
   return request<MarketEventResponse>(`/api/market-events/upcoming?days=${days}&limit=20`)
 }
@@ -27,4 +35,8 @@ export function fetchTodayEvents(): Promise<MarketEventResponse> {
 
 export function seedMarketEvents(): Promise<{ seeded: number }> {
   return request<{ seeded: number }>('/api/market-events/seed', { method: 'POST' })
+}
+
+export function fetchMarketEventAnalysis(): Promise<{ analysis: MarketEventAnalysis | null }> {
+  return request<{ analysis: MarketEventAnalysis | null }>('/api/market-events/analysis')
 }

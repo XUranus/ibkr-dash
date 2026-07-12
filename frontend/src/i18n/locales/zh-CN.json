@@ -110,7 +110,8 @@
     "noCurveData": "暂无曲线数据",
     "updatingCurve": "更新曲线中...",
     "netPnl": "净盈亏",
-    "netCost": "净成本"
+    "netCost": "净成本",
+    "marketRiskAnalysis": "市场风险分析"
   },
   "positions": {
     "title": "持仓",
@@ -236,8 +237,6 @@
     "noCashFlowRecords": "暂无现金流记录",
     "failedToLoadCashFlows": "加载现金流失败",
     "dateTime": "日期/时间",
-    "currency": "币种",
-    "direction": "方向",
     "amount": "金额",
     "settleDate": "结算日期",
     "description": "描述",
@@ -597,7 +596,6 @@
     "saving": "保存中...",
     "adminLabel": "管理",
     "flexQueryId": "Flex Query ID",
-    "flexQueryIds": "Flex Query IDs（逗号分隔）",
     "settingsSaved": "配置保存成功。",
     "failedToLoad": "加载 IBKR 配置失败",
     "failedToSave": "保存配置失败",
