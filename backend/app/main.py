@@ -154,6 +154,8 @@ def create_app() -> FastAPI:
     from app.api.routes.admin_market_events import router as admin_market_events_router
     from app.api.routes.symbol_analysis import router as symbol_analysis_router
     from app.api.routes.admin_agent_eval import router as admin_agent_eval_router
+    from app.api.routes.admin_agent_runs import router as admin_agent_runs_router
+    from app.api.routes.admin_agent_replays import router as admin_agent_replays_router
 
     app.include_router(health_router, prefix="/api")
     app.include_router(account_router, prefix="/api")
@@ -191,6 +193,8 @@ def create_app() -> FastAPI:
     app.include_router(admin_market_events_router, prefix="/api")
     app.include_router(symbol_analysis_router, prefix="/api")
     app.include_router(admin_agent_eval_router, prefix="/api")
+    app.include_router(admin_agent_runs_router, prefix="/api")
+    app.include_router(admin_agent_replays_router, prefix="/api")
 
     return app
 

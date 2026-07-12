@@ -75,3 +75,7 @@ class EvalSimulationService:
             ORDER BY total_runs DESC""",
             (f"-{days} days",),
         )
+
+
+# --- Compatibility alias ---
+SyntheticSimulationService = EvalSimulationService

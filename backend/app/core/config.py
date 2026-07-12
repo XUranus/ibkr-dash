@@ -177,6 +177,87 @@ class Settings:
         """Return the market events sync interval in hours."""
         return int(get_manager().get("scheduler.market_events_sync_interval_hours", 24))
 
+    # -- ES Index Names (for SQLite shim compatibility) --
+    @property
+    def es_agent_replay_index(self) -> str:
+        return "agent_replays"
+
+    @property
+    def es_agent_run_trace_index(self) -> str:
+        return "agent_run_traces"
+
+    @property
+    def es_agent_task_index(self) -> str:
+        return "agent_tasks"
+
+    @property
+    def es_agent_eval_case_index(self) -> str:
+        return "eval_cases"
+
+    @property
+    def es_agent_eval_run_index(self) -> str:
+        return "eval_runs"
+
+    @property
+    def es_agent_feedback_index(self) -> str:
+        return "eval_feedback"
+
+    @property
+    def es_agent_regression_profile_index(self) -> str:
+        return "eval_regression_profiles"
+
+    @property
+    def es_agent_regression_gate_report_index(self) -> str:
+        return "eval_regression_gate_reports"
+
+    @property
+    def es_trade_decision_index(self) -> str:
+        return "trade_decisions"
+
+    @property
+    def es_trade_review_index(self) -> str:
+        return "trade_reviews"
+
+    @property
+    def es_daily_position_review_index(self) -> str:
+        return "daily_position_reviews"
+
+    @property
+    def es_risk_assessment_index(self) -> str:
+        return "risk_assessments"
+
+    @property
+    def es_eval_simulation_index(self) -> str:
+        return "eval_simulations"
+
+    @property
+    def es_eval_simulation_result_index(self) -> str:
+        return "eval_simulation_results"
+
+    @property
+    def es_failure_mining_index(self) -> str:
+        return "eval_failure_mining"
+
+    @property
+    def es_failure_mining_run_index(self) -> str:
+        return "eval_failure_mining_runs"
+
+    @property
+    def es_eval_judge_calibration_index(self) -> str:
+        return "eval_judge_calibration"
+
+    @property
+    def es_eval_baseline_health_index(self) -> str:
+        return "eval_baseline_health"
+
+    @property
+    def es_eval_override_annotation_index(self) -> str:
+        return "eval_override_annotations"
+
+    @property
+    def es_trade_decision_quality_index(self) -> str:
+        return "trade_decision_quality"
+
 
 # ---------------------------------------------------------------------------
 # Singleton (no lru_cache — values are live from JSON)

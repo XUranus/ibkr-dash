@@ -17,6 +17,10 @@ from app.services.llm_audit import log_llm_call
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_CONTEXT_WINDOW_TOKENS = 200000
+DEFAULT_INPUT_TOKEN_LIMIT = 120000
+DEFAULT_OUTPUT_TOKEN_LIMIT = 16000
+
 
 class LLMClientError(RuntimeError):
     """Raised when an LLM provider call fails."""
@@ -25,6 +29,10 @@ class LLMClientError(RuntimeError):
         super().__init__(message)
         self.error_code = error_code
         self.message = message
+
+
+class LLMConfigError(ValueError):
+    """Raised when LLM configuration is invalid."""
 
 
 class LLMService:

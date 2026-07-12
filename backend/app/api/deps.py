@@ -119,6 +119,81 @@ def get_llm_call_metrics_service(db: Database = Depends(get_db)) -> "LLMCallMetr
     return LLMCallMetricsService(db)
 
 
+def get_es_client() -> "ElasticsearchClient":
+    """Provide an ElasticsearchClient (SQLite-backed shim) instance."""
+    from app.clients.es_client import ElasticsearchClient
+    return ElasticsearchClient()
+
+
+def get_agent_run_trace_service(db: Database = Depends(get_db), es_client=Depends(get_es_client)) -> "AgentRunTraceService":
+    """Provide an AgentRunTraceService instance."""
+    from app.services.agent_run_trace_service import AgentRunTraceService
+    return AgentRunTraceService(es_client, get_settings())
+
+
+def get_agent_replay_service(db: Database = Depends(get_db), es_client=Depends(get_es_client)) -> "AgentReplayService":
+    """Provide an AgentReplayService instance."""
+    from app.services.agent_replay_service import AgentReplayService
+    return AgentReplayService(es_client, get_settings())
+
+
+def get_agent_eval_service(db: Database = Depends(get_db)) -> "AgentEvalService":
+    """Provide an AgentEvalService instance."""
+    from app.services.agent_eval_repository import EvalCaseRepository, EvalRunRepository, BadCaseFeedbackRepository
+    from app.core.database import Database as DB
+    eval_db = DB(get_settings().sqlite_path)
+    return {
+        "case_repo": EvalCaseRepository(eval_db),
+        "run_repo": EvalRunRepository(eval_db),
+        "feedback_repo": BadCaseFeedbackRepository(eval_db),
+    }
+
+
+def require_admin_session(request: Request) -> str | None:
+    """Require an admin session (alias for get_current_user)."""
+    return get_current_user(request, None, get_settings())
+
+
+def get_eval_simulation_service(db: Database = Depends(get_db)) -> "SyntheticSimulationService":
+    from app.services.eval_simulation_service import SyntheticSimulationService
+    return SyntheticSimulationService(db)
+
+
+def get_eval_failure_mining_service(db: Database = Depends(get_db)) -> "SyntheticFailureMiningService":
+    from app.services.eval_failure_mining_service import SyntheticFailureMiningService
+    return SyntheticFailureMiningService(db)
+
+
+def get_failure_to_eval_case_service(db: Database = Depends(get_db)):
+    from app.services.eval_failure_to_case_service import FailureToEvalCaseService
+    return FailureToEvalCaseService(db)
+
+
+def get_judge_calibration_service(db: Database = Depends(get_db)):
+    from app.services.eval_judge_calibration_service import JudgeCalibrationService
+    return JudgeCalibrationService(db)
+
+
+def get_baseline_health_report_service(db: Database = Depends(get_db)):
+    from app.services.eval_baseline_health_service import BaselineHealthService
+    return BaselineHealthService(db)
+
+
+def get_agent_regression_gate_service(db: Database = Depends(get_db)):
+    from app.services.agent_regression_gate_service import RegressionGateService
+    return RegressionGateService(db)
+
+
+def get_agent_regression_profile_service(db: Database = Depends(get_db)):
+    from app.services.agent_regression_profile_service import RegressionProfileService
+    return RegressionProfileService(db)
+
+
+def get_agent_change_impact_service(db: Database = Depends(get_db)):
+    from app.services.agent_change_impact_service import AgentChangeImpactService
+    return AgentChangeImpactService(db)
+
+
 # ---------------------------------------------------------------------------
 # Optional basic auth
 # ---------------------------------------------------------------------------
