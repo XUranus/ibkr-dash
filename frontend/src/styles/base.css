@@ -267,6 +267,8 @@ button, input, textarea, select { font: inherit; }
 .tag--positive { color: var(--color-positive); border-color: rgba(63,185,80,0.2); background: rgba(63,185,80,0.04); }
 .tag--negative { color: var(--color-negative); border-color: rgba(248,81,73,0.2); background: rgba(248,81,73,0.04); }
 .tag--accent   { color: var(--color-accent-strong); border-color: rgba(88,166,255,0.2); background: rgba(88,166,255,0.04); }
+.tag--warning  { color: #f59e0b; border-color: rgba(245,158,11,0.2); background: rgba(245,158,11,0.04); }
+.tag--neutral  { color: var(--color-text-secondary); border-color: rgba(139,148,158,0.2); background: rgba(139,148,158,0.04); }
 
 /* ── Buttons ── */
 .btn {

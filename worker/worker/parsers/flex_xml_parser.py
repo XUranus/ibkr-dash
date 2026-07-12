@@ -384,6 +384,12 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexParseResult]:
                     total_position_value += val
                 cash_balance = max(ending_value - total_position_value, 0)
 
+            # Compute cumulative unrealized PnL from position-level data.
+            # mtm = ending - starting is the daily NAV change, NOT cumulative.
+            cumulative_unrealized = sum(
+                p.get("fifo_pnl_unrealized", 0) or 0 for p in result.positions
+            )
+
             result.account_snapshot = {
                 "account_id": account_id,
                 "report_date": report_date,
@@ -399,7 +405,7 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexParseResult]:
                 "cnav_realized": _safe_float(nav.get("realized")),
                 "cnav_change_in_unrealized": _safe_float(nav.get("changeInUnrealized")),
                 "fifo_total_realized_pnl": 0,
-                "fifo_total_unrealized_pnl": mtm,
+                "fifo_total_unrealized_pnl": cumulative_unrealized,
             }
 
             # Recompute percent_of_nav using actual total equity.

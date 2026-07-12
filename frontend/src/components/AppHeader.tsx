@@ -29,8 +29,14 @@ export default function AppHeader() {
     { label: t('nav.trades'), to: '/trades' },
     { label: t('nav.cashFlows'), to: '/cash-flows' },
     { label: t('nav.dividends'), to: '/dividends' },
+    { label: 'Portfolio', to: '/portfolio-manager' },
+    { label: 'Performance', to: '/performance' },
     { label: t('nav.aiDecision'), to: '/trade-decision' },
+    { label: 'Daily Review', to: '/daily-review' },
+    { label: 'Trade Review', to: '/trade-review' },
     { label: t('nav.copilot'), to: '/copilot' },
+    { label: 'Events', to: '/market-events' },
+    { label: 'Policy', to: '/investment-policy' },
     { label: t('nav.admin'), to: '/admin/system' },
   ]
 

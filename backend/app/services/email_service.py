@@ -9,10 +9,11 @@ import os
 import re
 import smtplib
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
 from email.message import EmailMessage
 from pathlib import Path
 from typing import Any
+
+from app.utils.dates import utc_now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -49,10 +50,6 @@ class EmailConfig:
     @property
     def smtp_use_starttls(self) -> bool:
         return self.encryption == "STARTTLS"
-
-
-def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 def mask_smtp_password(password: str | None) -> str:

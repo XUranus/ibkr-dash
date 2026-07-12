@@ -9,6 +9,7 @@ services:
       - backend-data:/app/backend/data
     environment:
       - APP_ENV=${APP_ENV:-docker}
+      - CONFIG_PATH=/app/backend/data/config.json
     restart: unless-stopped
 
   frontend:

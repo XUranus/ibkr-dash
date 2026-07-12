@@ -159,11 +159,14 @@ class AccountService:
             return val
 
         # Fallback: compute from position_value - cost_basis_money
+        # Only for USD positions — foreign currency positions may have
+        # inconsistent cost_basis_money from IBKR Flex.
         row = self.db.execute_one(
             """
             SELECT COALESCE(SUM(position_value - cost_basis_money), 0.0) AS total
             FROM position_snapshots
             WHERE report_date = ? AND cost_basis_money > 0
+              AND COALESCE(currency, 'USD') = 'USD'
             """,
             (report_date,),
         )

@@ -14,7 +14,26 @@ from pathlib import Path
 # Project root: worker/core/config.py -> worker/core -> worker -> worker -> project root
 _BASE_DIR = Path(__file__).resolve().parents[2]  # worker/
 _PROJECT_ROOT = _BASE_DIR.parent  # ibkr-dash/
-_CONFIG_PATH = Path(os.environ.get("CONFIG_PATH", str(_PROJECT_ROOT / "data" / "config.json")))
+
+
+def _resolve_config_path() -> Path:
+    """Resolve config.json path, checking multiple locations."""
+    env_path = os.environ.get("CONFIG_PATH")
+    if env_path:
+        return Path(env_path)
+    # Check multiple candidate paths (Docker vs local dev)
+    candidates = [
+        _PROJECT_ROOT / "data" / "config.json",
+        _PROJECT_ROOT / "backend" / "data" / "config.json",
+    ]
+    for p in candidates:
+        if p.exists():
+            return p
+    # Default to first candidate
+    return candidates[0]
+
+
+_CONFIG_PATH = _resolve_config_path()
 
 
 def _load_json_config() -> dict:

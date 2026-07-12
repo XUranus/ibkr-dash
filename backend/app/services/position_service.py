@@ -29,6 +29,7 @@ POSITION_SORT_FIELDS = {
 
 POSITION_COLUMNS = """
     account_id, report_date, symbol, description, asset_class,
+    currency, fx_rate_to_base,
     quantity, mark_price, position_value, percent_of_nav,
     average_cost_price, cost_basis_money, total_realized_pnl,
     total_unrealized_pnl, total_unrealized_pnl AS unrealized_pnl_raw,
@@ -439,15 +440,22 @@ class PositionService:
                 row["average_cost_price"] = cost / qty
 
             # Backfill unrealized PnL
+            # Only compute from cost_basis for USD positions.
+            # For foreign currency positions, cost_basis_money may not represent
+            # the correct FIFO cost basis (IBKR Flex can return inconsistent
+            # values for non-USD instruments). Trust the IBKR-provided
+            # fifo_pnl_unrealized = 0 as correct for those positions.
             if float(row.get("total_unrealized_pnl") or 0) == 0 and cost > 0:
-                # For long positions: PnL = value - cost
-                # For short positions: PnL = cost + value (value is negative)
-                if qty < 0:
-                    unrealized = cost + value
-                else:
-                    unrealized = value - cost
-                row["total_unrealized_pnl"] = unrealized
-                row["fifo_pnl_unrealized"] = unrealized
+                row_currency = row.get("currency") or "USD"
+                if row_currency == "USD":
+                    # For long positions: PnL = value - cost
+                    # For short positions: PnL = cost + value (value is negative)
+                    if qty < 0:
+                        unrealized = cost + value
+                    else:
+                        unrealized = value - cost
+                    row["total_unrealized_pnl"] = unrealized
+                    row["fifo_pnl_unrealized"] = unrealized
 
     def _compute_fifo_cost_basis(self, symbols: set[str], report_date: str | None = None) -> dict[str, dict]:
         """Compute FIFO cost basis for symbols from trade records."""
@@ -545,6 +553,8 @@ class PositionService:
             symbol=row.get("symbol"),
             description=row.get("description"),
             asset_class=row.get("asset_class"),
+            currency=row.get("currency") or "USD",
+            fx_rate_to_base=row.get("fx_rate_to_base") or 1.0,
             quantity=row.get("quantity"),
             mark_price=row.get("mark_price"),
             position_value=row.get("position_value"),

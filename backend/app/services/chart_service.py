@@ -80,8 +80,10 @@ class ChartService:
 
         account_id = snapshot_rows[-1].get("account_id")
 
-        # Build cash flow net-cost curve and daily net flows
-        cash_flow_rows = self._fetch_cash_flows(account_id, effective_end, effective_start)
+        # Build cash flow net-cost curve and daily net flows.
+        # Fetch ALL cash flows from the beginning (not just the display range)
+        # so net_cost accumulates correctly for partial ranges (3m, 6m, ytd).
+        cash_flow_rows = self._fetch_cash_flows(account_id, effective_end)
         cash_flow_curve = self._build_net_cost_curve(cash_flow_rows)
         daily_net_flows = self._build_daily_net_flows(cash_flow_rows)
 
@@ -136,10 +138,19 @@ class ChartService:
             daily_mtm_inferred = False
 
             detail_pnl = (float(change_in_unrealized or 0) + float(realized or 0))
+            # On deposit days, detail_pnl is the genuine (small) market move
+            # while TWR includes the deposit effect.  Prefer detail fields
+            # when they are present — the "zeroed-out" heuristic only applies
+            # to non-deposit days where IBKR's real-time API blanks them.
             detail_fields_populated = (
                 change_in_unrealized is not None
                 and realized is not None
-                and not (detail_pnl == 0.0 and twr is not None and float(twr) != 0.0)
+                and not (
+                    detail_pnl == 0.0
+                    and deposits == 0.0
+                    and twr is not None
+                    and float(twr) != 0.0
+                )
             )
             if detail_fields_populated:
                 daily_mtm = detail_pnl
@@ -441,11 +452,18 @@ class ChartService:
             # This is the most reliable source for daily PnL.
             # But IBKR's real-time API sometimes zeroes these fields while
             # leaving TWR non-zero; detect and skip that case.
+            # On deposit days, detail_pnl is the genuine (small) market move
+            # while TWR includes the deposit effect — prefer detail fields.
             detail_pnl = (float(change_in_unrealized or 0) + float(realized or 0))
             detail_fields_populated = (
                 change_in_unrealized is not None
                 and realized is not None
-                and not (detail_pnl == 0.0 and twr is not None and float(twr) != 0.0)
+                and not (
+                    detail_pnl == 0.0
+                    and deposits == 0.0
+                    and twr is not None
+                    and float(twr) != 0.0
+                )
             )
             if detail_fields_populated:
                 daily_mtm = detail_pnl

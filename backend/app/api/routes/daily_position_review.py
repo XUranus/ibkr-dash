@@ -36,6 +36,21 @@ def _row_to_response(row: dict) -> DailyReviewResponse:
     return DailyReviewResponse(**{k: row.get(k) for k in row if k in DailyReviewResponse.model_fields})
 
 
+@router.get("")
+def list_reviews(
+    limit: int = Query(default=50, ge=1, le=200),
+    _user: str | None = Depends(get_current_user),
+    db: Database = Depends(get_db),
+) -> dict:
+    """List daily position reviews."""
+    rows = db.execute(
+        "SELECT * FROM daily_position_reviews ORDER BY report_date DESC LIMIT ?",
+        (limit,),
+    )
+    items = [_row_to_response(row) for row in rows]
+    return {"items": items}
+
+
 @router.post("/generate", response_model=DailyReviewResponse)
 async def generate_daily_review(
     request: DailyReviewRequest,

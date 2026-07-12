@@ -51,6 +51,15 @@ const AdminAgentMonitoringView = lazy(() => import('@/views/AdminAgentMonitoring
 const AdminSettingsView = lazy(() => import('@/views/AdminSettingsView'))
 const AdminSchedulerView = lazy(() => import('@/views/AdminSchedulerView'))
 const BootstrapView = lazy(() => import('@/views/BootstrapView'))
+// Phase 1-3 views
+const InvestmentPolicyView = lazy(() => import('@/views/InvestmentPolicyView'))
+const PerformanceView = lazy(() => import('@/views/PerformanceView'))
+const DailyPositionReviewView = lazy(() => import('@/views/DailyPositionReviewView'))
+const TradeReviewView = lazy(() => import('@/views/TradeReviewView'))
+const MarketEventsView = lazy(() => import('@/views/MarketEventsView'))
+const KnowledgeView = lazy(() => import('@/views/KnowledgeView'))
+const PortfolioManagerView = lazy(() => import('@/views/PortfolioManagerView'))
+const AdminMarketEventsView = lazy(() => import('@/views/AdminMarketEventsView'))
 
 function lazyView(Component: React.LazyExoticComponent<React.ComponentType>) {
   return (
@@ -95,6 +104,15 @@ export const router = createBrowserRouter(
       { path: 'admin/settings', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AdminSettingsView)}</ProtectedRoute> },
       { path: 'admin/scheduler', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AdminSchedulerView)}</ProtectedRoute> },
       { path: 'bootstrap', element: lazyViewWithErrorBoundary(BootstrapView) },
+      // Phase 1-3 routes
+      { path: 'investment-policy', element: <ProtectedRoute>{lazyViewWithErrorBoundary(InvestmentPolicyView)}</ProtectedRoute> },
+      { path: 'performance', element: <ProtectedRoute>{lazyViewWithErrorBoundary(PerformanceView)}</ProtectedRoute> },
+      { path: 'daily-review', element: <ProtectedRoute>{lazyViewWithErrorBoundary(DailyPositionReviewView)}</ProtectedRoute> },
+      { path: 'trade-review', element: <ProtectedRoute>{lazyViewWithErrorBoundary(TradeReviewView)}</ProtectedRoute> },
+      { path: 'market-events', element: lazyViewWithErrorBoundary(MarketEventsView) },
+      { path: 'knowledge', element: <ProtectedRoute>{lazyViewWithErrorBoundary(KnowledgeView)}</ProtectedRoute> },
+      { path: 'portfolio-manager', element: <ProtectedRoute>{lazyViewWithErrorBoundary(PortfolioManagerView)}</ProtectedRoute> },
+      { path: 'admin/market-events', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AdminMarketEventsView)}</ProtectedRoute> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },

@@ -111,7 +111,9 @@
     "updatingCurve": "Updating curve...",
     "netPnl": "Net P&L",
     "netCost": "Net Cost",
-    "marketRiskAnalysis": "Market Risk Analysis"
+    "marketRiskAnalysis": "Market Risk Analysis",
+    "modePnl": "P&L",
+    "modeEquity": "Equity"
   },
   "positions": {
     "title": "Positions",

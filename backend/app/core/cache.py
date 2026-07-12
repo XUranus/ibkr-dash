@@ -115,15 +115,18 @@ _last_data_fingerprint: str = ""
 def check_data_freshness(db) -> None:
     """Check if data has changed since last cache build.
 
-    Queries the latest ingested_at timestamp from account_snapshots.
-    If it changed, invalidates all cache entries.
+    Queries the latest report_date and count from account_snapshots.
+    If changed, invalidates all cache entries.
     Called once per request (cheap single-row query).
     """
     global _last_data_fingerprint
     row = db.execute_one(
-        "SELECT ingested_at FROM account_snapshots ORDER BY report_date DESC LIMIT 1"
+        "SELECT report_date, COUNT(*) OVER () AS total FROM account_snapshots ORDER BY report_date DESC LIMIT 1"
     )
-    fingerprint = row["ingested_at"] if row else ""
+    if row:
+        fingerprint = f"{row['report_date']}:{row['total']}"
+    else:
+        fingerprint = ""
     if fingerprint and fingerprint != _last_data_fingerprint:
         if _last_data_fingerprint:  # skip first call
             invalidate_all()

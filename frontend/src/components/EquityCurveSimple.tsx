@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import * as echarts from 'echarts/core'
 import { LineChart } from 'echarts/charts'
@@ -9,6 +9,8 @@ import type { EquityCurveRangeKey, EquityCurveRangeOption } from '@/utils/equity
 import { formatNumber } from '@/utils/format'
 
 echarts.use([LineChart, GridComponent, TooltipComponent, DataZoomComponent, LegendComponent, CanvasRenderer])
+
+type ChartMode = 'pnl' | 'equity'
 
 interface Props {
   items: EquityCurvePoint[]
@@ -23,6 +25,7 @@ export default function EquityCurveSimple({ items, loading, errorMessage, rangeO
   const { t } = useTranslation()
   const chartRef = useRef<HTMLDivElement>(null)
   const chartInstance = useRef<echarts.ECharts | null>(null)
+  const [mode, setMode] = useState<ChartMode>('pnl')
 
   const renderChart = useCallback(() => {
     if (!chartInstance.current || items.length === 0) return
@@ -39,6 +42,40 @@ export default function EquityCurveSimple({ items, loading, errorMessage, rangeO
       if (item.realized_pnl !== null) realizedData.push([item.report_date, item.realized_pnl])
     })
 
+    const pnlSeries = [
+      {
+        name: t('dashboard.netPnl'), type: 'line', smooth: 0.18, sampling: 'lttb',
+        data: pnlData, lineStyle: { width: 2, color: '#3FB950' },
+        areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(63, 185, 80, 0.12)' },
+          { offset: 1, color: 'rgba(63, 185, 80, 0.01)' },
+        ]) },
+        showSymbol: false,
+      },
+      {
+        name: t('dashboard.realizedPnl'), type: 'line', smooth: 0.12, sampling: 'lttb',
+        data: realizedData, lineStyle: { width: 1.5, color: '#D29922' },
+        showSymbol: false,
+      },
+    ]
+
+    const equitySeries = [
+      {
+        name: t('dashboard.totalEquity'), type: 'line', smooth: 0.15, sampling: 'lttb',
+        data: equityData, lineStyle: { width: 2, color: '#58A6FF' },
+        areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(88, 166, 255, 0.12)' },
+          { offset: 1, color: 'rgba(88, 166, 255, 0.01)' },
+        ]) },
+        showSymbol: false,
+      },
+      {
+        name: t('dashboard.netCost'), type: 'line', step: 'end',
+        data: costData, lineStyle: { width: 1.5, color: '#6E7681' },
+        showSymbol: false,
+      },
+    ]
+
     chartInstance.current.setOption({
       animationDuration: 400,
       backgroundColor: 'transparent',
@@ -51,6 +88,7 @@ export default function EquityCurveSimple({ items, loading, errorMessage, rangeO
         borderWidth: 1,
         textStyle: { color: '#C9D1D9', fontSize: 12 },
         padding: 10,
+        valueFormatter: (val: number) => formatNumber(val),
       },
       xAxis: {
         type: 'time',
@@ -79,34 +117,9 @@ export default function EquityCurveSimple({ items, loading, errorMessage, rangeO
           textStyle: { color: '#484F58', fontSize: 10 },
         },
       ],
-      series: [
-        {
-          name: t('dashboard.totalEquity'), type: 'line', smooth: 0.15, sampling: 'lttb',
-          data: equityData, lineStyle: { width: 2, color: '#58A6FF' },
-          areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(88, 166, 255, 0.12)' },
-            { offset: 1, color: 'rgba(88, 166, 255, 0.01)' },
-          ]) },
-          showSymbol: false,
-        },
-        {
-          name: t('dashboard.netPnl'), type: 'line', smooth: 0.18, sampling: 'lttb',
-          data: pnlData, lineStyle: { width: 1.5, color: '#3FB950' },
-          showSymbol: false,
-        },
-        {
-          name: t('dashboard.netCost'), type: 'line', step: 'end',
-          data: costData, lineStyle: { width: 1.5, color: '#6E7681' },
-          showSymbol: false,
-        },
-        {
-          name: t('dashboard.realizedPnl'), type: 'line', smooth: 0.12, sampling: 'lttb',
-          data: realizedData, lineStyle: { width: 1.5, color: '#D29922' },
-          showSymbol: false,
-        },
-      ],
+      series: mode === 'pnl' ? pnlSeries : equitySeries,
     }, true)
-  }, [items])
+  }, [items, mode])
 
   useEffect(() => {
     if (!chartRef.current) return
@@ -132,8 +145,24 @@ export default function EquityCurveSimple({ items, loading, errorMessage, rangeO
       <div className="surface-panel__content">
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <p className="eyebrow" style={{ margin: 0 }}>{t('dashboard.curves')}</p>
+            <div style={{ display: 'flex', gap: 2 }}>
+              <button
+                type="button"
+                className={`btn btn--sm ${mode === 'pnl' ? 'btn--accent' : ''}`}
+                onClick={() => setMode('pnl')}
+              >
+                {t('dashboard.modePnl')}
+              </button>
+              <button
+                type="button"
+                className={`btn btn--sm ${mode === 'equity' ? 'btn--accent' : ''}`}
+                onClick={() => setMode('equity')}
+              >
+                {t('dashboard.modeEquity')}
+              </button>
+            </div>
             <span className="tag">{items.length > 0 ? `${items[0].report_date} – ${items[items.length - 1].report_date}` : t('dashboard.noHistory')}</span>
           </div>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>

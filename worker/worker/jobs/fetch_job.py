@@ -51,7 +51,8 @@ def fetch_flex_statements(
     for query_id in query_ids:
         save_path = data_dir / f"{query_id}_{today}.xml"
 
-        if save_path.exists():
+        # Skip only if today's file exists AND has meaningful content (>1KB)
+        if save_path.exists() and save_path.stat().st_size > 1024:
             logger.info("Already fetched today: %s", save_path.name)
             saved_files.append(save_path)
             continue

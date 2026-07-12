@@ -12,6 +12,8 @@ class PositionItem(BaseModel):
     symbol: str | None = None
     description: str | None = None
     asset_class: str | None = None
+    currency: str | None = "USD"
+    fx_rate_to_base: float | None = 1.0
     quantity: float | None = None
     mark_price: float | None = None
     position_value: float | None = None

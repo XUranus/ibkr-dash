@@ -86,7 +86,16 @@ def run_import(db: Database) -> dict:
 
     duration_ms = int((time.monotonic() - t0) * 1000)
 
-    # Step 3: Log each imported file to import_history
+    # Step 3: Invalidate cache so fresh data is served
+    if files:
+        try:
+            from app.core import cache
+            cache.invalidate_all()
+            logger.info("Cache invalidated after import")
+        except Exception:
+            logger.debug("Cache invalidation failed (non-critical)", exc_info=True)
+
+    # Step 4: Log each imported file to import_history
     data_dir = Path(get_manager().get("advanced.data_dir", str(_PROJECT_ROOT / "data" / "flex_exports")))
     for filename, counts in files.items():
         file_path = data_dir / filename

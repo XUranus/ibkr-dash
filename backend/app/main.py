@@ -146,6 +146,14 @@ def create_app() -> FastAPI:
     from app.api.routes.position_analysis import router as position_analysis_router
     from app.api.routes.market_events import router as market_events_router
     from app.api.routes.app_info import router as app_info_router
+    # Phase 1 routes
+    from app.api.routes.investment_policy import router as investment_policy_router
+    from app.api.routes.performance import router as performance_router
+    from app.api.routes.bootstrap import router as bootstrap_router
+    from app.api.routes.admin_llm_calls import router as admin_llm_calls_router
+    from app.api.routes.admin_market_events import router as admin_market_events_router
+    from app.api.routes.symbol_analysis import router as symbol_analysis_router
+    from app.api.routes.admin_agent_eval import router as admin_agent_eval_router
 
     app.include_router(health_router, prefix="/api")
     app.include_router(account_router, prefix="/api")
@@ -175,6 +183,14 @@ def create_app() -> FastAPI:
     app.include_router(position_analysis_router, prefix="/api")
     app.include_router(market_events_router, prefix="/api")
     app.include_router(app_info_router, prefix="/api")
+    # Phase 1 routes
+    app.include_router(investment_policy_router, prefix="/api")
+    app.include_router(performance_router, prefix="/api")
+    app.include_router(bootstrap_router, prefix="/api")
+    app.include_router(admin_llm_calls_router, prefix="/api")
+    app.include_router(admin_market_events_router, prefix="/api")
+    app.include_router(symbol_analysis_router, prefix="/api")
+    app.include_router(admin_agent_eval_router, prefix="/api")
 
     return app
 

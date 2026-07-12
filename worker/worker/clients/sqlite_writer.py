@@ -54,6 +54,8 @@ CREATE TABLE IF NOT EXISTS position_snapshots (
     conid           TEXT,
     isin            TEXT,
     listing_exchange TEXT,
+    currency        TEXT DEFAULT 'USD',
+    fx_rate_to_base REAL DEFAULT 1.0,
     quantity        REAL,
     mark_price      REAL,
     position_value  REAL,
@@ -136,6 +138,10 @@ CREATE INDEX IF NOT EXISTS idx_trade_records_symbol ON trade_records(symbol);
 CREATE INDEX IF NOT EXISTS idx_cash_flows_date ON cash_flows(date_time);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_cash_flows_txn_id ON cash_flows(transaction_id) WHERE transaction_id IS NOT NULL AND transaction_id != '';
 CREATE INDEX IF NOT EXISTS idx_price_history_symbol_date ON price_history(symbol, report_date);
+
+-- Migration: add currency and fx_rate_to_base to position_snapshots if missing
+-- (safe to run repeatedly — ALTER TABLE ADD COLUMN is a no-op if column exists
+-- in newer SQLite, but we catch the error for older versions)
 """
 
 
@@ -171,7 +177,22 @@ class SQLiteWriter:
         """Create worker-relevant tables and indexes if they don't exist."""
         with self._get_conn() as conn:
             conn.executescript(_WORKER_SCHEMA_SQL)
+            # Migration: add columns that may be missing from older schemas
+            self._migrate_add_columns(conn)
         logger.info("SQLite schema initialized at %s", self._db_path)
+
+    @staticmethod
+    def _migrate_add_columns(conn: sqlite3.Connection) -> None:
+        """Add missing columns to existing tables (idempotent)."""
+        migrations = [
+            ("position_snapshots", "currency", "TEXT DEFAULT 'USD'"),
+            ("position_snapshots", "fx_rate_to_base", "REAL DEFAULT 1.0"),
+        ]
+        for table, column, col_def in migrations:
+            try:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_def}")
+            except sqlite3.OperationalError:
+                pass  # column already exists
 
     # ------------------------------------------------------------------
     # Account snapshots
@@ -270,6 +291,7 @@ class SQLiteWriter:
             INSERT INTO position_snapshots
                 (account_id, report_date, symbol, description, asset_class,
                  conid, isin, listing_exchange,
+                 currency, fx_rate_to_base,
                  quantity, mark_price, position_value,
                  average_cost_price, cost_basis_money, percent_of_nav,
                  fifo_pnl_unrealized, total_realized_pnl, total_unrealized_pnl,
@@ -278,6 +300,7 @@ class SQLiteWriter:
             VALUES
                 (:account_id, :report_date, :symbol, :description, :asset_class,
                  :conid, :isin, :listing_exchange,
+                 :currency, :fx_rate_to_base,
                  :quantity, :mark_price, :position_value,
                  :average_cost_price, :cost_basis_money, :percent_of_nav,
                  :fifo_pnl_unrealized, :total_realized_pnl, :total_unrealized_pnl,
@@ -289,6 +312,8 @@ class SQLiteWriter:
                 conid           = excluded.conid,
                 isin            = excluded.isin,
                 listing_exchange = excluded.listing_exchange,
+                currency        = excluded.currency,
+                fx_rate_to_base = excluded.fx_rate_to_base,
                 quantity        = excluded.quantity,
                 mark_price      = excluded.mark_price,
                 position_value  = excluded.position_value,
@@ -314,6 +339,8 @@ class SQLiteWriter:
                     "conid": doc.get("conid"),
                     "isin": doc.get("isin"),
                     "listing_exchange": doc.get("listing_exchange"),
+                    "currency": doc.get("currency", "USD"),
+                    "fx_rate_to_base": doc.get("fx_rate_to_base", 1.0),
                     "quantity": doc.get("quantity"),
                     "mark_price": doc.get("mark_price"),
                     "position_value": doc.get("position_value"),

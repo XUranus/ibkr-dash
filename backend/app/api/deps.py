@@ -107,6 +107,18 @@ def get_prompt_service(db: Database = Depends(get_db)) -> "PromptService":
     return PromptService(db)
 
 
+def get_investment_policy_service(db: Database = Depends(get_db)) -> "InvestmentPolicyService":
+    """Provide an InvestmentPolicyService instance."""
+    from app.services.investment_policy_service import InvestmentPolicyService
+    return InvestmentPolicyService(db)
+
+
+def get_llm_call_metrics_service(db: Database = Depends(get_db)) -> "LLMCallMetricsService":
+    """Provide an LLMCallMetricsService instance."""
+    from app.services.llm_call_metrics_service import LLMCallMetricsService
+    return LLMCallMetricsService(db)
+
+
 # ---------------------------------------------------------------------------
 # Optional basic auth
 # ---------------------------------------------------------------------------

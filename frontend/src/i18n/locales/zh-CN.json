@@ -111,7 +111,9 @@
     "updatingCurve": "更新曲线中...",
     "netPnl": "净盈亏",
     "netCost": "净成本",
-    "marketRiskAnalysis": "市场风险分析"
+    "marketRiskAnalysis": "市场风险分析",
+    "modePnl": "盈亏",
+    "modeEquity": "权益"
   },
   "positions": {
     "title": "持仓",
