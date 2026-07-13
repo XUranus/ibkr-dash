@@ -15,6 +15,11 @@
     "dailyReview": "每日复盘",
     "aiDecision": "AI 决策",
     "copilot": "智能助手",
+    "portfolio": "组合管理",
+    "performance": "收益分析",
+    "tradeReview": "交易复盘",
+    "events": "市场事件",
+    "policy": "投资策略",
     "admin": "管理"
   },
   "auth": {

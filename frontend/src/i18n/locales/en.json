@@ -15,6 +15,11 @@
     "dailyReview": "Daily Review",
     "aiDecision": "AI Decision",
     "copilot": "Copilot",
+    "portfolio": "Portfolio",
+    "performance": "Performance",
+    "tradeReview": "Trade Review",
+    "events": "Events",
+    "policy": "Policy",
     "admin": "Admin"
   },
   "auth": {
