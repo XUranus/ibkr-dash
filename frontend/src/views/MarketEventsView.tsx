@@ -1,6 +1,7 @@
 /** Market events page -- view upcoming and today's market events. */
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { request } from '@/api/http'
 import type { MarketEvent, MarketEventAnalysis } from '@/types/marketEvent'
 
@@ -12,12 +13,15 @@ function importanceTagClass(importance: string): string {
 }
 
 export default function MarketEventsView() {
+  const { t, i18n } = useTranslation()
   const [upcoming, setUpcoming] = useState<MarketEvent[]>([])
   const [today, setToday] = useState<MarketEvent[]>([])
   const [analysis, setAnalysis] = useState<MarketEventAnalysis | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [tab, setTab] = useState<'upcoming' | 'today' | 'analysis'>('upcoming')
+
+  const isZh = i18n.language?.startsWith('zh')
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -32,17 +36,18 @@ export default function MarketEventsView() {
       setToday(todayData.items || [])
       setAnalysis(analysisData.analysis)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load market events')
+      setError(err instanceof Error ? err.message : t('marketEvents.failedToLoad'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => { void loadData() }, [loadData])
 
   function formatDate(iso: string): string {
     try {
-      return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      const locale = isZh ? 'zh-CN' : 'en-US'
+      return new Date(iso).toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })
     } catch {
       return iso.slice(0, 10)
     }
@@ -53,9 +58,9 @@ export default function MarketEventsView() {
   return (
     <section className="page-section" style={{ animation: 'slideUp 0.4s ease' }}>
       <header style={{ marginBottom: 'var(--space-6)' }}>
-        <p className="eyebrow">Market</p>
-        <h1 className="page-title">Market Events</h1>
-        <p className="page-subtitle">Upcoming economic events, FOMC decisions, and market holidays</p>
+        <p className="eyebrow">{t('marketEvents.eyebrow')}</p>
+        <h1 className="page-title">{t('marketEvents.title')}</h1>
+        <p className="page-subtitle">{t('marketEvents.subtitle')}</p>
       </header>
 
       {error && (
@@ -66,42 +71,42 @@ export default function MarketEventsView() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 'var(--space-4)' }}>
-        {(['upcoming', 'today', 'analysis'] as const).map((t) => (
+        {(['upcoming', 'today', 'analysis'] as const).map((tabKey) => (
           <button
-            key={t}
-            className={`btn btn--sm ${tab === t ? 'btn--accent' : 'btn--ghost'}`}
-            onClick={() => setTab(t)}
+            key={tabKey}
+            className={`btn btn--sm ${tab === tabKey ? 'btn--accent' : 'btn--ghost'}`}
+            onClick={() => setTab(tabKey)}
           >
-            {t === 'upcoming' ? 'Upcoming (30d)' : t === 'today' ? 'Today' : 'AI Analysis'}
+            {tabKey === 'upcoming' ? t('marketEvents.upcoming') : tabKey === 'today' ? t('marketEvents.today') : t('marketEvents.aiAnalysis')}
           </button>
         ))}
         <button className="btn btn--ghost btn--sm" onClick={loadData} disabled={loading}>
-          Refresh
+          {t('marketEvents.refresh')}
         </button>
       </div>
 
       {loading ? (
-        <p style={{ color: 'var(--color-text-muted)' }}>Loading market events...</p>
+        <p style={{ color: 'var(--color-text-muted)' }}>{t('marketEvents.loading')}</p>
       ) : tab === 'analysis' ? (
         /* Analysis tab */
         <div className="surface-panel">
           <div className="surface-panel__content" style={{ padding: 16 }}>
             {!analysis ? (
-              <p style={{ color: 'var(--color-text-muted)' }}>No AI analysis available. Generate one from the admin panel.</p>
+              <p style={{ color: 'var(--color-text-muted)' }}>{t('marketEvents.noAnalysis')}</p>
             ) : (
               <div>
-                <h3 style={{ marginBottom: 12 }}>AI Market Risk Analysis</h3>
+                <h3 style={{ marginBottom: 12 }}>{t('marketEvents.aiMarketRiskAnalysis')}</h3>
                 <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: 12 }}>
-                  Generated: {formatDate(analysis.created_at)}
+                  {t('marketEvents.generated')} {formatDate(analysis.created_at)}
                 </p>
                 <div style={{ marginBottom: 16 }}>
-                  <h4 style={{ color: 'var(--color-accent-strong)', marginBottom: 8 }}>Chinese</h4>
+                  <h4 style={{ color: 'var(--color-accent-strong)', marginBottom: 8 }}>{t('marketEvents.chinese')}</h4>
                   <div style={{ padding: 12, background: 'rgba(10,14,26,0.5)', borderRadius: 'var(--radius-sm)', whiteSpace: 'pre-wrap', fontSize: '0.85rem', lineHeight: 1.7 }}>
                     {analysis.content_zh}
                   </div>
                 </div>
                 <div>
-                  <h4 style={{ color: 'var(--color-accent-strong)', marginBottom: 8 }}>English</h4>
+                  <h4 style={{ color: 'var(--color-accent-strong)', marginBottom: 8 }}>{t('marketEvents.english')}</h4>
                   <div style={{ padding: 12, background: 'rgba(10,14,26,0.5)', borderRadius: 'var(--radius-sm)', whiteSpace: 'pre-wrap', fontSize: '0.85rem', lineHeight: 1.7 }}>
                     {analysis.content_en}
                   </div>
@@ -115,17 +120,17 @@ export default function MarketEventsView() {
         <div className="surface-panel">
           <div className="surface-panel__content" style={{ padding: 0 }}>
             {events.length === 0 ? (
-              <div className="empty-state">No {tab} events found</div>
+              <div className="empty-state">{tab === 'today' ? t('marketEvents.noTodayEvents') : t('marketEvents.noUpcomingEvents')}</div>
             ) : (
               <div className="table-shell">
                 <table className="data-table" style={{ minWidth: 800 }}>
                   <thead>
                     <tr>
-                      <th style={{ width: '15%' }}>Date</th>
-                      <th style={{ width: '35%' }}>Event</th>
-                      <th style={{ width: '15%' }}>Category</th>
-                      <th style={{ width: '15%' }}>Importance</th>
-                      <th style={{ width: '20%' }}>Source</th>
+                      <th style={{ width: '15%' }}>{t('marketEvents.date')}</th>
+                      <th style={{ width: '35%' }}>{t('marketEvents.event')}</th>
+                      <th style={{ width: '15%' }}>{t('marketEvents.category')}</th>
+                      <th style={{ width: '15%' }}>{t('marketEvents.importance')}</th>
+                      <th style={{ width: '20%' }}>{t('marketEvents.source')}</th>
                     </tr>
                   </thead>
                   <tbody>

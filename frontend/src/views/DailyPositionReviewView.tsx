@@ -1,12 +1,14 @@
 /** Daily position review page -- list and view daily position reviews. */
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { request } from '@/api/http'
 import { safeJsonParse } from '@/utils/safeJson'
 import type { DailyPositionReviewResult } from '@/types/dailyPositionReview'
 import AgentEvidencePanel from '@/components/AgentEvidencePanel'
 
 export default function DailyPositionReviewView() {
+  const { t } = useTranslation()
   const [reviews, setReviews] = useState<DailyPositionReviewResult[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -20,11 +22,11 @@ export default function DailyPositionReviewView() {
       const data = await request<{ items: DailyPositionReviewResult[] }>('/api/daily-position-review')
       setReviews(data.items || [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load reviews')
+      setError(err instanceof Error ? err.message : t('dailyPositionReview.failedToLoad'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => { void loadReviews() }, [loadReviews])
 
@@ -41,23 +43,23 @@ export default function DailyPositionReviewView() {
     return (
       <div style={{ fontSize: '0.85rem', lineHeight: 1.7 }}>
         <div style={{ marginBottom: 12 }}>
-          <strong style={{ color: 'var(--color-accent-strong)' }}>Summary:</strong>
+          <strong style={{ color: 'var(--color-accent-strong)' }}>{t('dailyPositionReview.summary')}</strong>
           <p style={{ margin: '4px 0 0', color: 'var(--color-text-primary)' }}>{review.summary}</p>
         </div>
         <div style={{ marginBottom: 12 }}>
-          <strong style={{ color: 'var(--color-accent-strong)' }}>Account Conclusion:</strong>
+          <strong style={{ color: 'var(--color-accent-strong)' }}>{t('dailyPositionReview.accountConclusion')}</strong>
           <p style={{ margin: '4px 0 0', color: 'var(--color-text-primary)' }}>{review.account_conclusion}</p>
         </div>
         <div style={{ marginBottom: 12 }}>
-          <strong style={{ color: 'var(--color-accent-strong)' }}>Risk Analysis:</strong>
+          <strong style={{ color: 'var(--color-accent-strong)' }}>{t('dailyPositionReview.riskAnalysis')}</strong>
           <p style={{ margin: '4px 0 0', color: 'var(--color-text-primary)' }}>{review.risk_analysis}</p>
         </div>
         <div style={{ marginBottom: 12 }}>
-          <strong style={{ color: 'var(--color-accent-strong)' }}>Market Context:</strong>
+          <strong style={{ color: 'var(--color-accent-strong)' }}>{t('dailyPositionReview.marketContext')}</strong>
           <p style={{ margin: '4px 0 0', color: 'var(--color-text-primary)' }}>{review.market_context}</p>
         </div>
         <div style={{ marginBottom: 12 }}>
-          <strong style={{ color: 'var(--color-accent-strong)' }}>Operation Observation:</strong>
+          <strong style={{ color: 'var(--color-accent-strong)' }}>{t('dailyPositionReview.operationObservation')}</strong>
           <p style={{ margin: '4px 0 0', color: 'var(--color-text-primary)' }}>{review.operation_observation}</p>
         </div>
       </div>
@@ -67,9 +69,9 @@ export default function DailyPositionReviewView() {
   return (
     <section className="page-section" style={{ animation: 'slideUp 0.4s ease' }}>
       <header style={{ marginBottom: 'var(--space-6)' }}>
-        <p className="eyebrow">Agent</p>
-        <h1 className="page-title">Daily Position Review</h1>
-        <p className="page-subtitle">AI-generated daily portfolio analysis and recommendations</p>
+        <p className="eyebrow">{t('dailyPositionReview.eyebrow')}</p>
+        <h1 className="page-title">{t('dailyPositionReview.title')}</h1>
+        <p className="page-subtitle">{t('dailyPositionReview.subtitle')}</p>
       </header>
 
       {error && (
@@ -83,12 +85,12 @@ export default function DailyPositionReviewView() {
         <div className="surface-panel">
           <div className="surface-panel__content" style={{ padding: 12, maxHeight: '70vh', overflow: 'auto' }}>
             <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: 8 }}>
-              {reviews.length} REVIEW(S)
+              {t('dailyPositionReview.reviewCount', { count: reviews.length })}
             </p>
             {loading ? (
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.82rem' }}>Loading...</p>
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.82rem' }}>{t('dailyPositionReview.loading')}</p>
             ) : reviews.length === 0 ? (
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.82rem' }}>No reviews found. Run a daily review agent first.</p>
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.82rem' }}>{t('dailyPositionReview.noReviews')}</p>
             ) : (
               reviews.map((r) => (
                 <button
@@ -122,12 +124,12 @@ export default function DailyPositionReviewView() {
           <div className="surface-panel__content" style={{ padding: 16 }}>
             {!selectedReview ? (
               <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>Select a review to view details</p>
+                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>{t('dailyPositionReview.selectReview')}</p>
               </div>
             ) : (
               <div>
                 <h3 style={{ marginBottom: 12 }}>
-                  Review: {selectedReview.report_date}
+                  {t('dailyPositionReview.review')}: {selectedReview.report_date}
                 </h3>
                 <div style={{ marginBottom: 16, padding: 12, background: 'rgba(10,14,26,0.5)', borderRadius: 'var(--radius-sm)' }}>
                   {renderReviewDetail(selectedReview)}

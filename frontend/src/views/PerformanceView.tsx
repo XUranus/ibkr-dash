@@ -1,11 +1,13 @@
 /** Performance page -- account performance with TWR calculation. */
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { request } from '@/api/http'
 import { formatNumber, formatSignedNumber, formatPercent, formatSignedPercent, pnlClass } from '@/utils/format'
 import type { PerformanceSeriesResponse, AccountPerformancePoint } from '@/types/performance'
 
 export default function PerformanceView() {
+  const { t } = useTranslation()
   const [data, setData] = useState<PerformanceSeriesResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -23,11 +25,11 @@ export default function PerformanceView() {
       const result = await request<PerformanceSeriesResponse>(`/api/performance/account/series${qs ? '?' + qs : ''}`)
       setData(result)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load performance data')
+      setError(err instanceof Error ? err.message : t('performance.failedToLoad'))
     } finally {
       setLoading(false)
     }
-  }, [startDate, endDate])
+  }, [startDate, endDate, t])
 
   useEffect(() => { void loadData() }, [loadData])
 
@@ -42,9 +44,9 @@ export default function PerformanceView() {
   return (
     <section className="page-section" style={{ animation: 'slideUp 0.4s ease' }}>
       <header style={{ marginBottom: 'var(--space-6)' }}>
-        <p className="eyebrow">Performance</p>
-        <h1 className="page-title">Account Performance</h1>
-        <p className="page-subtitle">Time-weighted return analysis with cash flow adjustment</p>
+        <p className="eyebrow">{t('performance.eyebrow')}</p>
+        <h1 className="page-title">{t('performance.title')}</h1>
+        <p className="page-subtitle">{t('performance.subtitle')}</p>
       </header>
 
       {error && (
@@ -56,39 +58,39 @@ export default function PerformanceView() {
       {/* Date filters */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 'var(--space-4)', alignItems: 'center' }}>
         <label style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>
-          Start:
+          {t('performance.startDate')}
           <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="input" style={{ marginLeft: 8, width: 140 }} />
         </label>
         <label style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>
-          End:
+          {t('performance.endDate')}
           <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="input" style={{ marginLeft: 8, width: 140 }} />
         </label>
         <button className="btn btn--ghost btn--sm" onClick={loadData} disabled={loading}>
-          Refresh
+          {t('performance.refresh')}
         </button>
       </div>
 
       {loading ? (
-        <p style={{ color: 'var(--color-text-muted)' }}>Loading performance data...</p>
+        <p style={{ color: 'var(--color-text-muted)' }}>{t('performance.loading')}</p>
       ) : !summary ? (
-        <p style={{ color: 'var(--color-text-muted)' }}>No performance data available.</p>
+        <p style={{ color: 'var(--color-text-muted)' }}>{t('performance.noData')}</p>
       ) : (
         <>
           {/* Summary cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 'var(--space-4)' }}>
-            <SummaryCard label="Start NAV" value={formatMoney(summary.start_nav)} />
-            <SummaryCard label="End NAV" value={formatMoney(summary.end_nav)} />
-            <SummaryCard label="TWR Return" value={formatPercent(summary.twr_total_return != null ? summary.twr_total_return * 100 : null)} color={summary.twr_total_return != null && summary.twr_total_return >= 0 ? 'var(--color-positive)' : 'var(--color-negative)'} />
-            <SummaryCard label="Annualized" value={formatPercent(summary.annualized_return != null ? summary.annualized_return * 100 : null)} />
-            <SummaryCard label="Max Drawdown" value={formatPercent(summary.max_drawdown != null ? summary.max_drawdown * 100 : null)} color="var(--color-negative)" />
-            <SummaryCard label="Volatility" value={formatPercent(summary.volatility != null ? summary.volatility * 100 : null)} />
-            <SummaryCard label="Sharpe" value={summary.sharpe_ratio != null ? summary.sharpe_ratio.toFixed(2) : '--'} />
-            <SummaryCard label="Cash Flows" value={formatMoney(summary.total_net_cash_flow)} />
+            <SummaryCard label={t('performance.startNav')} value={formatMoney(summary.start_nav)} />
+            <SummaryCard label={t('performance.endNav')} value={formatMoney(summary.end_nav)} />
+            <SummaryCard label={t('performance.twrReturn')} value={formatPercent(summary.twr_total_return != null ? summary.twr_total_return * 100 : null)} color={summary.twr_total_return != null && summary.twr_total_return >= 0 ? 'var(--color-positive)' : 'var(--color-negative)'} />
+            <SummaryCard label={t('performance.annualized')} value={formatPercent(summary.annualized_return != null ? summary.annualized_return * 100 : null)} />
+            <SummaryCard label={t('performance.maxDrawdown')} value={formatPercent(summary.max_drawdown != null ? summary.max_drawdown * 100 : null)} color="var(--color-negative)" />
+            <SummaryCard label={t('performance.volatility')} value={formatPercent(summary.volatility != null ? summary.volatility * 100 : null)} />
+            <SummaryCard label={t('performance.sharpe')} value={summary.sharpe_ratio != null ? summary.sharpe_ratio.toFixed(2) : '--'} />
+            <SummaryCard label={t('performance.cashFlows')} value={formatMoney(summary.total_net_cash_flow)} />
           </div>
 
           {/* Data quality */}
           <div style={{ marginBottom: 'var(--space-4)', padding: 8, background: 'rgba(10,14,26,0.3)', borderRadius: 'var(--radius-sm)', fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
-            Data quality: {summary.data_quality}
+            {t('performance.dataQuality')} {summary.data_quality}
             {summary.data_limitations.length > 0 && (
               <span> ({summary.data_limitations.join(', ')})</span>
             )}
@@ -101,11 +103,11 @@ export default function PerformanceView() {
                 <table className="data-table" style={{ minWidth: 700 }}>
                   <thead>
                     <tr>
-                      <th style={{ width: '20%' }}>Date</th>
-                      <th style={{ width: '20%', textAlign: 'right' }}>NAV</th>
-                      <th style={{ width: '20%', textAlign: 'right' }}>Cash Flow</th>
-                      <th style={{ width: '20%', textAlign: 'right' }}>Daily Return</th>
-                      <th style={{ width: '20%', textAlign: 'right' }}>TWR Index</th>
+                      <th style={{ width: '20%' }}>{t('performance.date')}</th>
+                      <th style={{ width: '20%', textAlign: 'right' }}>{t('performance.nav')}</th>
+                      <th style={{ width: '20%', textAlign: 'right' }}>{t('performance.cashFlow')}</th>
+                      <th style={{ width: '20%', textAlign: 'right' }}>{t('performance.dailyReturn')}</th>
+                      <th style={{ width: '20%', textAlign: 'right' }}>{t('performance.twrIndex')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -123,7 +125,7 @@ export default function PerformanceView() {
               </div>
               {series.length > 50 && (
                 <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.78rem', padding: '8px 0' }}>
-                  Showing last 50 of {series.length} data points
+                  {t('performance.showingLast', { total: series.length })}
                 </p>
               )}
             </div>

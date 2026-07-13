@@ -1,10 +1,12 @@
 /** Investment policy page -- view and edit global and per-symbol policies. */
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { request } from '@/api/http'
 import type { GlobalInvestmentPolicy, SymbolInvestmentPolicy } from '@/types/investmentPolicy'
 
 export default function InvestmentPolicyView() {
+  const { t } = useTranslation()
   const [globalPolicy, setGlobalPolicy] = useState<GlobalInvestmentPolicy | null>(null)
   const [symbolPolicies, setSymbolPolicies] = useState<SymbolInvestmentPolicy[]>([])
   const [loading, setLoading] = useState(true)
@@ -22,11 +24,11 @@ export default function InvestmentPolicyView() {
       setGlobalPolicy(gp)
       setSymbolPolicies(sp.items || [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load policies')
+      setError(err instanceof Error ? err.message : t('investmentPolicy.failedToLoad'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => { void loadData() }, [loadData])
 
@@ -35,7 +37,7 @@ export default function InvestmentPolicyView() {
       await request('/api/bootstrap', { method: 'POST' })
       await loadData()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to seed defaults')
+      setError(err instanceof Error ? err.message : t('investmentPolicy.failedToSeed'))
     }
   }
 
@@ -46,9 +48,9 @@ export default function InvestmentPolicyView() {
   return (
     <section className="page-section" style={{ animation: 'slideUp 0.4s ease' }}>
       <header style={{ marginBottom: 'var(--space-6)' }}>
-        <p className="eyebrow">Configuration</p>
-        <h1 className="page-title">Investment Policy</h1>
-        <p className="page-subtitle">Manage global and per-symbol investment policies</p>
+        <p className="eyebrow">{t('investmentPolicy.eyebrow')}</p>
+        <h1 className="page-title">{t('investmentPolicy.title')}</h1>
+        <p className="page-subtitle">{t('investmentPolicy.subtitle')}</p>
       </header>
 
       {error && (
@@ -59,19 +61,19 @@ export default function InvestmentPolicyView() {
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 'var(--space-4)' }}>
         <button className="btn btn--accent btn--sm" onClick={handleSeedDefaults}>
-          Seed Defaults from Thesis
+          {t('investmentPolicy.seedDefaults')}
         </button>
       </div>
 
       {loading ? (
-        <p style={{ color: 'var(--color-text-muted)' }}>Loading policies...</p>
+        <p style={{ color: 'var(--color-text-muted)' }}>{t('investmentPolicy.loading')}</p>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 'var(--space-4)' }}>
           {/* Symbol list */}
           <div className="surface-panel">
             <div className="surface-panel__content" style={{ padding: 12 }}>
               <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: 8 }}>
-                GLOBAL POLICY
+                {t('investmentPolicy.globalPolicy')}
               </p>
               <button
                 className="btn btn--ghost btn--sm"
@@ -86,10 +88,10 @@ export default function InvestmentPolicyView() {
                   fontSize: '0.82rem',
                 }}
               >
-                Global Policy
+                {t('investmentPolicy.globalPolicyTitle')}
               </button>
               <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: 8, marginTop: 12 }}>
-                SYMBOL POLICIES ({symbolPolicies.length})
+                {t('investmentPolicy.symbolPolicies', { count: symbolPolicies.length })}
               </p>
               {symbolPolicies.map((p) => (
                 <button
@@ -121,16 +123,16 @@ export default function InvestmentPolicyView() {
             <div className="surface-panel__content" style={{ padding: 16 }}>
               {!selectedSymbol && globalPolicy ? (
                 <div>
-                  <h3 style={{ marginBottom: 16 }}>Global Investment Policy</h3>
+                  <h3 style={{ marginBottom: 16 }}>{t('investmentPolicy.globalPolicyTitle')}</h3>
                   <div style={{ display: 'grid', gap: 12 }}>
-                    <PolicyField label="Risk Profile" value={globalPolicy.risk_profile} />
-                    <PolicyField label="Target Annual Return" value={globalPolicy.target_annual_return_pct ? `${(globalPolicy.target_annual_return_pct * 100).toFixed(1)}%` : '--'} />
-                    <PolicyField label="Max Drawdown Tolerance" value={globalPolicy.max_drawdown_tolerance_pct ? `${(globalPolicy.max_drawdown_tolerance_pct * 100).toFixed(1)}%` : '--'} />
-                    <PolicyField label="Allow Concentrated" value={globalPolicy.allow_concentrated_position ? 'Yes' : 'No'} />
-                    <PolicyField label="Allow Leverage" value={globalPolicy.allow_leverage ? 'Yes' : 'No'} />
-                    <PolicyField label="Cash Reserve" value={globalPolicy.cash_reserve_pct ? `${(globalPolicy.cash_reserve_pct * 100).toFixed(1)}%` : '--'} />
-                    <PolicyField label="Holding Period" value={globalPolicy.holding_period || '--'} />
-                    <PolicyField label="Notes" value={globalPolicy.notes || '--'} />
+                    <PolicyField label={t('investmentPolicy.riskProfile')} value={globalPolicy.risk_profile} />
+                    <PolicyField label={t('investmentPolicy.targetAnnualReturn')} value={globalPolicy.target_annual_return_pct ? `${(globalPolicy.target_annual_return_pct * 100).toFixed(1)}%` : '--'} />
+                    <PolicyField label={t('investmentPolicy.maxDrawdownTolerance')} value={globalPolicy.max_drawdown_tolerance_pct ? `${(globalPolicy.max_drawdown_tolerance_pct * 100).toFixed(1)}%` : '--'} />
+                    <PolicyField label={t('investmentPolicy.allowConcentrated')} value={globalPolicy.allow_concentrated_position ? t('investmentPolicy.yes') : t('investmentPolicy.no')} />
+                    <PolicyField label={t('investmentPolicy.allowLeverage')} value={globalPolicy.allow_leverage ? t('investmentPolicy.yes') : t('investmentPolicy.no')} />
+                    <PolicyField label={t('investmentPolicy.cashReserve')} value={globalPolicy.cash_reserve_pct ? `${(globalPolicy.cash_reserve_pct * 100).toFixed(1)}%` : '--'} />
+                    <PolicyField label={t('investmentPolicy.holdingPeriod')} value={globalPolicy.holding_period || '--'} />
+                    <PolicyField label={t('investmentPolicy.notes')} value={globalPolicy.notes || '--'} />
                   </div>
                 </div>
               ) : selectedPolicy ? (
@@ -141,29 +143,29 @@ export default function InvestmentPolicyView() {
                       {selectedPolicy.asset_role} / {selectedPolicy.conviction}
                     </span>
                     {!selectedPolicy.enabled && (
-                      <span style={{ color: 'var(--color-text-muted)', fontSize: '0.72rem' }}>DISABLED</span>
+                      <span style={{ color: 'var(--color-text-muted)', fontSize: '0.72rem' }}>{t('investmentPolicy.disabled')}</span>
                     )}
                   </div>
                   <div style={{ display: 'grid', gap: 12 }}>
-                    <PolicyField label="Asset Role" value={selectedPolicy.asset_role} />
-                    <PolicyField label="Conviction" value={selectedPolicy.conviction} />
-                    <PolicyField label="Target Position" value={selectedPolicy.user_preferred_target_position_pct ? `${(selectedPolicy.user_preferred_target_position_pct * 100).toFixed(1)}%` : '--'} />
-                    <PolicyField label="Max Position" value={`${(selectedPolicy.user_preferred_max_position_pct * 100).toFixed(1)}%`} />
-                    <PolicyField label="Min Position" value={`${(selectedPolicy.user_preferred_min_position_pct * 100).toFixed(1)}%`} />
+                    <PolicyField label={t('investmentPolicy.assetRole')} value={selectedPolicy.asset_role} />
+                    <PolicyField label={t('investmentPolicy.conviction')} value={selectedPolicy.conviction} />
+                    <PolicyField label={t('investmentPolicy.targetPosition')} value={selectedPolicy.user_preferred_target_position_pct ? `${(selectedPolicy.user_preferred_target_position_pct * 100).toFixed(1)}%` : '--'} />
+                    <PolicyField label={t('investmentPolicy.maxPosition')} value={`${(selectedPolicy.user_preferred_max_position_pct * 100).toFixed(1)}%`} />
+                    <PolicyField label={t('investmentPolicy.minPosition')} value={`${(selectedPolicy.user_preferred_min_position_pct * 100).toFixed(1)}%`} />
                     {selectedPolicy.add_rules.length > 0 && (
-                      <PolicyListField label="Add Rules" items={selectedPolicy.add_rules} />
+                      <PolicyListField label={t('investmentPolicy.addRules')} items={selectedPolicy.add_rules} />
                     )}
                     {selectedPolicy.sell_triggers.length > 0 && (
-                      <PolicyListField label="Sell Triggers" items={selectedPolicy.sell_triggers} />
+                      <PolicyListField label={t('investmentPolicy.sellTriggers')} items={selectedPolicy.sell_triggers} />
                     )}
                     {selectedPolicy.no_add_triggers.length > 0 && (
-                      <PolicyListField label="No-Add Triggers" items={selectedPolicy.no_add_triggers} />
+                      <PolicyListField label={t('investmentPolicy.noAddTriggers')} items={selectedPolicy.no_add_triggers} />
                     )}
-                    <PolicyField label="Notes" value={selectedPolicy.notes || '--'} />
+                    <PolicyField label={t('investmentPolicy.notes')} value={selectedPolicy.notes || '--'} />
                   </div>
                 </div>
               ) : (
-                <p style={{ color: 'var(--color-text-muted)' }}>Select a policy to view details</p>
+                <p style={{ color: 'var(--color-text-muted)' }}>{t('investmentPolicy.selectPolicy')}</p>
               )}
             </div>
           </div>

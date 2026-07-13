@@ -1,11 +1,13 @@
 /** Portfolio manager page -- portfolio allocation and rebalancing. */
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { request } from '@/api/http'
 import { formatNumber, formatSignedNumber, pnlClass } from '@/utils/format'
 import type { PositionItem } from '@/types/positions'
 
 export default function PortfolioManagerView() {
+  const { t } = useTranslation()
   const [positions, setPositions] = useState<PositionItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -17,11 +19,11 @@ export default function PortfolioManagerView() {
       const data = await request<{ items: PositionItem[] }>('/api/positions?limit=100')
       setPositions(data.items || [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load positions')
+      setError(err instanceof Error ? err.message : t('portfolio.failedToLoad'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => { void loadData() }, [loadData])
 
@@ -30,9 +32,9 @@ export default function PortfolioManagerView() {
   return (
     <section className="page-section" style={{ animation: 'slideUp 0.4s ease' }}>
       <header style={{ marginBottom: 'var(--space-6)' }}>
-        <p className="eyebrow">Portfolio</p>
-        <h1 className="page-title">Portfolio Manager</h1>
-        <p className="page-subtitle">Portfolio allocation analysis and position sizing</p>
+        <p className="eyebrow">{t('portfolio.eyebrow')}</p>
+        <h1 className="page-title">{t('portfolio.title')}</h1>
+        <p className="page-subtitle">{t('portfolio.subtitle')}</p>
       </header>
 
       {error && (
@@ -42,19 +44,19 @@ export default function PortfolioManagerView() {
       )}
 
       {loading ? (
-        <p style={{ color: 'var(--color-text-muted)' }}>Loading portfolio...</p>
+        <p style={{ color: 'var(--color-text-muted)' }}>{t('portfolio.loading')}</p>
       ) : (
         <div className="surface-panel">
           <div className="surface-panel__content" style={{ padding: 12 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
               <div style={{ padding: 12, background: 'rgba(10,14,26,0.5)', borderRadius: 'var(--radius-sm)' }}>
-                <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--color-text-muted)', marginBottom: 4 }}>TOTAL VALUE</p>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--color-text-muted)', marginBottom: 4 }}>{t('portfolio.totalValue')}</p>
                 <p style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--color-accent-strong)', margin: 0 }}>
                   ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
               <div style={{ padding: 12, background: 'rgba(10,14,26,0.5)', borderRadius: 'var(--radius-sm)' }}>
-                <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--color-text-muted)', marginBottom: 4 }}>POSITIONS</p>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--color-text-muted)', marginBottom: 4 }}>{t('portfolio.positions')}</p>
                 <p style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--color-text-primary)', margin: 0 }}>{positions.length}</p>
               </div>
             </div>
@@ -63,10 +65,10 @@ export default function PortfolioManagerView() {
               <table className="data-table" style={{ minWidth: 700 }}>
                 <thead>
                   <tr>
-                    <th style={{ width: '30%' }}>Symbol</th>
-                    <th style={{ width: '25%', textAlign: 'right' }}>Value</th>
-                    <th style={{ width: '20%', textAlign: 'right' }}>% of NAV</th>
-                    <th style={{ width: '25%', textAlign: 'right' }}>Unrealized P&L</th>
+                    <th style={{ width: '30%' }}>{t('portfolio.symbol')}</th>
+                    <th style={{ width: '25%', textAlign: 'right' }}>{t('portfolio.value')}</th>
+                    <th style={{ width: '20%', textAlign: 'right' }}>{t('portfolio.pctNav')}</th>
+                    <th style={{ width: '25%', textAlign: 'right' }}>{t('portfolio.unrealizedPnl')}</th>
                   </tr>
                 </thead>
                 <tbody>
