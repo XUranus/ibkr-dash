@@ -3,6 +3,27 @@
 This module provides the same interface as the ibkr-show-public ES client,
 but stores data in SQLite tables. This allows all repository code copied
 from ibkr-show-public to work without modification.
+
+Supported ES operations:
+  - search(): match_all, term, range, bool (must/must_not with term/range),
+    simple_query_string (substring match), sort, size, from
+  - get(): single document by _id
+  - index_document(): upsert by _id
+  - delete(): remove by _id
+  - create_index_if_missing(): create backing table
+
+NOT supported (silently returns empty/wrong results):
+  - Aggregations (aggs, terms, histogram, date_histogram, avg, sum, etc.)
+  - Nested queries and nested aggregations
+  - Script queries and script_score
+  - Multi-match, match_phrase, wildcard, regexp, fuzzy queries
+  - _source filtering (always returns full _source)
+  - Scroll/search_after pagination
+  - Highlighting
+  - Geo queries
+
+If you need these features, implement them in the _build_where() method
+or use a real Elasticsearch instance.
 """
 
 from __future__ import annotations

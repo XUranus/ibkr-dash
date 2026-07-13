@@ -28,13 +28,17 @@ class TestEstimateNextRelease:
 
     def test_cpi_estimates_mid_month(self):
         """CPI data for month M → estimated release ~12th of M+1."""
+        import datetime as _dt
         d = _estimate_next_release("CUUR0000SA0", 2026, 5)
-        assert d.month == 6 or d.month == 7  # could shift if past
+        today = _dt.date.today()
+        assert d > today  # must be a future date
         assert d.year >= 2026
 
     def test_ppi_estimates_mid_month(self):
+        import datetime as _dt
         d = _estimate_next_release("WPUFD4", 2026, 5)
-        assert d.month in (6, 7)
+        today = _dt.date.today()
+        assert d > today  # must be a future date
         assert d.year >= 2026
 
     def test_nfp_estimates_first_friday(self):

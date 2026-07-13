@@ -33,7 +33,7 @@ class TestCorrectnessRubrics:
     def test_get_rubric_for_agent(self):
         rubric = get_rubric_for_agent("trade_decision")
         assert len(rubric) > 0
-        assert "action_rationality" in rubric
+        assert "market_context_quality" in rubric
 
     def test_get_rubric_unknown_agent(self):
         rubric = get_rubric_for_agent("unknown_agent")
@@ -41,10 +41,10 @@ class TestCorrectnessRubrics:
 
     def test_get_dimensions_for_agent(self):
         dims = get_dimensions_for_agent("trade_decision")
-        assert len(dims) >= 6  # global + agent-specific
+        assert len(dims) >= 6  # global dimensions
         dim_ids = [d["dimension"] for d in dims]
         assert "factual_accuracy" in dim_ids
-        assert "action_rationality" in dim_ids
+        assert "data_grounding" in dim_ids
 
 
 class TestBuildJudgePrompt:

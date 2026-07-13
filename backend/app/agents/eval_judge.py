@@ -419,8 +419,8 @@ def _validate_judge_result(parsed: dict, rubric: dict) -> dict:
 
 
 class AgentEvalJudgeService:
-    def __init__(self, llm_client: Any = None) -> None:
-        self.llm_client = llm_client
+    def __init__(self, llm_client: Any = None, llm_service: Any = None) -> None:
+        self.llm_client = llm_client or llm_service
 
     def judge(
         self,

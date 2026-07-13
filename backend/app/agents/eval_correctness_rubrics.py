@@ -311,10 +311,10 @@ GLOBAL_CORRECTNESS_DIMENSIONS: dict[str, dict[str, Any]] = {
 def get_agent_type(agent_name: str) -> str:
     """返回 Agent 名对应的 Agent 类型。
 
-    未知 Agent 名称返回 "general_agent"，避免阻塞评测。
+    未知 Agent 名称返回 "unknown"。
     """
     if not agent_name:
-        return "general_agent"
+        return "unknown"
     if agent_name in AGENT_TYPE_MAPPING:
         return AGENT_TYPE_MAPPING[agent_name]
     # 兜底：基于名称前缀简单归类
@@ -329,7 +329,7 @@ def get_agent_type(agent_name: str) -> str:
         return "news_event_agent"
     if "risk" in lowered:
         return "risk_agent"
-    return "general_agent"
+    return "unknown"
 
 
 def get_dimensions_for_agent(agent_name: str) -> list[dict[str, Any]]:
@@ -1398,6 +1398,17 @@ __all__ = [
 
 
 # --- Legacy compatibility ---
+_AGENT_RUBRIC_MAP = {
+    "trade_decision": TRADE_DECISION_RUBRIC,
+    "daily_position_review": DAILY_POSITION_REVIEW_RUBRIC,
+    "trade_review": TRADE_REVIEW_RUBRIC,
+    "account_copilot": ACCOUNT_COPILOT_RUBRIC,
+}
+
+
 def get_rubric_for_agent(agent_name: str) -> dict:
-    """Return the correctness rubric for the given agent (legacy stub)."""
-    return {}
+    """Return the correctness rubric for the given agent.
+
+    Returns the agent-specific rubric if available, otherwise an empty dict.
+    """
+    return _AGENT_RUBRIC_MAP.get(agent_name, {})
