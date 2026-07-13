@@ -115,27 +115,27 @@ export default function TradeReviewView() {
                       <strong style={{ color: 'var(--color-accent-strong)' }}>{t('tradeReviewPage.summary')}</strong>
                       <p style={{ margin: '4px 0 0' }}>{selectedReview.summary}</p>
                     </div>
-                    {selectedReview.strengths.length > 0 && (
+                    {(selectedReview.strengths?.length ?? 0) > 0 && (
                       <div style={{ marginBottom: 8 }}>
                         <strong style={{ color: 'var(--color-positive)' }}>{t('tradeReviewPage.strengths')}</strong>
                         <ul style={{ margin: '4px 0 0 16px' }}>
-                          {selectedReview.strengths.map((s, i) => <li key={i}>{s}</li>)}
+                          {selectedReview.strengths!.map((s, i) => <li key={i}>{s}</li>)}
                         </ul>
                       </div>
                     )}
-                    {selectedReview.weaknesses.length > 0 && (
+                    {(selectedReview.weaknesses?.length ?? 0) > 0 && (
                       <div style={{ marginBottom: 8 }}>
                         <strong style={{ color: 'var(--color-negative)' }}>{t('tradeReviewPage.weaknesses')}</strong>
                         <ul style={{ margin: '4px 0 0 16px' }}>
-                          {selectedReview.weaknesses.map((w, i) => <li key={i}>{w}</li>)}
+                          {selectedReview.weaknesses!.map((w, i) => <li key={i}>{w}</li>)}
                         </ul>
                       </div>
                     )}
-                    {selectedReview.improvement_suggestions.length > 0 && (
+                    {(selectedReview.improvement_suggestions?.length ?? 0) > 0 && (
                       <div>
                         <strong style={{ color: 'var(--color-accent-strong)' }}>{t('tradeReviewPage.improvements')}</strong>
                         <ul style={{ margin: '4px 0 0 16px' }}>
-                          {selectedReview.improvement_suggestions.map((s, i) => <li key={i}>{s}</li>)}
+                          {selectedReview.improvement_suggestions!.map((s, i) => <li key={i}>{s}</li>)}
                         </ul>
                       </div>
                     )}
