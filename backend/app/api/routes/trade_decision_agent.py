@@ -32,7 +32,13 @@ logger = logging.getLogger(__name__)
 
 def _row_to_response(row: dict) -> TradeDecisionResponse:
     """Convert a database row to a TradeDecisionResponse."""
+    import json as _json
     row = parse_json_fields(row, ["decision_output", "metadata", "evidence_summary", "run_trace"])
+    # TradeDecisionResponse expects these fields as str, re-serialize if parsed to dict/list
+    for field in ("decision_output", "metadata", "evidence_summary", "run_trace"):
+        val = row.get(field)
+        if isinstance(val, (dict, list)):
+            row[field] = _json.dumps(val, ensure_ascii=False)
     return TradeDecisionResponse(**{k: row.get(k) for k in row if k in TradeDecisionResponse.model_fields})
 
 
@@ -204,8 +210,11 @@ def health_check(
 ) -> TradeDecisionHealthResponse:
     """Check trade decision agent health."""
     return TradeDecisionHealthResponse(
-        status="ok",
-        agent_name=AGENT_NAME,
+        enabled=True,
         llm_configured=bool(settings.llm_api_key),
+        longbridge_configured=bool(getattr(settings, "longbridge_app_key", None)),
+        trade_review_available=True,
+        account_data_source="ibkr",
+        public_market_data_source="longbridge",
         message="Trade decision agent is available",
     )
