@@ -31,8 +31,18 @@ logger = logging.getLogger(__name__)
 
 
 def _row_to_response(row: dict) -> TradeReviewResponse:
-    """Convert a database row to a TradeReviewResponse."""
+    """Convert a database row to a TradeReviewResponse.
+
+    Flattens review_output fields into the top-level response so the frontend
+    can access overall_score, rating, summary, strengths, etc. directly.
+    """
     row = parse_json_fields(row, ["review_output", "metadata", "evidence_summary", "run_trace"])
+    review_output = row.get("review_output") or {}
+    if isinstance(review_output, dict):
+        # Flatten review_output into top-level, but don't overwrite existing keys
+        for k, v in review_output.items():
+            if k not in row or row[k] is None:
+                row[k] = v
     return TradeReviewResponse(**{k: row.get(k) for k in row if k in TradeReviewResponse.model_fields})
 
 

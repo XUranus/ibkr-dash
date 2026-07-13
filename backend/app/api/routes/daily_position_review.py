@@ -31,8 +31,17 @@ logger = logging.getLogger(__name__)
 
 
 def _row_to_response(row: dict) -> DailyReviewResponse:
-    """Convert a database row to a DailyReviewResponse."""
+    """Convert a database row to a DailyReviewResponse.
+
+    Flattens review_output fields into the top-level response so the frontend
+    can access summary, account_conclusion, market_context, etc. directly.
+    """
     row = parse_json_fields(row, ["review_output", "metadata", "evidence_summary", "run_trace"])
+    review_output = row.get("review_output") or {}
+    if isinstance(review_output, dict):
+        for k, v in review_output.items():
+            if k not in row or row[k] is None:
+                row[k] = v
     return DailyReviewResponse(**{k: row.get(k) for k in row if k in DailyReviewResponse.model_fields})
 
 

@@ -20,6 +20,13 @@ class TradeReviewResponse(BaseModel):
     symbol: str | None = None
     trade_id: str | None = None
     review_output: dict | str | None = None
+    overall_score: float | None = None
+    rating: str | None = None
+    summary: str | None = None
+    strengths: list[str] | None = None
+    weaknesses: list[str] | None = None
+    mistake_tags: list[str] | None = None
+    improvement_suggestions: list[str] | None = None
     metadata: dict | None = None
     evidence_summary: dict | list | None = None
     run_trace: dict | list | None = None

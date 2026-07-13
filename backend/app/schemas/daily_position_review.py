@@ -15,6 +15,18 @@ class DailyReviewResponse(BaseModel):
     id: str
     report_date: str
     review_output: dict | str | None = None
+    summary: str | None = None
+    account_conclusion: str | None = None
+    attribution_summary: str | None = None
+    major_contributors_analysis: list | None = None
+    major_drags_analysis: list | None = None
+    focus_symbol_analyses: list | None = None
+    market_context: str | None = None
+    risk_analysis: str | None = None
+    tomorrow_watchlist: list | None = None
+    operation_observation: str | None = None
+    data_limitations: list[str] | None = None
+    evidence_used: list[str] | None = None
     metadata: dict | None = None
     evidence_summary: dict | list | None = None
     run_trace: dict | list | None = None
