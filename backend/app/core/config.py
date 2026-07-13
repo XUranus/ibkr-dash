@@ -167,6 +167,30 @@ class Settings:
         """Return the Longbridge access token."""
         return str(get_manager().get("longbridge.access_token", ""))
 
+    @property
+    def longbridge_enable(self) -> bool:
+        """Return whether Longbridge is enabled."""
+        return bool(get_manager().get("longbridge.enable", True))
+
+    @property
+    def longbridge_openapi_oauth_file(self) -> str:
+        """Return the path to the Longbridge OpenAPI OAuth config file."""
+        default = str(get_manager().get("longbridge.openapi_oauth_file", ""))
+        if not default:
+            import os
+            default = os.path.join(self.sqlite_path.rsplit("/", 1)[0] if "/" in self.sqlite_path else ".", "longbridge_openapi_oauth.json")
+        return default
+
+    @property
+    def longbridge_openapi_oauth_scope(self) -> str:
+        """Return the Longbridge OpenAPI OAuth scope."""
+        return str(get_manager().get("longbridge.openapi_oauth_scope", ""))
+
+    @property
+    def longbridge_openapi_oauth_client_id(self) -> str:
+        """Return the Longbridge OpenAPI OAuth client ID."""
+        return str(get_manager().get("longbridge.openapi_oauth_client_id", ""))
+
     # -- Advanced --
     @property
     def app_name(self) -> str:
