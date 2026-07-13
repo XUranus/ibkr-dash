@@ -104,7 +104,7 @@ class _LongbridgeMonitor:
             logging.getLogger("longport").setLevel(logging.WARNING)
 
             from longport.openapi import QuoteContext, Config
-            config = Config.from_env()
+            config = Config.from_apikey_env()
             ctx = QuoteContext(config)
             resp = ctx.quote(["AAPL.US"])
             self._set("ok" if resp else "degraded")

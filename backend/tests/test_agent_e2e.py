@@ -83,7 +83,7 @@ def _get_quote_ctx(settings: Settings):
     if "ctx" not in _LB_CTX_CACHE:
         _ensure_longbridge_env(settings)
         from longport.openapi import QuoteContext, Config
-        config = Config.from_env()
+        config = Config.from_apikey_env()
         _LB_CTX_CACHE["ctx"] = QuoteContext(config)
     return _LB_CTX_CACHE["ctx"]
 
