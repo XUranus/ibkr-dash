@@ -370,10 +370,11 @@ def get_agent_task_repository(db: Database = Depends(get_db)):
 
 def require_authenticated_session(request: Request) -> "AuthSession":
     """Require an authenticated session for Portfolio Manager routes."""
+    import time
     from app.core.auth import AuthSession
     settings = get_settings()
     if not settings.auth_password:
-        return AuthSession(username="anonymous")
+        return AuthSession(username="anonymous", expires_at=int(time.time()) + 86400)
     session_token = request.cookies.get(SESSION_COOKIE_NAME)
     if session_token:
         secret = hashlib.sha256(settings.auth_password.encode()).hexdigest()

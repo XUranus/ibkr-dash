@@ -456,9 +456,12 @@ _MIGRATIONS = [
         id TEXT PRIMARY KEY, data_json TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
     )""",
     """CREATE TABLE IF NOT EXISTS pm_universe_symbols (
-        id TEXT PRIMARY KEY, symbol TEXT NOT NULL, data_json TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
+        id TEXT PRIMARY KEY, symbol TEXT NOT NULL, universe_type TEXT, enabled TEXT, priority TEXT, ai_theme_role TEXT, source TEXT, data_json TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
     )""",
     "CREATE INDEX IF NOT EXISTS idx_pm_universe_symbol ON pm_universe_symbols(symbol)",
+    "CREATE INDEX IF NOT EXISTS idx_pm_universe_type ON pm_universe_symbols(universe_type)",
+    "CREATE INDEX IF NOT EXISTS idx_pm_universe_enabled ON pm_universe_symbols(enabled)",
+    "CREATE INDEX IF NOT EXISTS idx_pm_universe_priority ON pm_universe_symbols(priority)",
     """CREATE TABLE IF NOT EXISTS pm_watchtower_runs (
         id TEXT PRIMARY KEY, run_date TEXT, run_type TEXT, status TEXT, data_json TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
     )""",

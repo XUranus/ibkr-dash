@@ -17,7 +17,7 @@ def normalize_universe_symbol(symbol: str | None) -> str:
 
 class PortfolioUniverseRepository:
     def __init__(self, db: Database) -> None:
-        self._store = SQLiteDocStore(db, "pm_universe_symbols", indexed_columns=["symbol"])
+        self._store = SQLiteDocStore(db, "pm_universe_symbols", indexed_columns=["symbol", "universe_type", "enabled", "priority", "ai_theme_role", "source"])
 
     def get_symbol(self, symbol: str) -> dict | None:
         normalized = normalize_universe_symbol(symbol)
@@ -60,10 +60,9 @@ class PortfolioUniverseRepository:
             filters["priority"] = priority
         if ai_theme_role:
             filters["ai_theme_role"] = ai_theme_role
-        # For theme_tag and source, filter in Python since they may be lists/JSON
+        if source:
+            filters["source"] = source
         docs = self._store.list_docs(filters=filters if filters else None, limit=1000)
         if theme_tag:
             docs = [d for d in docs if theme_tag in (d.get("theme_tags") or [])]
-        if source:
-            docs = [d for d in docs if d.get("source") == source]
         return docs
