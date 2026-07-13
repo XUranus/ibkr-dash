@@ -223,3 +223,93 @@ export interface AgentMonitoringFailureItem {
 export interface AgentMonitoringFailureResponse {
   items: AgentMonitoringFailureItem[]
 }
+
+export interface AgentRecentToolCall {
+  id: string
+  tool_name: string
+  tool_domain: string
+  agent_name: string
+  node_name: string
+  ok: boolean
+  latency_ms: number
+  rolling_success_rate_10: number
+  rolling_failure_rate_10: number
+  rolling_window_size: number
+  empty_result: boolean
+  raw_ok: boolean
+  compact_ok: boolean
+  parsed_fields_count: number
+  missing_fields_count: number
+  error_code: string | null
+  error_message: string | null
+  run_id: string
+  task_id: string
+  created_at: string
+}
+
+export interface AgentRecentLlmCall {
+  id: string
+  agent_name: string
+  node_name: string
+  provider: string
+  model: string
+  call_type: string
+  ok: boolean
+  latency_ms: number
+  prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
+  rolling_success_rate_10: number
+  rolling_window_size: number
+  error_code: string | null
+  error_message: string | null
+  run_id: string
+  task_id: string
+  created_at: string
+}
+
+export interface AgentStructuredOutputEvent {
+  id: string
+  contract_name: string
+  agent_name: string
+  node_name: string
+  ok: boolean
+  repaired: boolean
+  repair_attempts: number
+  fallback_used: boolean
+  schema_validation_passed: boolean
+  rolling_success_rate_10: number
+  rolling_repair_rate_10: number
+  rolling_fallback_rate_10: number
+  error_code: string | null
+  error_message: string | null
+  run_id: string
+  task_id: string
+  created_at: string
+}
+
+export interface CopilotToolProbeResult {
+  id: string
+  tool_name: string
+  tool_domain: string
+  status: string
+  latency_ms: number
+  error_code: string | null
+  error_message: string | null
+  created_at: string
+  arguments_preview: Record<string, unknown> | null
+  metadata: Record<string, unknown> | null
+}
+
+export interface CopilotToolReliabilityLatestResponse {
+  results: CopilotToolProbeResult[]
+}
+
+export interface CopilotToolReliabilityProbeResponse {
+  total: number
+  pass: number
+  fail: number
+  skipped: number
+  success_rate: number
+  results: CopilotToolProbeResult[]
+}

@@ -194,3 +194,187 @@ export interface EvalRunPayload {
   mode?: string
   name?: string | null
 }
+
+export interface RegressionProfile {
+  profile_id: string
+  agent_name: string
+  enabled: boolean
+  mode: string
+  case_tag: string | null
+  severity: string | null
+  category: string | null
+  include_disabled: boolean
+  include_judge: boolean
+  include_node_eval: boolean
+  node_name: string | null
+  limit: number
+  gate: {
+    fail_on_critical: boolean
+    fail_on_high: boolean
+    min_pass_rate: number
+    max_failed: number | null
+  } | null
+  trigger_policy: {
+    on_prompt_save: boolean
+    on_code_change: boolean
+    on_deploy: boolean
+  } | null
+  notes: string | null
+  updated_at: string | undefined
+}
+
+export interface RegressionProfileListResponse {
+  items: RegressionProfile[]
+  summary: { profile_count: number; enabled_count: number }
+}
+
+export interface RegressionProfileUpsertPayload {
+  enabled: boolean
+  mode: string
+  case_tag: string | null
+  severity: string | null
+  category: string | null
+  include_disabled: boolean
+  include_judge: boolean
+  include_node_eval: boolean
+  node_name: string | null
+  limit: number
+  gate: {
+    fail_on_critical: boolean
+    fail_on_high: boolean
+    min_pass_rate: number
+    max_failed: number | null
+  }
+  trigger_policy: {
+    on_prompt_save: boolean
+    on_code_change: boolean
+    on_deploy: boolean
+  }
+  notes: string
+}
+
+export interface AgentRegressionGatePayload {
+  fail_on_critical: boolean
+  fail_on_high: boolean
+  min_pass_rate: number | null
+  max_failed: number | null
+}
+
+export interface AgentRegressionRunPayload {
+  agent_name: string
+  mode: 'static' | 'live_mock'
+  case_tag: string | null
+  severity: string | null
+  category: string | null
+  include_disabled: boolean
+  include_judge: boolean
+  include_node_eval: boolean
+  node_name: string | null
+  limit: number
+  gate: AgentRegressionGatePayload
+  trigger: string
+  baseline_eval_run_id: string | null
+}
+
+export interface RegressionGateResult {
+  ok: boolean
+  summary: {
+    recommended_run_count: number
+    impacted_agent_count: number
+  }
+  runs: Array<{ agent_name: string; regression_payload: Record<string, unknown> }>
+  reasons: string[]
+}
+
+export interface AgentRegressionRunResponse {
+  gate_result: {
+    passed: boolean
+    pass_rate: number
+    reasons: string[]
+  } | null
+  eval_run: {
+    eval_run_id: string
+    summary: {
+      failed_count: number
+      critical_failure_count: number
+    }
+  }
+  selected_case_count: number | null
+}
+
+export interface ImpactedAgent {
+  agent_name: string
+  confidence: string
+  recommended: boolean
+  profile_exists: boolean
+  profile_enabled: boolean
+  trigger_policy_on_code_change: boolean
+  impacted_nodes: string[]
+  reason: string
+  regression_payload: Record<string, unknown> | null
+}
+
+export interface ImpactAnalysisResult {
+  summary: {
+    changed_file_count: number
+    impacted_agent_count: number
+    recommended_run_count: number
+  }
+  impacted_agents: ImpactedAgent[]
+  unmatched_files: string[]
+}
+
+export interface EvalCaseCoverageRow {
+  case_id: string
+  agent_name: string
+  eval_scope: string | null
+  node_name: string | null
+  title: string
+  enabled: boolean
+  severity: string | null
+  category: string | null
+  tags: string[]
+  source: string
+  prompt_key: string
+  model: string
+  judge_enabled: boolean
+  last_eval_run_id: string | null
+  last_status: string | null
+  last_score: number | null
+  last_max_score: number | null
+  last_evaluated_at: string | null
+  recent_run_count: number
+  recent_pass_count: number
+  recent_failed_count: number
+  never_evaluated: boolean
+}
+
+export interface EvalCoverageResponse {
+  summary: Record<string, number>
+  by_agent: Array<Record<string, unknown>>
+  by_agent_category: Array<Record<string, unknown>>
+  by_agent_severity: Array<Record<string, unknown>>
+  by_agent_tag: Array<Record<string, unknown>>
+  by_source: Array<Record<string, unknown>>
+  case_coverage: EvalCaseCoverageRow[]
+  gaps: Array<{
+    gap_id: string
+    agent_name: string
+    gap_type: string
+    severity: string
+    category: string
+    title: string
+    description: string
+    suggested_action: string
+    metadata?: Record<string, unknown>
+  }>
+  recommendations: Array<{
+    recommendation_id: string
+    agent_name: string
+    priority: string
+    action_type: string
+    title: string
+    description: string
+    metadata?: Record<string, unknown>
+  }>
+}
