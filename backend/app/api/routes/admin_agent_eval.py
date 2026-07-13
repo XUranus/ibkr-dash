@@ -311,13 +311,11 @@ def run_synthetic_simulation(
 
 @router.get("/simulations/runs")
 def list_synthetic_simulation_runs(
-    agent_name: str | None = None,
-    status: str | None = None,
     limit: int = Query(default=100, ge=1, le=1000),
     _auth_session: AuthSession = Depends(require_admin_session),
     service: SyntheticSimulationService = Depends(get_eval_simulation_service),
 ) -> dict:
-    return {"items": service.list_runs(agent_name=agent_name, status=status, limit=limit)}
+    return service.list_simulations(limit=limit)
 
 
 @router.get("/simulations/runs/{simulation_run_id}")

@@ -114,6 +114,43 @@ class Settings:
             return bool(explicit)
         return self.app_env == "production"
 
+    # -- Portfolio Daily Loop Schedule --
+    @property
+    def portfolio_daily_loop_schedule_enabled(self) -> bool:
+        return bool(get_manager().get("portfolio.daily_loop_schedule_enabled", False))
+
+    @property
+    def portfolio_daily_loop_schedule_time(self) -> str:
+        return str(get_manager().get("portfolio.daily_loop_schedule_time", "16:30"))
+
+    @property
+    def portfolio_daily_loop_schedule_timezone(self) -> str:
+        return str(get_manager().get("portfolio.daily_loop_schedule_timezone", "America/New_York"))
+
+    @property
+    def portfolio_daily_loop_max_auto_decisions(self) -> int:
+        return int(get_manager().get("portfolio.daily_loop_max_auto_decisions", 5))
+
+    @property
+    def portfolio_daily_loop_dry_run_auto_decision(self) -> bool:
+        return bool(get_manager().get("portfolio.daily_loop_dry_run_auto_decision", False))
+
+    @property
+    def portfolio_daily_loop_force_refresh_auto_decision(self) -> bool:
+        return bool(get_manager().get("portfolio.daily_loop_force_refresh_auto_decision", False))
+
+    @property
+    def portfolio_daily_loop_run_evaluation(self) -> bool:
+        return bool(get_manager().get("portfolio.daily_loop_run_evaluation", False))
+
+    @property
+    def portfolio_daily_loop_generate_improvement_report(self) -> bool:
+        return bool(get_manager().get("portfolio.daily_loop_generate_improvement_report", False))
+
+    @property
+    def portfolio_daily_loop_internal_token(self) -> str:
+        return str(get_manager().get("portfolio.daily_loop_internal_token", ""))
+
     # -- Longbridge --
     @property
     def longbridge_app_key(self) -> str:

@@ -125,16 +125,17 @@ def get_es_client() -> "ElasticsearchClient":
     return ElasticsearchClient()
 
 
-def get_agent_run_trace_service(db: Database = Depends(get_db), es_client=Depends(get_es_client)) -> "AgentRunTraceService":
+def get_agent_run_trace_service(db: Database = Depends(get_db)) -> "AgentRunTraceService":
     """Provide an AgentRunTraceService instance."""
     from app.services.agent_run_trace_service import AgentRunTraceService
-    return AgentRunTraceService(es_client, get_settings())
+    from app.services.agent_run_trace_repository import AgentRunTraceRepository
+    return AgentRunTraceService(AgentRunTraceRepository(get_es_client(), get_settings()))
 
 
-def get_agent_replay_service(db: Database = Depends(get_db), es_client=Depends(get_es_client)) -> "AgentReplayService":
+def get_agent_replay_service(db: Database = Depends(get_db)) -> "AgentReplayService":
     """Provide an AgentReplayService instance."""
     from app.services.agent_replay_service import AgentReplayService
-    return AgentReplayService(es_client, get_settings())
+    return AgentReplayService(db)
 
 
 def get_agent_eval_service(db: Database = Depends(get_db)) -> "AgentEvalService":
@@ -247,154 +248,165 @@ def get_portfolio_universe_service(db: Database = Depends(get_db)):
     return PortfolioUniverseService(PortfolioUniverseRepository(db), PositionService(db))
 
 
-def get_portfolio_watchtower_service(db: Database = Depends(get_db)):
+def _build_pm_services(db: Database):
+    """Build the full PM dependency graph. Returns a dict of all services."""
+    from app.domains.portfolio_manager.constitution.repository import PortfolioConstitutionRepository
+    from app.domains.portfolio_manager.constitution.service import PortfolioConstitutionService
+    from app.domains.portfolio_manager.universe.repository import PortfolioUniverseRepository
+    from app.domains.portfolio_manager.universe.service import PortfolioUniverseService
     from app.domains.portfolio_manager.watchtower.repository import PortfolioWatchtowerRepository
     from app.domains.portfolio_manager.watchtower.scanner import PortfolioWatchtowerScanner, WatchtowerPriceHistoryProvider
     from app.domains.portfolio_manager.watchtower.service import PortfolioWatchtowerService
-    from app.domains.portfolio_manager.constitution.repository import PortfolioConstitutionRepository
-    from app.domains.portfolio_manager.universe.repository import PortfolioUniverseRepository
+    from app.domains.portfolio_manager.decision_orchestrator.repository import PortfolioAutoDecisionRepository
+    from app.domains.portfolio_manager.decision_orchestrator.service import PortfolioAutoDecisionService
+    from app.domains.portfolio_manager.decision_orchestrator.trigger_selector import PortfolioAutoDecisionTriggerSelector
+    from app.domains.portfolio_manager.decision_orchestrator.runner import PortfolioAutoDecisionRunner
+    from app.domains.portfolio_manager.evaluation.repository import PortfolioEvaluationRepository
+    from app.domains.portfolio_manager.evaluation.service import PortfolioEvaluationService
+    from app.domains.portfolio_manager.evaluation.outcome_evaluator import PortfolioAutoDecisionOutcomeEvaluator, PriceForwardReturnProvider
+    from app.domains.portfolio_manager.evaluation.portfolio_replay import PortfolioReportEvaluator
+    from app.domains.portfolio_manager.evaluation.watchtower_evaluator import PortfolioWatchtowerEvaluator
+    from app.domains.portfolio_manager.improvement.repository import PortfolioImprovementRepository
+    from app.domains.portfolio_manager.improvement.service import PortfolioImprovementService
+    from app.domains.portfolio_manager.improvement.pattern_detector import PortfolioImprovementPatternDetector
+    from app.domains.portfolio_manager.improvement.recommendation_builder import PortfolioImprovementRecommendationBuilder
+    from app.domains.portfolio_manager.portfolio_review.repository import PortfolioReviewRepository
+    from app.domains.portfolio_manager.portfolio_review.service import PortfolioReviewService
+    from app.domains.portfolio_manager.portfolio_review.exposure_analyzer import PortfolioExposureAnalyzer
+    from app.domains.portfolio_manager.portfolio_review.allocation_analyzer import PortfolioAllocationAnalyzer
+    from app.domains.portfolio_manager.portfolio_review.report_composer import PortfolioReportComposer
     from app.services.position_service import PositionService
     from app.services.account_service import AccountService
-    return PortfolioWatchtowerService(
-        repository=PortfolioWatchtowerRepository(db),
-        constitution_repository=PortfolioConstitutionRepository(db),
-        universe_repository=PortfolioUniverseRepository(db),
-        position_service=PositionService(db),
-        account_service=AccountService(db),
+
+    # Layer 0: repositories
+    constitution_repo = PortfolioConstitutionRepository(db)
+    universe_repo = PortfolioUniverseRepository(db)
+    watchtower_repo = PortfolioWatchtowerRepository(db)
+    auto_decision_repo = PortfolioAutoDecisionRepository(db)
+    evaluation_repo = PortfolioEvaluationRepository(db)
+    improvement_repo = PortfolioImprovementRepository(db)
+    review_repo = PortfolioReviewRepository(db)
+    position_service = PositionService(db)
+    account_service = AccountService(db)
+
+    # Layer 1: base services
+    constitution_service = PortfolioConstitutionService(constitution_repo)
+    universe_service = PortfolioUniverseService(universe_repo, position_service)
+
+    # Layer 2: watchtower
+    watchtower_service = PortfolioWatchtowerService(
+        repository=watchtower_repo,
+        universe_service=universe_service,
+        constitution_service=constitution_service,
+        position_service=position_service,
         scanner=PortfolioWatchtowerScanner(WatchtowerPriceHistoryProvider(db)),
     )
+
+    # Layer 3: auto decision (runner=None for read-only API; set via daily-loop runner)
+    auto_decision_service = PortfolioAutoDecisionService(
+        repository=auto_decision_repo,
+        watchtower_service=watchtower_service,
+        constitution_service=constitution_service,
+        universe_service=universe_service,
+        trigger_selector=PortfolioAutoDecisionTriggerSelector(),
+        runner=None,
+    )
+
+    # Layer 4: evaluation, improvement, review
+    evaluation_service = PortfolioEvaluationService(
+        repository=evaluation_repo,
+        watchtower_repository=watchtower_repo,
+        auto_decision_repository=auto_decision_repo,
+        portfolio_review_repository=review_repo,
+        price_provider=PriceForwardReturnProvider(db),
+        watchtower_evaluator=PortfolioWatchtowerEvaluator(),
+        auto_decision_evaluator=PortfolioAutoDecisionOutcomeEvaluator(),
+        portfolio_report_evaluator=PortfolioReportEvaluator(),
+    )
+
+    improvement_service = PortfolioImprovementService(
+        repository=improvement_repo,
+        evaluation_repository=evaluation_repo,
+        pattern_detector=PortfolioImprovementPatternDetector(),
+        recommendation_builder=PortfolioImprovementRecommendationBuilder(),
+    )
+
+    review_service = PortfolioReviewService(
+        repository=review_repo,
+        constitution_service=constitution_service,
+        universe_service=universe_service,
+        watchtower_service=watchtower_service,
+        auto_decision_service=auto_decision_service,
+        position_service=position_service,
+        account_service=account_service,
+        exposure_analyzer=PortfolioExposureAnalyzer(),
+        allocation_analyzer=PortfolioAllocationAnalyzer(),
+        report_composer=PortfolioReportComposer(),
+    )
+
+    return {
+        "constitution_service": constitution_service,
+        "universe_service": universe_service,
+        "watchtower_service": watchtower_service,
+        "auto_decision_service": auto_decision_service,
+        "evaluation_service": evaluation_service,
+        "improvement_service": improvement_service,
+        "review_service": review_service,
+    }
+
+
+def get_portfolio_watchtower_service(db: Database = Depends(get_db)):
+    return _build_pm_services(db)["watchtower_service"]
 
 
 def get_portfolio_daily_loop_service(db: Database = Depends(get_db)):
     from app.domains.portfolio_manager.daily_loop.repository import PortfolioDailyLoopRepository
     from app.domains.portfolio_manager.daily_loop.service import PortfolioDailyLoopService
-    from app.domains.portfolio_manager.watchtower.repository import PortfolioWatchtowerRepository
-    from app.domains.portfolio_manager.watchtower.scanner import PortfolioWatchtowerScanner, WatchtowerPriceHistoryProvider
-    from app.domains.portfolio_manager.watchtower.service import PortfolioWatchtowerService
-    from app.domains.portfolio_manager.constitution.repository import PortfolioConstitutionRepository
-    from app.domains.portfolio_manager.universe.repository import PortfolioUniverseRepository
-    from app.domains.portfolio_manager.decision_orchestrator.repository import PortfolioAutoDecisionRepository
-    from app.domains.portfolio_manager.decision_orchestrator.service import PortfolioAutoDecisionService
-    from app.domains.portfolio_manager.evaluation.repository import PortfolioEvaluationRepository
-    from app.domains.portfolio_manager.evaluation.service import PortfolioEvaluationService
-    from app.domains.portfolio_manager.improvement.repository import PortfolioImprovementRepository
-    from app.domains.portfolio_manager.improvement.service import PortfolioImprovementService
-    from app.domains.portfolio_manager.portfolio_review.repository import PortfolioReviewRepository
-    from app.domains.portfolio_manager.portfolio_review.service import PortfolioReviewService
-    from app.services.position_service import PositionService
-    from app.services.account_service import AccountService
-    from app.services.trade_service import TradeService
+    services = _build_pm_services(db)
     return PortfolioDailyLoopService(
         repository=PortfolioDailyLoopRepository(db),
-        watchtower_service=PortfolioWatchtowerService(
-            repository=PortfolioWatchtowerRepository(db),
-            constitution_repository=PortfolioConstitutionRepository(db),
-            universe_repository=PortfolioUniverseRepository(db),
-            position_service=PositionService(db),
-            account_service=AccountService(db),
-            scanner=PortfolioWatchtowerScanner(WatchtowerPriceHistoryProvider(db)),
-        ),
-        auto_decision_service=PortfolioAutoDecisionService(
-            repository=PortfolioAutoDecisionRepository(db),
-            watchtower_repository=PortfolioWatchtowerRepository(db),
-            universe_repository=PortfolioUniverseRepository(db),
-            constitution_repository=PortfolioConstitutionRepository(db),
-            trade_decision_service=None,
-        ),
-        evaluation_service=PortfolioEvaluationService(
-            repository=PortfolioEvaluationRepository(db),
-            watchtower_repository=PortfolioWatchtowerRepository(db),
-            auto_decision_repository=PortfolioAutoDecisionRepository(db),
-            price_provider=None,
-        ),
-        improvement_service=PortfolioImprovementService(
-            repository=PortfolioImprovementRepository(db),
-            evaluation_repository=PortfolioEvaluationRepository(db),
-        ),
-        review_service=PortfolioReviewService(
-            repository=PortfolioReviewRepository(db),
-            constitution_repository=PortfolioConstitutionRepository(db),
-            universe_repository=PortfolioUniverseRepository(db),
-            watchtower_repository=PortfolioWatchtowerRepository(db),
-            auto_decision_repository=PortfolioAutoDecisionRepository(db),
-            position_service=PositionService(db),
-            account_service=AccountService(db),
-        ),
-        universe_repository=PortfolioUniverseRepository(db),
-        constitution_repository=PortfolioConstitutionRepository(db),
-        trade_service=TradeService(db),
+        universe_service=services["universe_service"],
+        watchtower_service=services["watchtower_service"],
+        auto_decision_service=services["auto_decision_service"],
+        portfolio_review_service=services["review_service"],
+        evaluation_service=services["evaluation_service"],
+        improvement_service=services["improvement_service"],
     )
 
 
 def get_portfolio_auto_decision_service(db: Database = Depends(get_db)):
-    from app.domains.portfolio_manager.decision_orchestrator.repository import PortfolioAutoDecisionRepository
-    from app.domains.portfolio_manager.decision_orchestrator.service import PortfolioAutoDecisionService
-    from app.domains.portfolio_manager.watchtower.repository import PortfolioWatchtowerRepository
-    from app.domains.portfolio_manager.universe.repository import PortfolioUniverseRepository
-    from app.domains.portfolio_manager.constitution.repository import PortfolioConstitutionRepository
-    return PortfolioAutoDecisionService(
-        repository=PortfolioAutoDecisionRepository(db),
-        watchtower_repository=PortfolioWatchtowerRepository(db),
-        universe_repository=PortfolioUniverseRepository(db),
-        constitution_repository=PortfolioConstitutionRepository(db),
-        trade_decision_service=None,
-    )
+    return _build_pm_services(db)["auto_decision_service"]
 
 
 def get_portfolio_evaluation_service(db: Database = Depends(get_db)):
-    from app.domains.portfolio_manager.evaluation.repository import PortfolioEvaluationRepository
-    from app.domains.portfolio_manager.evaluation.service import PortfolioEvaluationService
-    from app.domains.portfolio_manager.watchtower.repository import PortfolioWatchtowerRepository
-    from app.domains.portfolio_manager.decision_orchestrator.repository import PortfolioAutoDecisionRepository
-    return PortfolioEvaluationService(
-        repository=PortfolioEvaluationRepository(db),
-        watchtower_repository=PortfolioWatchtowerRepository(db),
-        auto_decision_repository=PortfolioAutoDecisionRepository(db),
-        price_provider=None,
-    )
+    return _build_pm_services(db)["evaluation_service"]
 
 
 def get_portfolio_improvement_service(db: Database = Depends(get_db)):
-    from app.domains.portfolio_manager.improvement.repository import PortfolioImprovementRepository
-    from app.domains.portfolio_manager.improvement.service import PortfolioImprovementService
-    from app.domains.portfolio_manager.evaluation.repository import PortfolioEvaluationRepository
-    return PortfolioImprovementService(
-        repository=PortfolioImprovementRepository(db),
-        evaluation_repository=PortfolioEvaluationRepository(db),
-    )
+    return _build_pm_services(db)["improvement_service"]
 
 
 def get_portfolio_review_service(db: Database = Depends(get_db)):
-    from app.domains.portfolio_manager.portfolio_review.repository import PortfolioReviewRepository
-    from app.domains.portfolio_manager.portfolio_review.service import PortfolioReviewService
-    from app.domains.portfolio_manager.constitution.repository import PortfolioConstitutionRepository
-    from app.domains.portfolio_manager.universe.repository import PortfolioUniverseRepository
-    from app.domains.portfolio_manager.watchtower.repository import PortfolioWatchtowerRepository
-    from app.domains.portfolio_manager.decision_orchestrator.repository import PortfolioAutoDecisionRepository
-    from app.services.position_service import PositionService
-    from app.services.account_service import AccountService
-    return PortfolioReviewService(
-        repository=PortfolioReviewRepository(db),
-        constitution_repository=PortfolioConstitutionRepository(db),
-        universe_repository=PortfolioUniverseRepository(db),
-        watchtower_repository=PortfolioWatchtowerRepository(db),
-        auto_decision_repository=PortfolioAutoDecisionRepository(db),
-        position_service=PositionService(db),
-        account_service=AccountService(db),
-    )
+    return _build_pm_services(db)["review_service"]
 
 
 def get_portfolio_action_alert_service(db: Database = Depends(get_db)):
     from app.domains.portfolio_manager.action_alerts.repository import PortfolioActionAlertRepository
     from app.domains.portfolio_manager.action_alerts.service import PortfolioActionAlertService
-    from app.domains.portfolio_manager.daily_loop.repository import PortfolioDailyLoopRepository
-    from app.domains.portfolio_manager.decision_orchestrator.repository import PortfolioAutoDecisionRepository
+    from app.domains.portfolio_manager.action_alerts.alert_builder import PortfolioActionAlertBuilder
+    from app.domains.portfolio_manager.action_alerts.email_renderer import PortfolioActionAlertEmailRenderer
     from app.services.email_service import EmailService
+    services = _build_pm_services(db)
+    daily_loop_svc = get_portfolio_daily_loop_service(db)
     return PortfolioActionAlertService(
         repository=PortfolioActionAlertRepository(db),
-        daily_loop_repository=PortfolioDailyLoopRepository(db),
-        auto_decision_repository=PortfolioAutoDecisionRepository(db),
-        email_service=EmailService(get_settings()),
+        daily_loop_service=daily_loop_svc,
+        auto_decision_service=services["auto_decision_service"],
+        portfolio_review_service=services["review_service"],
+        watchtower_service=services["watchtower_service"],
+        email_service=EmailService(get_settings().sqlite_path.replace("ibkr_dash.db", "email_config.json")),
+        builder=PortfolioActionAlertBuilder(),
+        renderer=PortfolioActionAlertEmailRenderer(),
     )
 
 

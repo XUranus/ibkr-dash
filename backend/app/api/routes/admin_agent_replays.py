@@ -11,14 +11,13 @@ router = APIRouter(prefix="/admin/agent-replays", tags=["admin-agent-replays"])
 
 @router.get("")
 def list_agent_replays(
-    hours: int = Query(default=24, ge=1, le=24 * 30),
     agent_name: str | None = None,
     final_status: str | None = None,
     limit: int = Query(default=100, ge=1, le=1000),
     _auth_session: AuthSession = Depends(require_admin_session),
     service: AgentReplayService = Depends(get_agent_replay_service),
 ) -> dict:
-    return service.list_snapshots(hours=hours, agent_name=agent_name, final_status=final_status, limit=limit)
+    return {"items": service.list_snapshots(agent_name=agent_name, final_status=final_status, limit=limit)}
 
 
 @router.get("/by-run/{run_id}")
