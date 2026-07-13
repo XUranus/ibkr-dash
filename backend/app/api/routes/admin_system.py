@@ -188,7 +188,7 @@ def test_longbridge_connection(
 
     try:
         from longport.openapi import QuoteContext, Config
-        config = Config.from_env()
+        config = Config.from_apikey_env()
         ctx = QuoteContext(config)
         resp = ctx.quote(["AAPL.US"])
         if not resp:
