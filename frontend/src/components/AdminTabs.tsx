@@ -10,6 +10,8 @@ export default function AdminTabs() {
     { path: '/admin/settings', label: t('admin.settings') },
     { path: '/admin/system', label: t('admin.system') },
     { path: '/admin/agent-monitoring', label: t('admin.monitoring') },
+    { path: '/admin/eval-harness', label: 'Eval' },
+    { path: '/admin/agent-replays', label: 'Replays' },
     { path: '/admin/scheduler', label: t('admin.scheduler') },
     { path: '/admin/prompts', label: t('admin.prompts') },
   ]

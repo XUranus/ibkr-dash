@@ -60,6 +60,8 @@ const MarketEventsView = lazy(() => import('@/views/MarketEventsView'))
 const KnowledgeView = lazy(() => import('@/views/KnowledgeView'))
 const PortfolioManagerView = lazy(() => import('@/views/PortfolioManagerView'))
 const AdminMarketEventsView = lazy(() => import('@/views/AdminMarketEventsView'))
+const AdminEvalHarnessView = lazy(() => import('@/views/AdminEvalHarnessView'))
+const AdminAgentReplaysView = lazy(() => import('@/views/AdminAgentReplaysView'))
 
 function lazyView(Component: React.LazyExoticComponent<React.ComponentType>) {
   return (
@@ -113,6 +115,8 @@ export const router = createBrowserRouter(
       { path: 'knowledge', element: <ProtectedRoute>{lazyViewWithErrorBoundary(KnowledgeView)}</ProtectedRoute> },
       { path: 'portfolio-manager', element: <ProtectedRoute>{lazyViewWithErrorBoundary(PortfolioManagerView)}</ProtectedRoute> },
       { path: 'admin/market-events', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AdminMarketEventsView)}</ProtectedRoute> },
+      { path: 'admin/eval-harness', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AdminEvalHarnessView)}</ProtectedRoute> },
+      { path: 'admin/agent-replays', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AdminAgentReplaysView)}</ProtectedRoute> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },

@@ -401,7 +401,9 @@
     "prompts": "Prompt 管理",
     "monitoring": "Agent 监控",
     "scheduler": "调度器",
-    "harness": "测试控制台"
+    "harness": "测试控制台",
+    "evalHarness": "评测框架",
+    "agentReplays": "Agent 回放"
   },
   "adminSettings": {
     "subtitle": "管理所有系统配置，优先级高于 .env 文件",
