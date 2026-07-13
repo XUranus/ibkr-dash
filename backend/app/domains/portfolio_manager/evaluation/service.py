@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+from app.domains.portfolio_manager.common import dedupe
 from app.domains.portfolio_manager.decision_orchestrator.repository import PortfolioAutoDecisionRepository
 from app.domains.portfolio_manager.decision_orchestrator.schemas import PortfolioAutoDecisionItem
 from app.domains.portfolio_manager.evaluation.outcome_evaluator import PortfolioAutoDecisionOutcomeEvaluator, PriceForwardReturnProvider
@@ -97,7 +98,7 @@ class PortfolioEvaluationService:
             pending_count=pending,
             completed_count=len(stored) - pending,
             summary=summary,
-            data_limitations=_dedupe(limitations),
+            data_limitations=dedupe(limitations),
         )
 
     def list_results(
@@ -159,7 +160,3 @@ class PortfolioEvaluationService:
             limitations.append("portfolio_report_source_missing")
             return []
         return [PortfolioManagerReport.model_validate(item) for item in docs if str(item.get("report_date") or "") >= cutoff][:limit]
-
-
-def _dedupe(values: list[str]) -> list[str]:
-    return list(dict.fromkeys(value for value in values if value))

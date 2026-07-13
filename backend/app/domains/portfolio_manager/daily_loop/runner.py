@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 
+from app.domains.portfolio_manager.common import dedupe
 from app.domains.portfolio_manager.daily_loop.service import PortfolioDailyLoopService
 from app.services.agent_task_progress import AgentTaskProgressReporter
 
@@ -20,7 +21,7 @@ def run_action_alerts_for_daily_loop(run, service: PortfolioDailyLoopService, ac
                 "action_alerts_sent": result.alerts_sent,
                 "action_alerts_failed": result.alerts_failed,
             },
-            "data_limitations": _dedupe([*(run.data_limitations or []), *result.data_limitations]),
+            "data_limitations": dedupe([*(run.data_limitations or []), *result.data_limitations]),
         }
         _update_run_best_effort(service, run.id, patch)
         return result
@@ -29,7 +30,7 @@ def run_action_alerts_for_daily_loop(run, service: PortfolioDailyLoopService, ac
         _update_run_best_effort(
             service,
             run.id,
-            {"summary": {**(run.summary or {}), "action_alerts_failed": 1}, "data_limitations": _dedupe([*(run.data_limitations or []), "action_alert_email_failed"])},
+            {"summary": {**(run.summary or {}), "action_alerts_failed": 1}, "data_limitations": dedupe([*(run.data_limitations or []), "action_alert_email_failed"])},
         )
         return None
 
@@ -71,10 +72,6 @@ def run_daily_loop_task(task_id: str, service: PortfolioDailyLoopService, task_r
     except Exception as exc:
         task_repository.mark_graph_failed(task_id, str(exc))
         task_repository.mark_failed(task_id, error_code="DAILY_LOOP_FAILED", error_message=str(exc))
-
-
-def _dedupe(values: list[str]) -> list[str]:
-    return list(dict.fromkeys(value for value in values if value))
 
 
 def _update_run_best_effort(service: PortfolioDailyLoopService, run_id: str, patch: dict) -> None:

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import uuid4
 
+from app.domains.portfolio_manager.common import dedupe, utc_now_iso
 from app.domains.portfolio_manager.daily_loop.repository import PortfolioDailyLoopRepository
 from app.domains.portfolio_manager.daily_loop.schemas import (
     DEFAULT_DAILY_LOOP_EVALUATION_HORIZONS,
@@ -17,7 +18,6 @@ from app.domains.portfolio_manager.evaluation.service import PortfolioEvaluation
 from app.domains.portfolio_manager.improvement.service import PortfolioImprovementService
 from app.domains.portfolio_manager.portfolio_review.service import PortfolioReviewService
 from app.domains.portfolio_manager.universe.service import PortfolioUniverseService
-from app.domains.portfolio_manager.watchtower.repository import utc_now_iso
 from app.domains.portfolio_manager.watchtower.service import PortfolioWatchtowerService
 
 MAIN_STEPS = {"sync_holdings", "watchtower", "auto_decision", "portfolio_report"}
@@ -235,7 +235,7 @@ class PortfolioDailyLoopService:
                 "steps": [step.model_dump() for step in steps],
                 "linked_run_ids": linked,
                 "summary": final_summary,
-                "data_limitations": _dedupe(data_limitations),
+                "data_limitations": dedupe(data_limitations),
                 "error_code": "DAILY_LOOP_FAILED" if status == "failed" else None,
                 "error_message": _error_message(steps) if status == "failed" else None,
             },
@@ -342,7 +342,7 @@ class PortfolioDailyLoopService:
                 "steps": [step.model_dump() for step in steps],
                 "linked_run_ids": linked,
                 "summary": _summary(steps),
-                "data_limitations": _dedupe(data_limitations),
+                "data_limitations": dedupe(data_limitations),
             },
         )
 
@@ -409,7 +409,3 @@ def _duration_ms(started_at: str | None, completed_at: str | None) -> int | None
 def _error_message(steps: list[PortfolioDailyLoopStep]) -> str | None:
     errors = [step.error_message for step in steps if step.error_message]
     return "; ".join(errors)[:1000] if errors else None
-
-
-def _dedupe(values: list[str]) -> list[str]:
-    return list(dict.fromkeys(value for value in values if value))

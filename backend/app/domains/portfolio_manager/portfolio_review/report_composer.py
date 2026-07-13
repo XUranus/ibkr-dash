@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.domains.portfolio_manager.common import dedupe
 from app.domains.portfolio_manager.constitution.schemas import InvestmentConstitution
 from app.domains.portfolio_manager.portfolio_review.schemas import (
     PortfolioAllocationAnalysis,
@@ -24,7 +25,7 @@ class PortfolioReportComposer:
         auto_decision_failed_count: int = 0,
         data_limitations: list[str] | None = None,
     ) -> dict:
-        limitations = _dedupe([*(data_limitations or []), *exposure.data_limitations, *allocation.data_limitations])
+        limitations = dedupe([*(data_limitations or []), *exposure.data_limitations, *allocation.data_limitations])
         score = _health_score(
             exposure=exposure,
             allocation=allocation,
@@ -121,7 +122,3 @@ def _next_steps(allocation: PortfolioAllocationAnalysis) -> list[str]:
         steps.append("保持组合级监控，等待 Watchtower 或 Auto Decision 产生新的复核信号。")
     steps.append("单标的最终动作仍以 Trade Decision Agent 输出和人工确认结果为准；不会自动下单。")
     return steps
-
-
-def _dedupe(values: list[str]) -> list[str]:
-    return list(dict.fromkeys(value for value in values if value))

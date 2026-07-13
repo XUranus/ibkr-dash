@@ -3,11 +3,33 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from typing import Any
 
 from app.core.database import Database
 
+# ---------------------------------------------------------------------------
+# Action classification constants (single source of truth)
+# ---------------------------------------------------------------------------
+
+ADD_LIKE_ACTIONS: set[str] = {
+    "add", "add_small", "add_batch", "add_on_pullback", "add_right_side",
+    "buy", "build_position", "accumulate", "increase",
+}
+REDUCE_LIKE_ACTIONS: set[str] = {
+    "reduce", "reduce_batch", "reduce_now", "trim_on_rebound",
+    "sell", "sell_thesis_broken", "trim",
+}
+HOLD_LIKE_ACTIONS: set[str] = {
+    "hold", "hold_no_add", "wait", "watchlist", "avoid", "panic_blocked", "no_action",
+}
+ENTRY_BLOCKED_AI_ROLES: set[str] = {"fake_ai_story", "non_ai"}
+
+
+# ---------------------------------------------------------------------------
+# Shared utilities
+# ---------------------------------------------------------------------------
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -24,6 +46,32 @@ def json_loads(text: str | None) -> Any:
         return json.loads(text)
     except (json.JSONDecodeError, TypeError):
         return {}
+
+
+def dedupe(values: list[str]) -> list[str]:
+    """Deduplicate strings preserving order."""
+    return list(dict.fromkeys(value for value in values if value))
+
+
+_TABLE_NAME_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+_VALID_ORDER_DIRS = {"ASC", "DESC"}
+
+
+def symbol_candidates(symbol: str, display_symbol: str | None = None) -> list[str]:
+    """Generate candidate symbol variants for price lookups."""
+    # Lazy import to avoid circular dependency
+    from app.domains.portfolio_manager.universe.repository import normalize_universe_symbol
+    candidates: list[str] = []
+    for raw in [symbol, display_symbol, normalize_universe_symbol(symbol)]:
+        value = str(raw or "").strip().upper()
+        if not value:
+            continue
+        candidates.append(value)
+        base = normalize_universe_symbol(value)
+        if base:
+            candidates.append(base)
+            candidates.append(f"{base}.US")
+    return dedupe(candidates)
 
 
 def row_to_doc(row: dict) -> dict:
@@ -46,7 +94,11 @@ class SQLiteDocStore:
       - optional indexed filter columns
     """
 
+    _VALID_ORDER_DIRS = {"ASC", "DESC"}
+
     def __init__(self, db: Database, table: str, *, indexed_columns: list[str] | None = None) -> None:
+        if not _TABLE_NAME_RE.match(table):
+            raise ValueError(f"Invalid table name: {table!r}")
         self.db = db
         self.table = table
         self.indexed_columns = indexed_columns or []
@@ -78,14 +130,21 @@ class SQLiteDocStore:
         order_dir: str = "DESC",
         limit: int = 20,
     ) -> list[dict]:
+        if not _TABLE_NAME_RE.match(order_by):
+            raise ValueError(f"Invalid order_by column: {order_by!r}")
+        order_dir_upper = order_dir.upper()
+        if order_dir_upper not in self._VALID_ORDER_DIRS:
+            raise ValueError(f"Invalid order_dir: {order_dir!r}")
         where_clauses: list[str] = []
         params: list[Any] = []
         for col, val in (filters or {}).items():
             if val is not None:
+                if not _TABLE_NAME_RE.match(col):
+                    raise ValueError(f"Invalid filter column: {col!r}")
                 where_clauses.append(f"{col} = ?")
                 params.append(val)
         where = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
-        sql = f"SELECT * FROM {self.table}{where} ORDER BY {order_by} {order_dir} LIMIT ?"
+        sql = f"SELECT * FROM {self.table}{where} ORDER BY {order_by} {order_dir_upper} LIMIT ?"
         params.append(limit)
         rows = self.db.execute(sql, tuple(params))
         return [row_to_doc(r) for r in rows]

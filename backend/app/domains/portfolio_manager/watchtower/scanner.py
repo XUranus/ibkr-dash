@@ -7,6 +7,7 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from app.core.database import Database
+from app.domains.portfolio_manager.common import dedupe, symbol_candidates
 from app.domains.portfolio_manager.universe.repository import normalize_universe_symbol
 from app.domains.portfolio_manager.universe.schemas import UniverseSymbol
 from app.domains.portfolio_manager.watchtower.schemas import WatchtowerMetrics
@@ -138,21 +139,7 @@ class PortfolioWatchtowerScanner:
                 "target_date": constitution.get("target_date"),
             },
         }
-        return WatchtowerScanResult(metrics=metrics, scan_snapshot=scan_snapshot, data_limitations=_dedupe(limitations))
-
-
-def symbol_candidates(symbol: str, display_symbol: str | None = None) -> list[str]:
-    candidates: list[str] = []
-    for raw in [symbol, display_symbol, normalize_universe_symbol(symbol)]:
-        value = str(raw or "").strip().upper()
-        if not value:
-            continue
-        candidates.append(value)
-        base = normalize_universe_symbol(value)
-        if base:
-            candidates.append(base)
-            candidates.append(f"{base}.US")
-    return _dedupe(candidates)
+        return WatchtowerScanResult(metrics=metrics, scan_snapshot=scan_snapshot, data_limitations=dedupe(limitations))
 
 
 def _indexed_return(closes: list[float], periods: int) -> float | None:
@@ -255,13 +242,3 @@ def _parse_date(value: Any) -> date | None:
         return datetime.fromisoformat(str(value).replace("Z", "+00:00")).date()
     except ValueError:
         return None
-
-
-def _dedupe(values: list[str]) -> list[str]:
-    result: list[str] = []
-    seen: set[str] = set()
-    for value in values:
-        if value and value not in seen:
-            seen.add(value)
-            result.append(value)
-    return result

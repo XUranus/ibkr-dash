@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.core.config import Settings
+from app.domains.portfolio_manager.daily_loop.repository import PortfolioDailyLoopRepository
 from app.domains.portfolio_manager.daily_loop.schemas import PortfolioDailyLoopOptions, PortfolioDailyLoopScheduleStatus
 
 ACTIVE_SCHEDULED_STATUSES = {"running", "success", "partial_success"}
@@ -52,7 +53,7 @@ def scheduled_metadata(settings: Settings, *, triggered_by: str, skipped_reason:
     return data
 
 
-def find_existing_scheduled_run(repository, *, run_date: str) -> dict | None:
+def find_existing_scheduled_run(repository: PortfolioDailyLoopRepository, *, run_date: str) -> dict | None:
     for run in repository.list_runs(limit=20, run_date=run_date):
         if run.get("run_type") == "scheduled" and run.get("status") in ACTIVE_SCHEDULED_STATUSES:
             return run

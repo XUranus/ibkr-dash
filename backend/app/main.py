@@ -5,7 +5,6 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -62,14 +61,8 @@ def create_app() -> FastAPI:
     )
 
     # CORS
-    origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "Authorization"],
-    )
+    from app.core.cors import add_cors_middleware
+    add_cors_middleware(app, settings)
 
     # GZip compression for large JSON responses
     app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -156,6 +149,8 @@ def create_app() -> FastAPI:
     from app.api.routes.admin_agent_eval import router as admin_agent_eval_router
     from app.api.routes.admin_agent_runs import router as admin_agent_runs_router
     from app.api.routes.admin_agent_replays import router as admin_agent_replays_router
+    from app.api.routes.admin_longbridge_mcp import router as admin_longbridge_mcp_router
+    from app.api.routes.admin_longbridge_openapi import router as admin_longbridge_openapi_router
     from app.domains.portfolio_manager.api.routes import router as portfolio_manager_router
 
     app.include_router(health_router, prefix="/api")
@@ -196,6 +191,8 @@ def create_app() -> FastAPI:
     app.include_router(admin_agent_eval_router, prefix="/api")
     app.include_router(admin_agent_runs_router, prefix="/api")
     app.include_router(admin_agent_replays_router, prefix="/api")
+    app.include_router(admin_longbridge_mcp_router, prefix="/api")
+    app.include_router(admin_longbridge_openapi_router, prefix="/api")
     app.include_router(portfolio_manager_router, prefix="/api")
 
     return app

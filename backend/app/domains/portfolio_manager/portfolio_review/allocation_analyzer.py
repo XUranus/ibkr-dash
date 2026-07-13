@@ -14,11 +14,11 @@ from app.domains.portfolio_manager.portfolio_review.schemas import (
     PortfolioGoalTracking,
     PortfolioPositionExposureItem,
 )
+from app.domains.portfolio_manager.common import ADD_LIKE_ACTIONS, dedupe
 from app.domains.portfolio_manager.universe.repository import normalize_universe_symbol
 from app.domains.portfolio_manager.universe.schemas import UniverseSymbol
 from app.domains.portfolio_manager.watchtower.schemas import PortfolioWatchtowerRunDetail
 
-ADD_LIKE_ACTIONS = {"add", "buy", "add_on_pullback", "accumulate", "increase", "build_position"}
 ATTENTION_ACTIONS = ADD_LIKE_ACTIONS | {"reduce", "sell", "trim"}
 
 
@@ -49,7 +49,7 @@ class PortfolioAllocationAnalyzer:
             allocation_gaps=gaps,
             top_attention_symbols=attention,
             action_queue=action_queue,
-            data_limitations=_dedupe(limitations),
+            data_limitations=dedupe(limitations),
         )
 
 
@@ -201,10 +201,6 @@ def _gap(symbol, display_symbol, weight, role, gap_type, reason, priority) -> Po
 
 def _attention(symbol, reason, priority, next_step) -> PortfolioAttentionSymbol:
     return PortfolioAttentionSymbol(symbol=symbol, reason=reason, priority=priority, next_step=next_step)
-
-
-def _dedupe(values: list[str]) -> list[str]:
-    return list(dict.fromkeys(item for item in values if item))
 
 
 def _dedupe_gaps(items: list[PortfolioAllocationGap]) -> list[PortfolioAllocationGap]:

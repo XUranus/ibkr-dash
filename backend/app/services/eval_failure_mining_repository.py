@@ -1,76 +1,48 @@
+"""Evaluation failure mining repository — SQLite-backed."""
+
 from __future__ import annotations
 
+import json
+from typing import Any
+
 from app.agents.eval_failure_mining import SEVERITY_ORDER
-from app.clients.es_client import ESIndexNotFoundError, ElasticsearchClient
-from app.core.config import Settings
-
-
-FAILURE_MINING_RUN_INDEX = "ibkr_agent_eval_failure_mining_runs"
-FAILURE_ITEM_INDEX = "ibkr_agent_eval_failure_items"
-
-
-FAILURE_MINING_RUN_INDEX_BODY = {
-    "settings": {"number_of_shards": 1, "number_of_replicas": 0},
-    "mappings": {
-        "properties": {
-            "failure_mining_run_id": {"type": "keyword"},
-            "simulation_run_id": {"type": "keyword"},
-            "agent_names": {"type": "keyword"},
-            "name": {"type": "keyword"},
-            "status": {"type": "keyword"},
-            "started_at": {"type": "date"},
-            "finished_at": {"type": "date"},
-            "summary": {"type": "object", "enabled": True},
-            "config": {"type": "object", "enabled": True},
-            "metadata": {"type": "object", "enabled": True},
-        }
-    },
-}
-
-
-FAILURE_ITEM_INDEX_BODY = {
-    "settings": {"number_of_shards": 1, "number_of_replicas": 0},
-    "mappings": {
-        "properties": {
-            "failure_id": {"type": "keyword"},
-            "failure_mining_run_id": {"type": "keyword"},
-            "simulation_run_id": {"type": "keyword"},
-            "simulation_result_id": {"type": "keyword"},
-            "scenario_id": {"type": "keyword"},
-            "agent_name": {"type": "keyword"},
-            "severity": {"type": "keyword"},
-            "failure_type": {"type": "keyword"},
-            "failure_tags": {"type": "keyword"},
-            "failed_dimensions": {"type": "keyword"},
-            "should_convert_to_eval_case": {"type": "boolean"},
-            "conversion_priority": {"type": "integer"},
-            "duplicate_key": {"type": "keyword"},
-            "created_at": {"type": "date"},
-            "failed_checks": {"type": "object", "enabled": True},
-            "judge_result": {"type": "object", "enabled": True},
-            "evidence": {"type": "object", "enabled": True},
-            "metadata": {"type": "object", "enabled": True},
-        }
-    },
-}
+from app.core.database import Database
+from app.utils.dates import utc_now_iso
 
 
 class SyntheticFailureMiningRepository:
-    def __init__(self, es_client: ElasticsearchClient, settings: Settings) -> None:
-        self.es_client = es_client
-        self.settings = settings
+    """Store and query failure mining runs and items in SQLite."""
+
+    def __init__(self, db: Database) -> None:
+        self.db = db
+
+    # ---- Runs ----
 
     def save_failure_mining_run(self, run: dict) -> dict:
-        self.es_client.create_index_if_missing(FAILURE_MINING_RUN_INDEX, FAILURE_MINING_RUN_INDEX_BODY)
-        self.es_client.index_document(index=FAILURE_MINING_RUN_INDEX, id=run["failure_mining_run_id"], document=run)
+        self.db.execute(
+            """INSERT OR REPLACE INTO eval_failure_mining_runs
+               (failure_mining_run_id, simulation_run_id, status, started_at, finished_at,
+                summary_json, config_json, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                run.get("failure_mining_run_id", ""),
+                run.get("simulation_run_id", ""),
+                run.get("status", "pending"),
+                run.get("started_at"),
+                run.get("finished_at"),
+                json.dumps(run.get("summary", {})),
+                json.dumps(run.get("config", {})),
+                run.get("created_at", utc_now_iso()),
+            ),
+        )
         return run
 
     def get_failure_mining_run(self, failure_mining_run_id: str) -> dict | None:
-        try:
-            hit = self.es_client.get(index=FAILURE_MINING_RUN_INDEX, id=failure_mining_run_id)
-        except ESIndexNotFoundError:
-            return None
-        return hit.get("_source") if hit else None
+        row = self.db.execute_one(
+            "SELECT * FROM eval_failure_mining_runs WHERE failure_mining_run_id = ?",
+            (failure_mining_run_id,),
+        )
+        return self._row_to_run(row) if row else None
 
     def list_failure_mining_runs(
         self,
@@ -80,28 +52,53 @@ class SyntheticFailureMiningRepository:
         status: str | None = None,
         limit: int = 100,
     ) -> list[dict]:
-        filters: list[dict] = []
+        conditions = []
+        params: list[Any] = []
         if simulation_run_id:
-            filters.append({"term": {"simulation_run_id": simulation_run_id}})
-        if agent_name:
-            filters.append({"term": {"agent_names": agent_name}})
+            conditions.append("simulation_run_id = ?")
+            params.append(simulation_run_id)
         if status:
-            filters.append({"term": {"status": status}})
-        body = {
-            "query": {"bool": {"filter": filters}} if filters else {"match_all": {}},
-            "sort": [{"started_at": {"order": "desc"}}],
-            "size": max(1, min(int(limit), 10000)),
-            "_source": True,
-        }
-        try:
-            response = self.es_client.search(index=FAILURE_MINING_RUN_INDEX, body=body)
-        except ESIndexNotFoundError:
-            return []
-        return [hit.get("_source", {}) for hit in response.get("hits", {}).get("hits", [])]
+            conditions.append("status = ?")
+            params.append(status)
+        where = " WHERE " + " AND ".join(conditions) if conditions else ""
+        params.append(max(1, min(int(limit), 10000)))
+        rows = self.db.execute(
+            f"SELECT * FROM eval_failure_mining_runs{where} ORDER BY started_at DESC LIMIT ?",
+            tuple(params),
+        )
+        results = [self._row_to_run(row) for row in rows]
+        if agent_name:
+            results = [r for r in results if agent_name in (r.get("agent_names") or [])]
+        return results
+
+    # ---- Items ----
 
     def save_failure_item(self, item: dict) -> dict:
-        self.es_client.create_index_if_missing(FAILURE_ITEM_INDEX, FAILURE_ITEM_INDEX_BODY)
-        self.es_client.index_document(index=FAILURE_ITEM_INDEX, id=item["failure_id"], document=item)
+        self.db.execute(
+            """INSERT OR REPLACE INTO eval_failure_items
+               (failure_id, failure_mining_run_id, simulation_result_id, agent_name,
+                scenario_id, severity, category, error_type, error_message,
+                node_name, details_json, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                item.get("failure_id", ""),
+                item.get("failure_mining_run_id", ""),
+                item.get("simulation_result_id", ""),
+                item.get("agent_name", ""),
+                item.get("scenario_id", ""),
+                item.get("severity", "medium"),
+                item.get("category", ""),
+                item.get("failure_type", item.get("error_type", "")),
+                item.get("error_message", ""),
+                item.get("node_name", ""),
+                json.dumps({k: v for k, v in item.items() if k not in {
+                    "failure_id", "failure_mining_run_id", "simulation_result_id",
+                    "agent_name", "scenario_id", "severity", "category",
+                    "failure_type", "error_type", "error_message", "node_name", "created_at",
+                }}),
+                item.get("created_at", utc_now_iso()),
+            ),
+        )
         return item
 
     def list_failure_items(
@@ -115,39 +112,73 @@ class SyntheticFailureMiningRepository:
         should_convert_to_eval_case: bool | None = None,
         limit: int = 1000,
     ) -> list[dict]:
-        filters: list[dict] = []
+        conditions = []
+        params: list[Any] = []
         if failure_mining_run_id:
-            filters.append({"term": {"failure_mining_run_id": failure_mining_run_id}})
-        if simulation_run_id:
-            filters.append({"term": {"simulation_run_id": simulation_run_id}})
+            conditions.append("failure_mining_run_id = ?")
+            params.append(failure_mining_run_id)
         if agent_name:
-            filters.append({"term": {"agent_name": agent_name}})
+            conditions.append("agent_name = ?")
+            params.append(agent_name)
         if failure_type:
-            filters.append({"term": {"failure_type": failure_type}})
+            conditions.append("error_type = ?")
+            params.append(failure_type)
+        where = " WHERE " + " AND ".join(conditions) if conditions else ""
+        params.append(max(1, min(int(limit), 10000)))
+        rows = self.db.execute(
+            f"SELECT * FROM eval_failure_items{where} ORDER BY created_at DESC LIMIT ?",
+            tuple(params),
+        )
+        items = [self._row_to_item(row) for row in rows]
+        if simulation_run_id:
+            items = [i for i in items if i.get("simulation_run_id") == simulation_run_id]
         if should_convert_to_eval_case is not None:
-            filters.append({"term": {"should_convert_to_eval_case": should_convert_to_eval_case}})
-        body = {
-            "query": {"bool": {"filter": filters}} if filters else {"match_all": {}},
-            "sort": [{"conversion_priority": {"order": "desc"}}, {"created_at": {"order": "desc"}}],
-            "size": max(1, min(int(limit), 10000)),
-            "_source": True,
-        }
-        try:
-            response = self.es_client.search(index=FAILURE_ITEM_INDEX, body=body)
-        except ESIndexNotFoundError:
-            return []
-        items = [hit.get("_source", {}) for hit in response.get("hits", {}).get("hits", [])]
+            items = [i for i in items if i.get("should_convert_to_eval_case") is should_convert_to_eval_case]
         return _filter_min_severity(items, min_severity)
 
     def get_failure_item(self, failure_id: str) -> dict | None:
-        try:
-            hit = self.es_client.get(index=FAILURE_ITEM_INDEX, id=failure_id)
-        except ESIndexNotFoundError:
-            return None
-        return hit.get("_source") if hit else None
+        row = self.db.execute_one(
+            "SELECT * FROM eval_failure_items WHERE failure_id = ?",
+            (failure_id,),
+        )
+        return self._row_to_item(row) if row else None
+
+    # ---- Helpers ----
+
+    @staticmethod
+    def _row_to_run(row: dict) -> dict:
+        return {
+            "failure_mining_run_id": row["failure_mining_run_id"],
+            "simulation_run_id": row.get("simulation_run_id", ""),
+            "status": row.get("status", "pending"),
+            "started_at": row.get("started_at"),
+            "finished_at": row.get("finished_at"),
+            "summary": json.loads(row.get("summary_json") or "{}"),
+            "config": json.loads(row.get("config_json") or "{}"),
+            "created_at": row.get("created_at"),
+        }
+
+    @staticmethod
+    def _row_to_item(row: dict) -> dict:
+        details = json.loads(row.get("details_json") or "{}")
+        return {
+            "failure_id": row["failure_id"],
+            "failure_mining_run_id": row.get("failure_mining_run_id", ""),
+            "simulation_result_id": row.get("simulation_result_id", ""),
+            "agent_name": row.get("agent_name", ""),
+            "scenario_id": row.get("scenario_id", ""),
+            "severity": row.get("severity", "medium"),
+            "failure_type": row.get("error_type", ""),
+            "error_message": row.get("error_message", ""),
+            "node_name": row.get("node_name", ""),
+            "created_at": row.get("created_at"),
+            **details,
+        }
 
 
 class InMemorySyntheticFailureMiningRepository:
+    """In-memory version for testing."""
+
     def __init__(self) -> None:
         self.runs: dict[str, dict] = {}
         self.items: dict[str, dict] = {}

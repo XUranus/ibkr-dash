@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 from app.domains.portfolio_manager.action_alerts.schemas import PortfolioActionAlertCreate
+from app.domains.portfolio_manager.common import ADD_LIKE_ACTIONS, ENTRY_BLOCKED_AI_ROLES, REDUCE_LIKE_ACTIONS, dedupe
 from app.domains.portfolio_manager.daily_loop.schemas import PortfolioDailyLoopRun
 from app.domains.portfolio_manager.decision_orchestrator.schemas import PortfolioAutoDecisionItem, PortfolioAutoDecisionRunDetail
 from app.domains.portfolio_manager.portfolio_review.schemas import PortfolioManagerReport
 from app.domains.portfolio_manager.watchtower.schemas import PortfolioWatchtowerRunDetail
 
-ADD_LIKE = {"add", "add_small", "add_batch", "add_on_pullback", "add_right_side", "buy", "build_position", "accumulate"}
-REDUCE_LIKE = {"reduce", "reduce_batch", "reduce_now", "trim_on_rebound", "sell", "sell_thesis_broken"}
-ENTRY_BLOCKED_AI_ROLES = {"fake_ai_story", "non_ai"}
 RISK_WORDS = ("concentration", "risk", "overweight", "集中", "风险", "超配")
 
 
@@ -32,15 +30,15 @@ class PortfolioActionAlertBuilder:
             if item.selection_status != "completed":
                 continue
             action = _decision_action(item.decision_summary)
-            if item.universe_type == "holding" and item.decision_type == "holding_decision" and action in ADD_LIKE:
+            if item.universe_type == "holding" and item.decision_type == "holding_decision" and action in ADD_LIKE_ACTIONS:
                 if _blocks_add_or_entry(portfolio_report, item.symbol):
                     continue
                 alerts.append(self._decision_alert(daily_loop_run, item, portfolio_report, "add_position_review", "consider_add", f"{item.display_symbol} 进入加仓复核区", watchtower_by_item_id.get(item.source_watchtower_item_id)))
-            if item.universe_type in {"watchlist", "candidate"} and item.decision_type == "entry_decision" and action in ADD_LIKE:
+            if item.universe_type in {"watchlist", "candidate"} and item.decision_type == "entry_decision" and action in ADD_LIKE_ACTIONS:
                 if item.ai_theme_role in ENTRY_BLOCKED_AI_ROLES or _blocks_add_or_entry(portfolio_report, item.symbol):
                     continue
                 alerts.append(self._decision_alert(daily_loop_run, item, portfolio_report, "entry_position_review", "consider_entry", f"{item.display_symbol} 出现建仓复核机会", watchtower_by_item_id.get(item.source_watchtower_item_id)))
-            if item.universe_type == "holding" and action in REDUCE_LIKE:
+            if item.universe_type == "holding" and action in REDUCE_LIKE_ACTIONS:
                 alerts.append(self._decision_alert(daily_loop_run, item, portfolio_report, "reduce_position_review", "consider_reduce", f"{item.display_symbol} 进入减仓复核区", watchtower_by_item_id.get(item.source_watchtower_item_id)))
             if _item_has_high_risk(item):
                 alerts.append(self._risk_alert(daily_loop_run, item, portfolio_report, ["Trade Decision 风险等级为 high"]))
@@ -94,7 +92,7 @@ class PortfolioActionAlertBuilder:
             action_direction="review_risk",
             urgency="high",
             confidence=_confidence(item),
-            reason_summary=_dedupe([*reasons, *_base_reasons(item, report, None)]),
+            reason_summary=dedupe([*reasons, *_base_reasons(item, report, None)]),
             decision_summary=_decision_summary(item.decision_summary),
             portfolio_context=_portfolio_context(report),
             linked_ids=_linked_ids(daily_loop_run, item, report),
@@ -149,7 +147,7 @@ def _base_reasons(item: PortfolioAutoDecisionItem, report: PortfolioManagerRepor
         reasons.append("Portfolio Review 未发现 high_risk 组合阻止")
     if report.concentration_risk.assessment != "high" or item.symbol not in report.concentration_risk.single_name_risk_symbols:
         reasons.append("组合层面未发现阻止该动作的集中度风险")
-    return _dedupe(reasons)
+    return dedupe(reasons)
 
 
 def _blocks_add_or_entry(report: PortfolioManagerReport, symbol: str) -> bool:
@@ -200,7 +198,7 @@ def _suggested_action(alert_type: str) -> str:
         "entry_position_review": "打开交易决策详情，人工确认是否建仓。",
         "reduce_position_review": "打开交易决策详情，人工确认是否减仓或止盈；这不是卖出指令。",
         "risk_review": "打开组合报告和交易决策详情，人工复核仓位风险。",
-    }[alert_type]
+    }.get(alert_type, "请人工复核相关交易决策详情。")
 
 
 def _dedupe_alerts(alerts: list[PortfolioActionAlertCreate]) -> list[PortfolioActionAlertCreate]:
@@ -213,7 +211,3 @@ def _dedupe_alerts(alerts: list[PortfolioActionAlertCreate]) -> list[PortfolioAc
         seen.add(key)
         result.append(alert)
     return result
-
-
-def _dedupe(values: list[str]) -> list[str]:
-    return list(dict.fromkeys(value for value in values if value))

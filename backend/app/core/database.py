@@ -451,6 +451,103 @@ _MIGRATIONS = [
     )""",
     "CREATE INDEX IF NOT EXISTS idx_eval_gate_reports_status ON eval_regression_gate_reports(status)",
     "CREATE INDEX IF NOT EXISTS idx_eval_gate_reports_created ON eval_regression_gate_reports(created_at DESC)",
+    # Eval simulation tables
+    """CREATE TABLE IF NOT EXISTS eval_simulation_runs (
+        simulation_run_id TEXT PRIMARY KEY,
+        name TEXT DEFAULT '',
+        status TEXT DEFAULT 'pending',
+        agent_names TEXT DEFAULT '[]',
+        scenario_ids TEXT DEFAULT '[]',
+        started_at TEXT,
+        finished_at TEXT,
+        summary_json TEXT DEFAULT '{}',
+        config_json TEXT DEFAULT '{}',
+        metadata_json TEXT DEFAULT '{}',
+        created_at TEXT DEFAULT (datetime('now'))
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_eval_sim_runs_status ON eval_simulation_runs(status)",
+    "CREATE INDEX IF NOT EXISTS idx_eval_sim_runs_started ON eval_simulation_runs(started_at DESC)",
+    """CREATE TABLE IF NOT EXISTS eval_simulation_results (
+        simulation_result_id TEXT PRIMARY KEY,
+        simulation_run_id TEXT NOT NULL,
+        scenario_id TEXT DEFAULT '',
+        agent_name TEXT DEFAULT '',
+        status TEXT DEFAULT 'pending',
+        latency_ms INTEGER DEFAULT 0,
+        error_code TEXT DEFAULT '',
+        source_run_id TEXT DEFAULT '',
+        source_task_id TEXT DEFAULT '',
+        output_json TEXT DEFAULT '{}',
+        output_summary_json TEXT DEFAULT '{}',
+        run_trace_json TEXT DEFAULT '{}',
+        node_outputs_json TEXT DEFAULT '{}',
+        metadata_json TEXT DEFAULT '{}',
+        created_at TEXT DEFAULT (datetime('now'))
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_eval_sim_results_run ON eval_simulation_results(simulation_run_id)",
+    # Eval failure mining tables
+    """CREATE TABLE IF NOT EXISTS eval_failure_mining_runs (
+        failure_mining_run_id TEXT PRIMARY KEY,
+        simulation_run_id TEXT DEFAULT '',
+        status TEXT DEFAULT 'pending',
+        started_at TEXT,
+        finished_at TEXT,
+        summary_json TEXT DEFAULT '{}',
+        config_json TEXT DEFAULT '{}',
+        created_at TEXT DEFAULT (datetime('now'))
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_eval_fm_runs_status ON eval_failure_mining_runs(status)",
+    """CREATE TABLE IF NOT EXISTS eval_failure_items (
+        failure_id TEXT PRIMARY KEY,
+        failure_mining_run_id TEXT NOT NULL,
+        simulation_result_id TEXT DEFAULT '',
+        agent_name TEXT DEFAULT '',
+        scenario_id TEXT DEFAULT '',
+        severity TEXT DEFAULT 'medium',
+        category TEXT DEFAULT '',
+        error_type TEXT DEFAULT '',
+        error_message TEXT DEFAULT '',
+        node_name TEXT DEFAULT '',
+        details_json TEXT DEFAULT '{}',
+        created_at TEXT DEFAULT (datetime('now'))
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_eval_fm_items_run ON eval_failure_items(failure_mining_run_id)",
+    "CREATE INDEX IF NOT EXISTS idx_eval_fm_items_severity ON eval_failure_items(severity)",
+    # Eval judge calibration tables
+    """CREATE TABLE IF NOT EXISTS eval_judge_calibration_runs (
+        calibration_run_id TEXT PRIMARY KEY,
+        status TEXT DEFAULT 'pending',
+        started_at TEXT,
+        finished_at TEXT,
+        summary_json TEXT DEFAULT '{}',
+        config_json TEXT DEFAULT '{}',
+        created_at TEXT DEFAULT (datetime('now'))
+    )""",
+    """CREATE TABLE IF NOT EXISTS eval_judge_calibration_signals (
+        signal_id TEXT PRIMARY KEY,
+        calibration_run_id TEXT NOT NULL,
+        case_id TEXT DEFAULT '',
+        agent_name TEXT DEFAULT '',
+        expected_label TEXT DEFAULT '',
+        actual_label TEXT DEFAULT '',
+        judge_score REAL DEFAULT 0,
+        correct INTEGER DEFAULT 0,
+        details_json TEXT DEFAULT '{}',
+        created_at TEXT DEFAULT (datetime('now'))
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_eval_jc_signals_run ON eval_judge_calibration_signals(calibration_run_id)",
+    # Eval baseline health tables
+    """CREATE TABLE IF NOT EXISTS eval_baseline_health_reports (
+        report_id TEXT PRIMARY KEY,
+        status TEXT DEFAULT 'pending',
+        agent_name TEXT DEFAULT '',
+        overall_score REAL DEFAULT 0,
+        recommendations_json TEXT DEFAULT '[]',
+        signals_json TEXT DEFAULT '[]',
+        summary_json TEXT DEFAULT '{}',
+        created_at TEXT DEFAULT (datetime('now'))
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_eval_bh_reports_agent ON eval_baseline_health_reports(agent_name)",
     # Portfolio Manager domain tables
     """CREATE TABLE IF NOT EXISTS pm_constitution (
         id TEXT PRIMARY KEY, data_json TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))

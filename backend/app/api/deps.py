@@ -154,14 +154,20 @@ def require_admin_session(request: Request) -> str | None:
     return get_current_user(request, None, get_settings())
 
 
-def get_eval_simulation_service(db: Database = Depends(get_db)) -> "SyntheticSimulationService":
-    from app.services.eval_simulation_service import SyntheticSimulationService
-    return SyntheticSimulationService(db)
+def get_eval_simulation_service(db: Database = Depends(get_db)):
+    from app.services.eval_simulation_repository import SyntheticSimulationRepository
+    from app.services.eval_simulation_service import EvalSimulationService
+    return EvalSimulationService(db)
 
 
-def get_eval_failure_mining_service(db: Database = Depends(get_db)) -> "SyntheticFailureMiningService":
+def get_eval_failure_mining_service(db: Database = Depends(get_db)):
+    from app.services.eval_failure_mining_repository import SyntheticFailureMiningRepository
     from app.services.eval_failure_mining_service import SyntheticFailureMiningService
-    return SyntheticFailureMiningService(db)
+    from app.services.eval_simulation_repository import SyntheticSimulationRepository
+    return SyntheticFailureMiningService(
+        failure_repository=SyntheticFailureMiningRepository(db),
+        simulation_repository=SyntheticSimulationRepository(db),
+    )
 
 
 def get_failure_to_eval_case_service(db: Database = Depends(get_db)):
@@ -170,13 +176,42 @@ def get_failure_to_eval_case_service(db: Database = Depends(get_db)):
 
 
 def get_judge_calibration_service(db: Database = Depends(get_db)):
+    from app.services.eval_failure_mining_repository import SyntheticFailureMiningRepository
+    from app.services.eval_judge_calibration_repository import JudgeCalibrationRepository
     from app.services.eval_judge_calibration_service import JudgeCalibrationService
-    return JudgeCalibrationService(db)
+    from app.services.eval_simulation_repository import SyntheticSimulationRepository
+    return JudgeCalibrationService(
+        calibration_repository=JudgeCalibrationRepository(db),
+        failure_repository=SyntheticFailureMiningRepository(db),
+        simulation_repository=SyntheticSimulationRepository(db),
+    )
 
 
 def get_baseline_health_report_service(db: Database = Depends(get_db)):
-    from app.services.eval_baseline_health_service import BaselineHealthService
-    return BaselineHealthService(db)
+    from app.services.eval_baseline_health_repository import BaselineHealthReportRepository
+    from app.services.eval_baseline_health_service import BaselineHealthReportService
+    from app.services.eval_failure_mining_repository import SyntheticFailureMiningRepository
+    from app.services.eval_simulation_repository import SyntheticSimulationRepository
+    return BaselineHealthReportService(
+        report_repository=BaselineHealthReportRepository(db),
+        simulation_repository=SyntheticSimulationRepository(db),
+        failure_repository=SyntheticFailureMiningRepository(db),
+    )
+
+
+def get_longbridge_oauth_token_service():
+    from app.services.longbridge_oauth_token_service import LongbridgeOAuthTokenService
+    return LongbridgeOAuthTokenService(settings=get_settings())
+
+
+def get_longbridge_openapi_oauth_service():
+    from app.services.longbridge_openapi_oauth import LongbridgeOpenAPIOAuthService
+    return LongbridgeOpenAPIOAuthService(settings=get_settings())
+
+
+def get_longbridge_external_data_client():
+    from app.services.longbridge_service import LongbridgeExternalDataClient
+    return LongbridgeExternalDataClient(settings=get_settings())
 
 
 def get_agent_regression_gate_service(db: Database = Depends(get_db)):

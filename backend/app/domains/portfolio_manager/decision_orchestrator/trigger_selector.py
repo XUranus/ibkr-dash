@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Protocol
 
+from app.domains.portfolio_manager.common import ENTRY_BLOCKED_AI_ROLES
 from app.domains.portfolio_manager.decision_orchestrator.schemas import (
     AutoDecisionCandidate,
     AutoDecisionSelectionResult,
@@ -14,7 +15,6 @@ from app.domains.portfolio_manager.watchtower.schemas import PortfolioWatchtower
 
 PRIORITY_RANK = {"high": 3, "medium": 2, "low": 1}
 SEVERITY_RANK = {"high": 4, "medium": 3, "low": 2, "none": 1}
-ENTRY_BLOCKED_AI_ROLES = {"fake_ai_story", "non_ai"}
 RECENT_DUPLICATE_WINDOW_HOURS = 24
 
 

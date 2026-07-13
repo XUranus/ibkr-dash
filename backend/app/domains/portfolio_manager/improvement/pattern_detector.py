@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from typing import Any
 
-from app.domains.portfolio_manager.evaluation.outcome_evaluator import ADD_LIKE_ACTIONS, HOLD_LIKE_ACTIONS, REDUCE_LIKE_ACTIONS
+from app.domains.portfolio_manager.common import ADD_LIKE_ACTIONS, HOLD_LIKE_ACTIONS, REDUCE_LIKE_ACTIONS, dedupe
 from app.domains.portfolio_manager.improvement.schemas import PortfolioImprovementPattern
 
 
@@ -29,7 +29,7 @@ class PortfolioImprovementPatternDetector:
         patterns.extend(self._auto_decision_patterns(selected, min_sample_size, limitations))
         patterns.extend(self._portfolio_report_patterns(selected, min_sample_size, limitations))
         patterns.extend(self._data_quality_patterns(selected, min_sample_size, limitations))
-        return patterns, _dedupe(limitations)
+        return patterns, dedupe(limitations)
 
     def _watchtower_patterns(self, docs: list[dict], min_sample_size: int, limitations: list[str]) -> list[PortfolioImprovementPattern]:
         groups = _group_by([item for item in docs if item.get("source_type") == "watchtower_item"], _watchtower_group_key)
@@ -229,5 +229,3 @@ def _confidence(sample_size: int) -> str:
     return "low"
 
 
-def _dedupe(values: list[str]) -> list[str]:
-    return list(dict.fromkeys(value for value in values if value))

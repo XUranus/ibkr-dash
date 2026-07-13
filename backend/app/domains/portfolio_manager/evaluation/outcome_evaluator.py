@@ -7,14 +7,16 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from app.core.database import Database
+from app.domains.portfolio_manager.common import (
+    ADD_LIKE_ACTIONS,
+    HOLD_LIKE_ACTIONS,
+    REDUCE_LIKE_ACTIONS,
+    dedupe,
+    symbol_candidates,
+)
 from app.domains.portfolio_manager.decision_orchestrator.schemas import PortfolioAutoDecisionItem
 from app.domains.portfolio_manager.evaluation.schemas import ForwardPriceMetrics, HORIZON_DAYS
 from app.domains.portfolio_manager.universe.repository import normalize_universe_symbol
-from app.domains.portfolio_manager.watchtower.scanner import symbol_candidates
-
-ADD_LIKE_ACTIONS = {"add", "add_small", "add_batch", "add_on_pullback", "add_right_side", "buy", "build_position", "accumulate"}
-REDUCE_LIKE_ACTIONS = {"reduce", "reduce_batch", "reduce_now", "trim_on_rebound", "sell", "sell_thesis_broken"}
-HOLD_LIKE_ACTIONS = {"hold", "hold_no_add", "wait", "watchlist", "avoid", "panic_blocked", "no_action"}
 
 
 @dataclass(frozen=True)
@@ -60,7 +62,7 @@ class PriceForwardReturnProvider:
             if metrics.price_data_status == "ok":
                 metrics.price_data_status = "partial"
         metrics.benchmark_symbol = benchmark_symbol
-        metrics.data_limitations = _dedupe(metrics.data_limitations)
+        metrics.data_limitations = dedupe(metrics.data_limitations)
         return metrics
 
     def _bars_for_symbol(self, symbol: str, display_symbol: str | None, source_date: date, horizon_days: int) -> tuple[list[ForwardPriceBar], list[str]]:
@@ -121,7 +123,7 @@ class PortfolioAutoDecisionOutcomeEvaluator:
         )
         if item.selection_status == "failed":
             result.update(evaluation_label="inconclusive", evaluation_reason="Auto Decision failed，不能做市场表现强归因。")
-            result["data_limitations"] = _dedupe([*result["data_limitations"], "auto_decision_failed"])
+            result["data_limitations"] = dedupe([*result["data_limitations"], "auto_decision_failed"])
             return result
         if item.selection_status != "completed" or not item.decision_id or not action:
             result.update(evaluation_label="inconclusive", evaluation_reason="Auto Decision 缺少 completed decision_id 或 final_action，暂不归因。")
@@ -235,5 +237,3 @@ def _float(value: Any) -> float | None:
         return None
 
 
-def _dedupe(values: list[str]) -> list[str]:
-    return list(dict.fromkeys(value for value in values if value))

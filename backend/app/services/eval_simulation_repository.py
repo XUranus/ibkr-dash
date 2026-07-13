@@ -1,86 +1,52 @@
+"""Evaluation simulation repository — SQLite-backed."""
+
 from __future__ import annotations
 
-from app.clients.es_client import ESIndexNotFoundError, ElasticsearchClient
-from app.core.config import Settings
+import json
+from typing import Any
 
-
-SIMULATION_RUN_INDEX = "ibkr_agent_eval_simulation_runs"
-LEGACY_SIMULATION_RESULT_INDEX = "ibkr_agent_eval_simulation_results"
-SIMULATION_RESULT_INDEX = "ibkr_agent_eval_simulation_results_v2"
-
-
-SIMULATION_RUN_INDEX_BODY = {
-    "settings": {"number_of_shards": 1, "number_of_replicas": 0},
-    "mappings": {
-        "properties": {
-            "simulation_run_id": {"type": "keyword"},
-            "name": {"type": "keyword"},
-            "scenario_ids": {"type": "keyword"},
-            "agent_names": {"type": "keyword"},
-            "status": {"type": "keyword"},
-            "started_at": {"type": "date"},
-            "finished_at": {"type": "date"},
-            "summary": {"type": "object", "enabled": True},
-            "config": {"type": "object", "enabled": True},
-            "metadata": {"type": "object", "enabled": True},
-        }
-    },
-}
-
-
-SIMULATION_RESULT_INDEX_BODY = {
-    "settings": {"number_of_shards": 1, "number_of_replicas": 0},
-    "mappings": {
-        "dynamic": False,
-        "properties": {
-            "simulation_result_id": {"type": "keyword"},
-            "simulation_run_id": {"type": "keyword"},
-            "scenario_id": {"type": "keyword"},
-            "agent_name": {"type": "keyword"},
-            "status": {"type": "keyword"},
-            "latency_ms": {"type": "integer"},
-            "error_code": {"type": "keyword"},
-            "source_run_id": {"type": "keyword"},
-            "source_task_id": {"type": "keyword"},
-            "source_document_id": {"type": "keyword"},
-            "created_at": {"type": "date"},
-            "output": {"type": "object", "enabled": False},
-            "output_summary": {"type": "object", "enabled": False},
-            "run_trace": {"type": "object", "enabled": False},
-            "node_outputs": {"type": "object", "enabled": False},
-            "tool_calls": {"type": "object", "enabled": False},
-            "metadata": {"type": "object", "dynamic": False},
-        }
-    },
-}
+from app.core.database import Database
+from app.utils.dates import utc_now_iso
 
 
 class SyntheticSimulationRepository:
-    def __init__(self, es_client: ElasticsearchClient, settings: Settings) -> None:
-        self.es_client = es_client
-        self.settings = settings
+    """Store and query evaluation simulation runs and results in SQLite."""
 
-    @property
-    def run_index_name(self) -> str:
-        return SIMULATION_RUN_INDEX
+    def __init__(self, db: Database) -> None:
+        self.db = db
 
-    @property
-    def result_index_name(self) -> str:
-        return SIMULATION_RESULT_INDEX
+    # ---- Runs ----
 
     def save_run(self, run: dict) -> dict:
-        self._ensure_run_index()
         document = dict(run)
         document.pop("results", None)
-        self.es_client.index_document(index=self.run_index_name, id=run["simulation_run_id"], document=document)
+        self.db.execute(
+            """INSERT OR REPLACE INTO eval_simulation_runs
+               (simulation_run_id, name, status, agent_names, scenario_ids,
+                started_at, finished_at, summary_json, config_json, metadata_json, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                document.get("simulation_run_id", ""),
+                document.get("name", ""),
+                document.get("status", "pending"),
+                json.dumps(document.get("agent_names", [])),
+                json.dumps(document.get("scenario_ids", [])),
+                document.get("started_at"),
+                document.get("finished_at"),
+                json.dumps(document.get("summary", {})),
+                json.dumps(document.get("config", {})),
+                json.dumps(document.get("metadata", {})),
+                document.get("created_at", utc_now_iso()),
+            ),
+        )
         return run
 
     def get_run(self, simulation_run_id: str) -> dict | None:
-        try:
-            hit = self.es_client.get(index=self.run_index_name, id=simulation_run_id)
-        except ESIndexNotFoundError:
-            return None
-        return hit.get("_source") if hit else None
+        row = self.db.execute_one(
+            "SELECT * FROM eval_simulation_runs WHERE simulation_run_id = ?",
+            (simulation_run_id,),
+        )
+        return self._row_to_run(row) if row else None
 
     def list_runs(
         self,
@@ -89,68 +55,108 @@ class SyntheticSimulationRepository:
         status: str | None = None,
         limit: int = 100,
     ) -> list[dict]:
-        filters: list[dict] = []
-        if agent_name:
-            filters.append({"term": {"agent_names": agent_name}})
+        conditions = []
+        params: list[Any] = []
         if status:
-            filters.append({"term": {"status": status}})
-        body = {
-            "query": {"bool": {"filter": filters}} if filters else {"match_all": {}},
-            "sort": [{"started_at": {"order": "desc"}}],
-            "size": max(1, min(int(limit), 10000)),
-            "_source": True,
-        }
-        try:
-            response = self.es_client.search(index=self.run_index_name, body=body)
-        except ESIndexNotFoundError:
-            return []
-        return [hit.get("_source", {}) for hit in response.get("hits", {}).get("hits", [])]
+            conditions.append("status = ?")
+            params.append(status)
+        where = " WHERE " + " AND ".join(conditions) if conditions else ""
+        params.append(max(1, min(int(limit), 10000)))
+        rows = self.db.execute(
+            f"SELECT * FROM eval_simulation_runs{where} ORDER BY started_at DESC LIMIT ?",
+            tuple(params),
+        )
+        results = [self._row_to_run(row) for row in rows]
+        if agent_name:
+            results = [r for r in results if agent_name in (r.get("agent_names") or [])]
+        return results
+
+    # ---- Results ----
 
     def save_result(self, result: dict) -> dict:
-        self._ensure_result_index()
-        self.es_client.index_document(index=self.result_index_name, id=result["simulation_result_id"], document=result)
+        self.db.execute(
+            """INSERT OR REPLACE INTO eval_simulation_results
+               (simulation_result_id, simulation_run_id, scenario_id, agent_name,
+                status, latency_ms, error_code, source_run_id, source_task_id,
+                output_json, output_summary_json, run_trace_json, node_outputs_json,
+                metadata_json, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                result.get("simulation_result_id", ""),
+                result.get("simulation_run_id", ""),
+                result.get("scenario_id", ""),
+                result.get("agent_name", ""),
+                result.get("status", "pending"),
+                result.get("latency_ms", 0),
+                result.get("error_code", ""),
+                result.get("source_run_id", ""),
+                result.get("source_task_id", ""),
+                json.dumps(result.get("output", {})),
+                json.dumps(result.get("output_summary", {})),
+                json.dumps(result.get("run_trace", {})),
+                json.dumps(result.get("node_outputs", {})),
+                json.dumps(result.get("metadata", {})),
+                result.get("created_at", utc_now_iso()),
+            ),
+        )
         return result
 
     def list_results(self, simulation_run_id: str, limit: int = 1000) -> list[dict]:
-        items = self._list_results_from_index(self.result_index_name, simulation_run_id, limit=limit)
-        if items:
-            return items
-        return self._list_results_from_index(LEGACY_SIMULATION_RESULT_INDEX, simulation_run_id, limit=limit)
-
-    def _list_results_from_index(self, index_name: str, simulation_run_id: str, limit: int = 1000) -> list[dict]:
-        body = {
-            "query": {"term": {"simulation_run_id": simulation_run_id}},
-            "sort": [{"created_at": {"order": "asc"}}],
-            "size": max(1, min(int(limit), 10000)),
-            "_source": True,
-        }
-        try:
-            response = self.es_client.search(index=index_name, body=body)
-        except ESIndexNotFoundError:
-            return []
-        return [hit.get("_source", {}) for hit in response.get("hits", {}).get("hits", [])]
+        rows = self.db.execute(
+            "SELECT * FROM eval_simulation_results WHERE simulation_run_id = ? ORDER BY created_at ASC LIMIT ?",
+            (simulation_run_id, max(1, min(int(limit), 10000))),
+        )
+        return [self._row_to_result(row) for row in rows]
 
     def get_result(self, simulation_result_id: str) -> dict | None:
-        try:
-            hit = self.es_client.get(index=self.result_index_name, id=simulation_result_id)
-        except ESIndexNotFoundError:
-            hit = None
-        if hit:
-            return hit.get("_source")
-        try:
-            legacy_hit = self.es_client.get(index=LEGACY_SIMULATION_RESULT_INDEX, id=simulation_result_id)
-        except ESIndexNotFoundError:
-            return None
-        return legacy_hit.get("_source") if legacy_hit else None
+        row = self.db.execute_one(
+            "SELECT * FROM eval_simulation_results WHERE simulation_result_id = ?",
+            (simulation_result_id,),
+        )
+        return self._row_to_result(row) if row else None
 
-    def _ensure_run_index(self) -> None:
-        self.es_client.create_index_if_missing(self.run_index_name, SIMULATION_RUN_INDEX_BODY)
+    # ---- Helpers ----
 
-    def _ensure_result_index(self) -> None:
-        self.es_client.create_index_if_missing(self.result_index_name, SIMULATION_RESULT_INDEX_BODY)
+    @staticmethod
+    def _row_to_run(row: dict) -> dict:
+        return {
+            "simulation_run_id": row["simulation_run_id"],
+            "name": row.get("name", ""),
+            "status": row.get("status", "pending"),
+            "agent_names": json.loads(row.get("agent_names") or "[]"),
+            "scenario_ids": json.loads(row.get("scenario_ids") or "[]"),
+            "started_at": row.get("started_at"),
+            "finished_at": row.get("finished_at"),
+            "summary": json.loads(row.get("summary_json") or "{}"),
+            "config": json.loads(row.get("config_json") or "{}"),
+            "metadata": json.loads(row.get("metadata_json") or "{}"),
+            "created_at": row.get("created_at"),
+        }
+
+    @staticmethod
+    def _row_to_result(row: dict) -> dict:
+        return {
+            "simulation_result_id": row["simulation_result_id"],
+            "simulation_run_id": row.get("simulation_run_id", ""),
+            "scenario_id": row.get("scenario_id", ""),
+            "agent_name": row.get("agent_name", ""),
+            "status": row.get("status", "pending"),
+            "latency_ms": row.get("latency_ms", 0),
+            "error_code": row.get("error_code", ""),
+            "source_run_id": row.get("source_run_id", ""),
+            "source_task_id": row.get("source_task_id", ""),
+            "output": json.loads(row.get("output_json") or "{}"),
+            "output_summary": json.loads(row.get("output_summary_json") or "{}"),
+            "run_trace": json.loads(row.get("run_trace_json") or "{}"),
+            "node_outputs": json.loads(row.get("node_outputs_json") or "{}"),
+            "metadata": json.loads(row.get("metadata_json") or "{}"),
+            "created_at": row.get("created_at"),
+        }
 
 
 class InMemorySyntheticSimulationRepository:
+    """In-memory version for testing."""
+
     def __init__(self) -> None:
         self.runs: dict[str, dict] = {}
         self.results: dict[str, dict] = {}

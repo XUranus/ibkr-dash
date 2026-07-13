@@ -4,11 +4,12 @@ from collections import Counter
 from datetime import datetime, timezone
 from uuid import uuid4
 
+from app.domains.portfolio_manager.common import dedupe, utc_now_iso
 from app.domains.portfolio_manager.constitution.service import PortfolioConstitutionService
 from app.domains.portfolio_manager.universe.repository import normalize_universe_symbol
 from app.domains.portfolio_manager.universe.schemas import UniverseSymbol, UniverseType
 from app.domains.portfolio_manager.universe.service import PortfolioUniverseService
-from app.domains.portfolio_manager.watchtower.repository import PortfolioWatchtowerRepository, utc_now_iso
+from app.domains.portfolio_manager.watchtower.repository import PortfolioWatchtowerRepository
 from app.domains.portfolio_manager.watchtower.scanner import PortfolioWatchtowerScanner, WatchtowerScanResult
 from app.domains.portfolio_manager.watchtower.schemas import (
     PortfolioWatchtowerItem,
@@ -103,7 +104,7 @@ class PortfolioWatchtowerService:
             "universe_snapshot": _universe_snapshot(universe_items),
             "summary": summary,
             "top_attention_symbols": _top_attention_symbols(item_documents),
-            "data_limitations": _dedupe(run_limitations)[:200],
+            "data_limitations": dedupe(run_limitations)[:200],
         }
         stored_run = self.repository.create_run(run_doc)
         stored_items = self.repository.bulk_create_items(item_documents)
@@ -250,14 +251,4 @@ def _top_attention_symbols(items: list[dict], limit: int = 10) -> list[str]:
         reverse=True,
     )
     return [str(item.get("symbol")) for item in ranked[:limit] if item.get("symbol")]
-
-
-def _dedupe(values: list[str]) -> list[str]:
-    result: list[str] = []
-    seen: set[str] = set()
-    for value in values:
-        if value and value not in seen:
-            seen.add(value)
-            result.append(value)
-    return result
 

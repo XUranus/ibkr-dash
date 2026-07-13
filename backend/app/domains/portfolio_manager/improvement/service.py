@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
+from app.domains.portfolio_manager.common import dedupe
 from app.domains.portfolio_manager.evaluation.repository import PortfolioEvaluationRepository
 from app.domains.portfolio_manager.improvement.pattern_detector import PortfolioImprovementPatternDetector
 from app.domains.portfolio_manager.improvement.recommendation_builder import PortfolioImprovementRecommendationBuilder
@@ -79,7 +80,7 @@ class PortfolioImprovementService:
             pattern_summary=_pattern_summary(patterns),
             improvement_candidates=candidates,
             recommendation_summary="本报告只提供待人工确认的系统改进建议，不会自动修改任何规则；所有建议都应先经过 shadow / forward evaluation 验证。",
-            data_limitations=_dedupe(limitations),
+            data_limitations=dedupe(limitations),
             created_at=now,
             updated_at=now,
         )
@@ -109,7 +110,3 @@ def _pattern_summary(patterns) -> dict:
         "medium_severity_patterns": sum(1 for item in patterns if item.severity == "medium"),
         "low_severity_patterns": sum(1 for item in patterns if item.severity == "low"),
     }
-
-
-def _dedupe(values: list[str]) -> list[str]:
-    return list(dict.fromkeys(value for value in values if value))
