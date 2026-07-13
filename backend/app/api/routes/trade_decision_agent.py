@@ -62,7 +62,7 @@ async def analyze_trade_decision(
         result = await analyze_trade(
             db, llm_service, request.symbol,
             decision_type=request.decision_type,
-            question=request.question,
+            question=request.user_question,
             prompt_service=prompt_service,
         )
     except Exception as exc:
