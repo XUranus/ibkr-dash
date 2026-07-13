@@ -45,7 +45,7 @@ def extract_json_object(raw: str | None) -> dict[str, Any]:
     direct_non_object_error: StructuredOutputError | None = None
     for candidate in candidates:
         try:
-            parsed = json.loads(candidate)
+            parsed = json.loads(candidate, strict=False)
         except JSONDecodeError:
             continue
         if isinstance(parsed, dict):

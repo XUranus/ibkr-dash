@@ -305,11 +305,11 @@ export default function TradeDecisionAgentView() {
                 <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
                   <label className="field-stack" style={{ flex: 1 }}>
                     <span className="field-stack__label">{t('tradeDecision.symbol')}</span>
-                    <input className="input" value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} placeholder="AAPL" />
+                    <input className="input" value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} placeholder={t('tradeDecision.symbolPlaceholder')} />
                   </label>
                   <label className="field-stack" style={{ flex: 2 }}>
                     <span className="field-stack__label">{t('tradeDecision.question')}</span>
-                    <input className="input" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Should I add to my AAPL position?" />
+                    <input className="input" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder={t('tradeDecision.questionPlaceholder')} />
                   </label>
                   <button className="btn btn--accent" onClick={handleAnalyze} disabled={generating || !symbol.trim()}>
                     {generating ? t('tradeDecision.analyzing') : t('tradeDecision.analyze')}
@@ -398,7 +398,7 @@ export default function TradeDecisionAgentView() {
                 <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
                   <label className="field-stack" style={{ flex: 1 }}>
                     <span className="field-stack__label">{t('tradeReview.symbol')}</span>
-                    <input className="input" value={reviewSymbol} onChange={(e) => setReviewSymbol(e.target.value.toUpperCase())} placeholder="AAPL" />
+                    <input className="input" value={reviewSymbol} onChange={(e) => setReviewSymbol(e.target.value.toUpperCase())} placeholder={t('tradeDecision.reviewSymbolPlaceholder')} />
                   </label>
                   <button className="btn btn--accent" onClick={handleSymbolReview} disabled={reviewGenerating || !reviewSymbol.trim()}>
                     {reviewGenerating ? t('tradeReview.generating') : t('tradeReview.generateReview')}
@@ -409,11 +409,11 @@ export default function TradeDecisionAgentView() {
                 <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
                   <label className="field-stack" style={{ flex: 1 }}>
                     <span className="field-stack__label">{t('tradeReview.symbol')}</span>
-                    <input className="input" value={reviewSymbol} onChange={(e) => setReviewSymbol(e.target.value.toUpperCase())} placeholder="AAPL" />
+                    <input className="input" value={reviewSymbol} onChange={(e) => setReviewSymbol(e.target.value.toUpperCase())} placeholder={t('tradeDecision.reviewSymbolPlaceholder')} />
                   </label>
                   <label className="field-stack" style={{ flex: 1 }}>
                     <span className="field-stack__label">{t('tradeReview.tradeId')}</span>
-                    <input className="input" value={tradeId} onChange={(e) => setTradeId(e.target.value)} placeholder="Trade ID" />
+                    <input className="input" value={tradeId} onChange={(e) => setTradeId(e.target.value)} placeholder={t('tradeDecision.tradeIdPlaceholder')} />
                   </label>
                   <button className="btn btn--accent" onClick={handleSingleReview} disabled={reviewGenerating || !reviewSymbol.trim() || !tradeId.trim()}>
                     {reviewGenerating ? t('tradeReview.generating') : t('tradeReview.generateReview')}
