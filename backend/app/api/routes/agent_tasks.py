@@ -5,6 +5,8 @@ Provides endpoints for running agents in the background and tracking their statu
 
 from __future__ import annotations
 
+import json as _json
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
@@ -13,6 +15,18 @@ from app.core.rate_limit import check_llm_rate_limit
 from app.services.agent_services import AgentTaskService
 from app.services.llm_service import LLMService
 from app.services.prompt_service import PromptService
+
+
+def _parse_task(t: dict) -> dict:
+    """Parse JSON string fields in agent task dict."""
+    for field in ("progress", "result"):
+        val = t.get(field)
+        if isinstance(val, str):
+            try:
+                t[field] = _json.loads(val, strict=False)
+            except (_json.JSONDecodeError, TypeError):
+                t[field] = None
+    return t
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
@@ -118,7 +132,7 @@ def run_agent(
         )
 
     task = task_service.get_task(task_id)
-    return AgentTaskResponse(**task) if task else AgentTaskResponse(
+    return AgentTaskResponse(**_parse_task(task)) if task else AgentTaskResponse(
         id=task_id, agent_name=agent_name, status="pending",
     )
 
@@ -133,7 +147,7 @@ def list_tasks(
 ) -> list[AgentTaskResponse]:
     """List agent tasks with optional filters."""
     tasks = task_service.list_tasks(agent_name=agent_name, status=task_status, limit=limit)
-    return [AgentTaskResponse(**t) for t in tasks]
+    return [AgentTaskResponse(**_parse_task(t)) for t in tasks]
 
 
 @router.get("/tasks/{task_id}", response_model=AgentTaskResponse)
@@ -146,7 +160,7 @@ def get_task(
     task = task_service.get_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    return AgentTaskResponse(**task)
+    return AgentTaskResponse(**_parse_task(task))
 
 
 @router.post("/tasks/{task_id}/cancel", response_model=AgentTaskResponse)
@@ -162,4 +176,4 @@ def cancel_task(
         raise HTTPException(status_code=400, detail=str(exc))
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
-    return AgentTaskResponse(**task)
+    return AgentTaskResponse(**_parse_task(task))
