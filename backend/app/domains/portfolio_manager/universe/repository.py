@@ -55,7 +55,7 @@ class PortfolioUniverseRepository:
         if universe_type:
             filters["universe_type"] = universe_type
         if enabled is not None:
-            filters["enabled"] = str(enabled)
+            filters["enabled"] = "1" if enabled else "0"
         if priority:
             filters["priority"] = priority
         if ai_theme_role:
