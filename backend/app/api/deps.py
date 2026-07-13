@@ -410,9 +410,9 @@ def get_portfolio_action_alert_service(db: Database = Depends(get_db)):
     )
 
 
-def get_agent_task_repository(db: Database = Depends(get_db)):
+def get_agent_task_repository():
     from app.services.agent_task_repository import AgentTaskRepository
-    return AgentTaskRepository(db)
+    return AgentTaskRepository(get_es_client(), get_settings())
 
 
 def require_authenticated_session(request: Request) -> "AuthSession":
