@@ -451,6 +451,54 @@ _MIGRATIONS = [
     )""",
     "CREATE INDEX IF NOT EXISTS idx_eval_gate_reports_status ON eval_regression_gate_reports(status)",
     "CREATE INDEX IF NOT EXISTS idx_eval_gate_reports_created ON eval_regression_gate_reports(created_at DESC)",
+    # Portfolio Manager domain tables
+    """CREATE TABLE IF NOT EXISTS pm_constitution (
+        id TEXT PRIMARY KEY, data_json TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
+    )""",
+    """CREATE TABLE IF NOT EXISTS pm_universe_symbols (
+        id TEXT PRIMARY KEY, symbol TEXT NOT NULL, data_json TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_pm_universe_symbol ON pm_universe_symbols(symbol)",
+    """CREATE TABLE IF NOT EXISTS pm_watchtower_runs (
+        id TEXT PRIMARY KEY, run_date TEXT, run_type TEXT, status TEXT, data_json TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_pm_watchtower_runs_date ON pm_watchtower_runs(run_date)",
+    """CREATE TABLE IF NOT EXISTS pm_watchtower_items (
+        id TEXT PRIMARY KEY, run_id TEXT, run_date TEXT, symbol TEXT, data_json TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_pm_watchtower_items_run ON pm_watchtower_items(run_id)",
+    "CREATE INDEX IF NOT EXISTS idx_pm_watchtower_items_symbol ON pm_watchtower_items(symbol)",
+    """CREATE TABLE IF NOT EXISTS pm_daily_loop_runs (
+        id TEXT PRIMARY KEY, run_date TEXT, run_type TEXT, status TEXT, task_id TEXT, data_json TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_pm_daily_loop_runs_date ON pm_daily_loop_runs(run_date)",
+    """CREATE TABLE IF NOT EXISTS pm_auto_decision_runs (
+        id TEXT PRIMARY KEY, run_date TEXT, run_type TEXT, status TEXT, data_json TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_pm_auto_decision_runs_date ON pm_auto_decision_runs(run_date)",
+    """CREATE TABLE IF NOT EXISTS pm_auto_decision_items (
+        id TEXT PRIMARY KEY, run_id TEXT, run_date TEXT, symbol TEXT, selection_status TEXT, data_json TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_pm_auto_decision_items_run ON pm_auto_decision_items(run_id)",
+    "CREATE INDEX IF NOT EXISTS idx_pm_auto_decision_items_symbol ON pm_auto_decision_items(symbol)",
+    """CREATE TABLE IF NOT EXISTS pm_evaluation_results (
+        id TEXT PRIMARY KEY, evaluation_date TEXT, source_type TEXT, symbol TEXT, horizon TEXT, evaluation_label TEXT, source_id TEXT, data_json TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_pm_eval_date ON pm_evaluation_results(evaluation_date)",
+    "CREATE INDEX IF NOT EXISTS idx_pm_eval_symbol ON pm_evaluation_results(symbol)",
+    """CREATE TABLE IF NOT EXISTS pm_improvement_reports (
+        id TEXT PRIMARY KEY, report_date TEXT, report_type TEXT, status TEXT, data_json TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_pm_improvement_date ON pm_improvement_reports(report_date)",
+    """CREATE TABLE IF NOT EXISTS pm_portfolio_reports (
+        id TEXT PRIMARY KEY, report_date TEXT, report_type TEXT, status TEXT, data_json TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_pm_portfolio_reports_date ON pm_portfolio_reports(report_date)",
+    """CREATE TABLE IF NOT EXISTS pm_action_alerts (
+        id TEXT PRIMARY KEY, run_date TEXT, symbol TEXT, alert_type TEXT, status TEXT, data_json TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_pm_alerts_date ON pm_action_alerts(run_date)",
+    "CREATE INDEX IF NOT EXISTS idx_pm_alerts_symbol ON pm_action_alerts(symbol)",
 ]
 
 
