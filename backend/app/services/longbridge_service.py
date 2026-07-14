@@ -6,6 +6,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from importlib import import_module
 import json
+import logging
 import subprocess
 import threading
 from typing import Any
@@ -14,6 +15,8 @@ from urllib.parse import urlencode
 from app.core.config import Settings
 from app.schemas.longbridge import LongbridgeCandleItem, LongbridgeCandlesResponse, LongbridgeMacroNewsResponse, LongbridgeNewsItem, LongbridgeNewsResponse
 from app.services.longbridge_openapi_oauth import LongbridgeOpenAPIOAuthService
+
+logger = logging.getLogger(__name__)
 
 SUPPORTED_LONGBRIDGE_PERIODS = {"day", "week", "month"}
 SUPPORTED_LONGBRIDGE_ADJUST_TYPES = {"forward", "backward", "none"}
@@ -278,6 +281,7 @@ class LongbridgeExternalDataClient:
 
     def get_candles(self, symbol: str, start: str, end: str, period: str, adjust_type: str) -> LongbridgeCandlesResponse:
         normalized_symbol = normalize_longbridge_symbol(symbol)
+        logger.info("Longbridge API: get_candles symbol=%s period=%s start=%s end=%s", normalized_symbol, period, start, end)
         start_date, end_date = self._validate_date_range(start, end)
         normalized_period = period.strip().lower()
         if normalized_period not in SUPPORTED_LONGBRIDGE_PERIODS:
@@ -321,6 +325,7 @@ class LongbridgeExternalDataClient:
     def get_news(self, symbol: str, limit: int) -> LongbridgeNewsResponse:
         self._ensure_available()
         normalized_symbol = normalize_longbridge_symbol(symbol)
+        logger.info("Longbridge API: get_news symbol=%s limit=%d", normalized_symbol, limit)
         try:
             raw_items = self._get_content_context().news(normalized_symbol)
         except Exception as exc:

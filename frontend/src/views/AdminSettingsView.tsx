@@ -3,13 +3,13 @@ import { useTranslation } from 'react-i18next'
 import { fetchAllSettings, updateSettings, resetSettings, type SettingItem, type SettingsByCategory } from '@/api/adminSettings'
 import { testIbkrConnection } from '@/api/adminIbkr'
 import { testLlmProvider } from '@/api/adminLlm'
-import { fetchEmailSettings, updateEmailSettings, sendEmailTest } from '@/api/adminEmail'
+import { fetchNotifyHubSettings, updateNotifyHubSettings, testNotifyHub } from '@/api/adminNotifyhub'
 import { testLongbridgeConnection } from '@/api/adminLongbridge'
 import { useAuth } from '@/hooks/useAuth'
 import AdminTabs from '@/components/AdminTabs'
 import type { IbkrTestResponse } from '@/types/adminIbkr'
 import type { LlmProviderTestResponse } from '@/types/adminLlm'
-import type { EmailSettings, EmailTestResponse } from '@/types/adminEmail'
+import type { NotifyHubSettings, NotifyHubTestResponse } from '@/types/adminNotifyhub'
 import type { LongbridgeMcpTestResponse } from '@/types/adminLongbridgeMcp'
 
 /* ---------- toggle switch styles ---------- */
@@ -58,21 +58,16 @@ export default function AdminSettingsView() {
   const [longbridgeTesting, setLongbridgeTesting] = useState(false)
   const [longbridgeTestResult, setLongbridgeTestResult] = useState<LongbridgeMcpTestResponse | null>(null)
 
-  // Email state
-  const [emailLoading, setEmailLoading] = useState(true)
-  const [emailSaving, setEmailSaving] = useState(false)
-  const [emailTesting, setEmailTesting] = useState(false)
-  const [emailSettings, setEmailSettings] = useState<EmailSettings | null>(null)
-  const [emailTestResult, setEmailTestResult] = useState<EmailTestResponse | null>(null)
-  const [emailForm, setEmailForm] = useState({
-    smtp_host: '',
-    smtp_port: 587,
-    smtp_username: '',
-    smtp_password: '',
-    encryption: 'STARTTLS' as 'SSL' | 'STARTTLS' | 'None',
-    auth_method: 'password' as 'password' | 'oauth2' | 'modern_auth',
-    from_address: '',
-    to_addresses: '',
+  // NotifyHub state
+  const [notifyHubLoading, setNotifyHubLoading] = useState(true)
+  const [notifyHubSaving, setNotifyHubSaving] = useState(false)
+  const [notifyHubTesting, setNotifyHubTesting] = useState(false)
+  const [notifyHubSettings, setNotifyHubSettings] = useState<NotifyHubSettings | null>(null)
+  const [notifyHubTestResult, setNotifyHubTestResult] = useState<NotifyHubTestResponse | null>(null)
+  const [notifyHubForm, setNotifyHubForm] = useState({
+    url: '',
+    api_key: '',
+    topic: 'ibkr',
     enabled: false,
   })
 
@@ -100,31 +95,27 @@ export default function AdminSettingsView() {
     }
   }, [t])
 
-  const loadEmailData = useCallback(async () => {
-    setEmailLoading(true)
+  useEffect(() => { void loadData() }, [loadData])
+
+  const loadNotifyHubData = useCallback(async () => {
+    setNotifyHubLoading(true)
     try {
-      const s = await fetchEmailSettings()
-      setEmailSettings(s)
-      setEmailForm({
-        smtp_host: s.smtp_host ?? '',
-        smtp_port: s.smtp_port ?? 587,
-        smtp_username: s.smtp_username ?? '',
-        smtp_password: '',
-        encryption: s.encryption ?? 'STARTTLS',
-        auth_method: s.auth_method ?? 'password',
-        from_address: s.from_address ?? '',
-        to_addresses: s.to_addresses?.join(', ') ?? '',
+      const s = await fetchNotifyHubSettings()
+      setNotifyHubSettings(s)
+      setNotifyHubForm({
+        url: s.url ?? '',
+        api_key: '',
+        topic: s.topic ?? 'ibkr',
         enabled: s.enabled,
       })
     } catch {
-      // email may not be configured; silently ignore
+      // silently ignore
     } finally {
-      setEmailLoading(false)
+      setNotifyHubLoading(false)
     }
   }, [])
 
-  useEffect(() => { void loadData() }, [loadData])
-  useEffect(() => { void loadEmailData() }, [loadEmailData])
+  useEffect(() => { void loadNotifyHubData() }, [loadNotifyHubData])
 
   function handleEdit(key: string, value: string, category: string) {
     setEdits((prev) => ({ ...prev, [key]: { value, category } }))
@@ -256,42 +247,37 @@ export default function AdminSettingsView() {
     }
   }
 
-  async function handleEmailSave() {
-    setEmailSaving(true)
+  async function handleNotifyHubSave() {
+    setNotifyHubSaving(true)
     setErrorMessage('')
     setNoticeMessage('')
     try {
       const payload: Record<string, unknown> = {
-        smtp_host: emailForm.smtp_host || null,
-        smtp_port: emailForm.smtp_port,
-        smtp_username: emailForm.smtp_username || null,
-        encryption: emailForm.encryption,
-        auth_method: emailForm.auth_method,
-        from_address: emailForm.from_address || null,
-        to_addresses: emailForm.to_addresses ? emailForm.to_addresses.split(',').map((s) => s.trim()).filter(Boolean) : [],
-        enabled: emailForm.enabled,
+        url: notifyHubForm.url || null,
+        topic: notifyHubForm.topic || 'ibkr',
+        enabled: notifyHubForm.enabled,
       }
-      if (emailForm.smtp_password) payload.smtp_password = emailForm.smtp_password
-      const updated = await updateEmailSettings(payload)
-      setEmailSettings(updated)
-      setEmailForm((prev) => ({ ...prev, smtp_password: '' }))
-      setNoticeMessage(t('adminSettings.emailSaved'))
+      if (notifyHubForm.api_key) payload.api_key = notifyHubForm.api_key
+      const updated = await updateNotifyHubSettings(payload)
+      setNotifyHubSettings(updated)
+      setNotifyHubForm((prev) => ({ ...prev, api_key: '' }))
+      setNoticeMessage(t('adminSettings.notifyHubSaved'))
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : t('common.error'))
     } finally {
-      setEmailSaving(false)
+      setNotifyHubSaving(false)
     }
   }
 
-  async function handleEmailTest() {
-    setEmailTesting(true)
-    setEmailTestResult(null)
+  async function handleNotifyHubTest() {
+    setNotifyHubTesting(true)
+    setNotifyHubTestResult(null)
     try {
-      setEmailTestResult(await sendEmailTest())
+      setNotifyHubTestResult(await testNotifyHub())
     } catch (err) {
-      setEmailTestResult({ success: false, message: err instanceof Error ? err.message : t('adminSettings.testFailed') })
+      setNotifyHubTestResult({ success: false, message: err instanceof Error ? err.message : t('adminSettings.testFailed') })
     } finally {
-      setEmailTesting(false)
+      setNotifyHubTesting(false)
     }
   }
 
@@ -487,11 +473,11 @@ export default function AdminSettingsView() {
         )
       })}
 
-      {/* Email Settings */}
+      {/* NotifyHub Push Notification Settings */}
       <section className="surface-panel">
         <div className="surface-panel__content" style={{ padding: '10px 14px' }}>
           <button
-            onClick={() => toggle('email')}
+            onClick={() => toggle('notifyhub')}
             style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               width: '100%', background: 'none', border: 'none', cursor: 'pointer',
@@ -500,99 +486,82 @@ export default function AdminSettingsView() {
               textTransform: 'uppercase', padding: '4px 0',
             }}
           >
-            <span>{t('adminSettings.cat.email')}</span>
-            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.7rem' }}>{expanded === 'email' ? '▲' : '▼'}</span>
+            <span>{t('adminSettings.cat.notifyhub')}</span>
+            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.7rem' }}>{expanded === 'notifyhub' ? '▲' : '▼'}</span>
           </button>
 
-          {expanded === 'email' && (
+          {expanded === 'notifyhub' && (
             <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
-              {emailLoading ? (
+              {notifyHubLoading ? (
                 <div style={{ color: 'var(--color-text-muted)', fontSize: '0.78rem', fontFamily: 'var(--font-mono)' }}>{t('common.loading')}</div>
               ) : (
                 <>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 8, alignItems: 'center', padding: '6px 8px' }}>
-                      <div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-bright)', fontWeight: 500 }}>{t('adminSettings.smtpHost')}</div>
-                        <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>email_smtp_host</div>
-                      </div>
-                      <input className="input" value={emailForm.smtp_host} onChange={(e) => setEmailForm({ ...emailForm, smtp_host: e.target.value })} placeholder="smtp.gmail.com" style={{ minHeight: 28, fontSize: '0.78rem' }} />
+                  <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 8, alignItems: 'center', padding: '6px 8px' }}>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-bright)', fontWeight: 500 }}>{t('adminSettings.notifyHubUrl')}</div>
+                      <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>notifyhub_url</div>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 8, alignItems: 'center', padding: '6px 8px' }}>
-                      <div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-bright)', fontWeight: 500 }}>{t('adminSettings.smtpPort')}</div>
-                        <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>email_smtp_port</div>
-                      </div>
-                      <input className="input" type="number" value={emailForm.smtp_port} onChange={(e) => setEmailForm({ ...emailForm, smtp_port: Number(e.target.value) })} style={{ minHeight: 28, fontSize: '0.78rem' }} />
-                    </div>
+                    <input
+                      className="input"
+                      value={notifyHubForm.url}
+                      onChange={(e) => setNotifyHubForm({ ...notifyHubForm, url: e.target.value })}
+                      placeholder="http://108.181.196.185:10070"
+                      style={{ minHeight: 28, fontSize: '0.78rem' }}
+                    />
                   </div>
-                  {/* Encryption and Auth Method */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 8, alignItems: 'center', padding: '6px 8px' }}>
-                      <div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-bright)', fontWeight: 500 }}>{t('adminSettings.encryption')}</div>
-                        <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>encryption</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 8, alignItems: 'center', padding: '6px 8px' }}>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-bright)', fontWeight: 500 }}>
+                        {t('adminSettings.notifyHubApiKey')}
+                        {notifyHubSettings?.api_key_set && (
+                          <span style={{ marginLeft: 6, color: 'var(--color-positive)', fontSize: '0.65rem' }}>{t('adminSettings.passwordSet')}</span>
+                        )}
                       </div>
-                      <select className="input" value={emailForm.encryption} onChange={(e) => setEmailForm({ ...emailForm, encryption: e.target.value as 'SSL' | 'STARTTLS' | 'None' })} style={{ minHeight: 28, fontSize: '0.78rem' }}>
-                        <option value="STARTTLS">STARTTLS</option>
-                        <option value="SSL">SSL</option>
-                        <option value="None">None</option>
-                      </select>
+                      <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>notifyhub_api_key</div>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 8, alignItems: 'center', padding: '6px 8px' }}>
-                      <div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-bright)', fontWeight: 500 }}>{t('adminSettings.authMethod')}</div>
-                        <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>auth_method</div>
-                      </div>
-                      <select className="input" value={emailForm.auth_method} onChange={(e) => setEmailForm({ ...emailForm, auth_method: e.target.value as 'password' | 'oauth2' | 'modern_auth' })} style={{ minHeight: 28, fontSize: '0.78rem' }}>
-                        <option value="password">{t('adminSettings.authPassword')}</option>
-                        <option value="oauth2">OAuth2</option>
-                        <option value="modern_auth">{t('adminSettings.authModern')}</option>
-                      </select>
-                    </div>
+                    <input
+                      className="input"
+                      type="password"
+                      value={notifyHubForm.api_key}
+                      onChange={(e) => setNotifyHubForm({ ...notifyHubForm, api_key: e.target.value })}
+                      placeholder={notifyHubSettings?.api_key_set ? '••••••••' : t('adminSettings.notifyHubApiKeyPlaceholder')}
+                      style={{ minHeight: 28, fontSize: '0.78rem' }}
+                    />
                   </div>
-                  {([
-                    { label: t('adminSettings.smtpUsername'), key: 'smtp_username' as const, placeholder: 'your@email.com', type: 'text', dbKey: 'email_smtp_username' },
-                    { label: t('adminSettings.smtpPassword'), key: 'smtp_password' as const, placeholder: emailSettings?.smtp_password_set ? '••••••••' : t('adminSettings.smtpPassword'), type: 'password', dbKey: 'email_smtp_password' },
-                    { label: t('adminSettings.fromAddress'), key: 'from_address' as const, placeholder: 'noreply@example.com', type: 'text', dbKey: 'email_from_address' },
-                    { label: t('adminSettings.toAddresses'), key: 'to_addresses' as const, placeholder: 'user1@example.com, user2@example.com', type: 'text', dbKey: 'email_to_addresses' },
-                  ]).map((field) => (
-                    <div key={field.key} style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 8, alignItems: 'center', padding: '6px 8px' }}>
-                      <div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-bright)', fontWeight: 500 }}>
-                          {field.label}
-                          {field.key === 'smtp_password' && emailSettings?.smtp_password_set && (
-                            <span style={{ marginLeft: 6, color: 'var(--color-positive)', fontSize: '0.65rem' }}>{t('adminSettings.passwordSet')}</span>
-                          )}
-                        </div>
-                        <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>{field.dbKey}</div>
-                      </div>
-                      <input
-                        className="input"
-                        type={field.type}
-                        value={emailForm[field.key]}
-                        onChange={(e) => setEmailForm({ ...emailForm, [field.key]: e.target.value })}
-                        placeholder={field.placeholder}
-                        style={{ minHeight: 28, fontSize: '0.78rem' }}
-                      />
+                  <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 8, alignItems: 'center', padding: '6px 8px' }}>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-bright)', fontWeight: 500 }}>{t('adminSettings.notifyHubTopic')}</div>
+                      <div style={{ fontSize: '0.6rem', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>notifyhub_topic</div>
                     </div>
-                  ))}
+                    <input
+                      className="input"
+                      value={notifyHubForm.topic}
+                      onChange={(e) => setNotifyHubForm({ ...notifyHubForm, topic: e.target.value })}
+                      placeholder="ibkr"
+                      style={{ minHeight: 28, fontSize: '0.78rem' }}
+                    />
+                  </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px' }}>
-                    <input type="checkbox" checked={emailForm.enabled} onChange={(e) => setEmailForm({ ...emailForm, enabled: e.target.checked })} style={{ accentColor: 'var(--color-accent)' }} />
-                    <span style={{ fontSize: '0.78rem' }}>{t('adminSettings.enableEmail')}</span>
+                    <input
+                      type="checkbox"
+                      checked={notifyHubForm.enabled}
+                      onChange={(e) => setNotifyHubForm({ ...notifyHubForm, enabled: e.target.checked })}
+                      style={{ accentColor: 'var(--color-accent)' }}
+                    />
+                    <span style={{ fontSize: '0.78rem' }}>{t('adminSettings.enableNotifyHub')}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '6px 0 2px' }}>
-                    <button className="btn btn--sm" onClick={handleEmailTest} disabled={emailTesting}>
-                      {emailTesting ? t('adminSettings.sending') : t('adminSettings.testEmail')}
+                    <button className="btn btn--sm" onClick={handleNotifyHubTest} disabled={notifyHubTesting}>
+                      {notifyHubTesting ? t('adminSettings.sending') : t('adminSettings.testNotifyHub')}
                     </button>
-                    <button className="btn btn--sm btn--accent" onClick={handleEmailSave} disabled={emailSaving}>
-                      {emailSaving ? t('adminSettings.saving') : t('adminSettings.save')}
+                    <button className="btn btn--sm btn--accent" onClick={handleNotifyHubSave} disabled={notifyHubSaving}>
+                      {notifyHubSaving ? t('adminSettings.saving') : t('adminSettings.save')}
                     </button>
                   </div>
-                  {emailTestResult && (
-                    <div style={{ padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: `1px solid ${emailTestResult.success ? 'rgba(61,214,140,0.2)' : 'rgba(242,92,92,0.2)'}`, background: emailTestResult.success ? 'rgba(61,214,140,0.05)' : 'rgba(242,92,92,0.05)' }}>
-                      <span className={`tag ${emailTestResult.success ? 'tag--positive' : 'tag--negative'}`}>{emailTestResult.success ? t('adminSettings.sent') : t('adminSettings.failed')}</span>
-                      <span style={{ marginLeft: 8, fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>{emailTestResult.message}</span>
+                  {notifyHubTestResult && (
+                    <div style={{ padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: `1px solid ${notifyHubTestResult.success ? 'rgba(61,214,140,0.2)' : 'rgba(242,92,92,0.2)'}`, background: notifyHubTestResult.success ? 'rgba(61,214,140,0.05)' : 'rgba(242,92,92,0.05)' }}>
+                      <span className={`tag ${notifyHubTestResult.success ? 'tag--positive' : 'tag--negative'}`}>{notifyHubTestResult.success ? t('adminSettings.sent') : t('adminSettings.failed')}</span>
+                      <span style={{ marginLeft: 8, fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>{notifyHubTestResult.message}</span>
                     </div>
                   )}
                 </>

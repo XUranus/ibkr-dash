@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from app.domains.portfolio_manager.universe.repository import PortfolioUniverseRepository, normalize_universe_symbol
 from app.domains.portfolio_manager.universe.schemas import (
     UniverseSymbol,
@@ -8,6 +10,8 @@ from app.domains.portfolio_manager.universe.schemas import (
 )
 from app.domains.portfolio_manager.universe.sync_holdings import build_holding_sync_document
 from app.services.position_service import PositionService
+
+logger = logging.getLogger(__name__)
 
 
 class PortfolioUniverseError(ValueError):
@@ -96,6 +100,7 @@ class PortfolioUniverseService:
     def sync_holdings_from_positions(self) -> tuple[list[UniverseSymbol], list[str]]:
         if self.position_service is None:
             raise PortfolioUniverseError("Position service is not configured")
+        logger.info("UniverseSync started: source=positions")
         positions = self.position_service.list_positions(
             report_date=None,
             symbol=None,
@@ -120,6 +125,7 @@ class PortfolioUniverseService:
                 continue
             documents.append(payload.model_dump())
         synced = [UniverseSymbol.model_validate(item) for item in self.repository.bulk_upsert(documents)]
+        logger.info("UniverseSync completed: synced=%d skipped=%d", len(synced), len(skipped))
         return synced, skipped
 
     @staticmethod

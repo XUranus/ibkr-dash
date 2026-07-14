@@ -8,7 +8,6 @@ from app.agents.graph.base_state import BaseGraphState
 class DailyPositionReviewGraphState(BaseGraphState, total=False):
     report_date: str
     force_refresh: bool
-    auto_email: bool
 
     deterministic_context: dict | None
     compact_positions: list[dict]
@@ -25,6 +24,7 @@ class DailyPositionReviewGraphState(BaseGraphState, total=False):
     evidence_pack: dict | None
 
     review_output: dict | None
+    review_output_zh: dict | None
     raw_llm_response: str | None
     model_provider_snapshot: dict | None
     prompt_metadata: dict | None

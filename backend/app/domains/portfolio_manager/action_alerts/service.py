@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 
 from app.domains.portfolio_manager.action_alerts.alert_builder import PortfolioActionAlertBuilder
-from app.domains.portfolio_manager.action_alerts.email_renderer import PortfolioActionAlertEmailRenderer
 from app.domains.portfolio_manager.action_alerts.repository import PortfolioActionAlertRepository
 from app.domains.portfolio_manager.action_alerts.schemas import (
     PortfolioActionAlert,
@@ -16,7 +16,8 @@ from app.domains.portfolio_manager.decision_orchestrator.service import Portfoli
 from app.domains.portfolio_manager.portfolio_review.service import PortfolioReviewService
 from app.domains.portfolio_manager.watchtower.repository import utc_now_iso
 from app.domains.portfolio_manager.watchtower.service import PortfolioWatchtowerService
-from app.services.email_service import EmailSendError, EmailService
+
+logger = logging.getLogger(__name__)
 
 
 class PortfolioActionAlertError(ValueError):
@@ -30,11 +31,10 @@ class PortfolioActionAlertService:
     auto_decision_service: PortfolioAutoDecisionService
     portfolio_review_service: PortfolioReviewService
     watchtower_service: PortfolioWatchtowerService
-    email_service: EmailService
     builder: PortfolioActionAlertBuilder
-    renderer: PortfolioActionAlertEmailRenderer
 
     def create_and_send_for_daily_loop(self, daily_loop_run_id: str) -> PortfolioActionAlertRunResult:
+        logger.info("ActionAlert started: daily_loop_run_id=%s", daily_loop_run_id)
         daily_loop = self.daily_loop_service.get_run(daily_loop_run_id)
         result = PortfolioActionAlertRunResult(daily_loop_run_id=daily_loop.id, run_date=daily_loop.run_date)
         linked = daily_loop.linked_run_ids or {}
@@ -78,34 +78,20 @@ class PortfolioActionAlertService:
         if not pending_alerts:
             return result
 
-        subject, html_body, text_body = self.renderer.render(pending_alerts, subject_prefix=self.email_service.portfolio_action_alerts_subject_prefix())
-        try:
-            sent = self.email_service.send_portfolio_action_alerts(
-                [alert.model_dump() for alert in pending_alerts],
-                subject=subject,
-                html_body=html_body,
-                text_body=text_body,
-            )
-        except EmailSendError as exc:
-            error_message = str(exc)
-            for alert in pending_alerts:
-                self.repository.mark_failed(alert.id, error_message)
-            result.alerts_failed += len(pending_alerts)
-            result.email_enabled = True
-            result.data_limitations.append("action_alert_email_failed")
-            return result
-
-        result.email_enabled = sent
-        if not sent:
-            for alert in pending_alerts:
-                self.repository.mark_skipped(alert.id, "email_disabled")
-            result.alerts_skipped += len(pending_alerts)
-            return result
-
+        # Mark all pending alerts as sent
         sent_at = utc_now_iso()
         for alert in pending_alerts:
-            self.repository.mark_sent(alert.id, email_subject=subject, sent_at=sent_at)
+            self.repository.mark_sent(alert.id, email_subject=alert.title or "", sent_at=sent_at)
         result.alerts_sent += len(pending_alerts)
+
+        # Push notification
+        try:
+            from app.services.notification_service import notify_action_alerts
+            notify_action_alerts([a.model_dump() for a in pending_alerts])
+        except Exception:
+            logger.debug("ActionAlert notification skipped", exc_info=True)
+
+        logger.info("ActionAlert completed: created=%d sent=%d skipped=%d", result.alerts_created, result.alerts_sent, result.alerts_skipped)
         return result
 
     def list_alerts(self, *, limit: int = 50, run_date: str | None = None, symbol: str | None = None, status: str | None = None, alert_type: str | None = None) -> list[PortfolioActionAlert]:
@@ -121,12 +107,11 @@ class PortfolioActionAlertService:
         return PortfolioActionAlert.model_validate(alert)
 
     def _alert_doc(self, create: PortfolioActionAlertCreate) -> dict:
-        subject_prefix = self.email_service.portfolio_action_alerts_subject_prefix()
         return {
             **create.model_dump(),
             "id": _alert_id(create),
             "status": "pending",
-            "email_subject": f"[{subject_prefix}] {create.title}",
+            "email_subject": create.title or "",
             "email_sent_at": None,
             "email_error": None,
         }

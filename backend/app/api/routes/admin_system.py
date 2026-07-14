@@ -254,11 +254,6 @@ def system_status(
     flex_token = get_setting("FLEX_TOKEN")
     latest_snapshot = db.execute_one("SELECT report_date FROM account_snapshots ORDER BY report_date DESC LIMIT 1")
 
-    # Email status
-    email_host = get_setting("email_smtp_host")
-    email_password = get_setting("email_smtp_password")
-    email_enabled = get_setting("email_enabled")
-
     # Auth status
     auth_password = get_setting("AUTH_PASSWORD")
 
@@ -284,9 +279,11 @@ def system_status(
             "has_data": bool(latest_snapshot),
             "latest_date": latest_snapshot["report_date"] if latest_snapshot else None,
         },
-        "email": {
-            "configured": bool(email_host and email_password),
-            "enabled": str(email_enabled).lower() == "true",
+        "notifyhub": {
+            "configured": bool(get_setting("NOTIFYHUB_URL") and get_setting("NOTIFYHUB_API_KEY")),
+            "enabled": str(get_setting("NOTIFYHUB_ENABLED") or "false").lower() in ("true", "1", "yes"),
+            "url": get_setting("NOTIFYHUB_URL") or None,
+            "topic": get_setting("NOTIFYHUB_TOPIC") or "ibkr",
         },
         "auth": {
             "password_set": bool(auth_password),

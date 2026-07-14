@@ -30,14 +30,26 @@ AGENT_NAME = "daily_review"
 logger = logging.getLogger(__name__)
 
 
-def _row_to_response(row: dict) -> DailyReviewResponse:
+def _row_to_response(row: dict, lang: str = "en") -> DailyReviewResponse:
     """Convert a database row to a DailyReviewResponse.
 
     Flattens review_output fields into the top-level response so the frontend
     can access summary, account_conclusion, market_context, etc. directly.
+    When lang="zh", uses review_output_zh for text fields.
     """
-    row = parse_json_fields(row, ["review_output", "metadata", "evidence_summary", "run_trace"])
+    row = parse_json_fields(row, ["review_output", "review_output_zh", "metadata", "evidence_summary", "run_trace"])
     review_output = row.get("review_output") or {}
+    review_output_zh = row.get("review_output_zh") or {}
+
+    # Choose which language version to use for text fields
+    if lang == "zh" and isinstance(review_output_zh, dict) and review_output_zh:
+        # Start with English output (has all fields), then overlay Chinese translations
+        merged_output = {**review_output}
+        for k, v in review_output_zh.items():
+            if v is not None and v != "" and v != []:
+                merged_output[k] = v
+        review_output = merged_output
+
     if isinstance(review_output, dict):
         for k, v in review_output.items():
             if k not in row or row[k] is None:
@@ -48,6 +60,7 @@ def _row_to_response(row: dict) -> DailyReviewResponse:
 @router.get("")
 def list_reviews(
     limit: int = Query(default=50, ge=1, le=200),
+    lang: str = Query(default="en", pattern="^(zh|en)$"),
     _user: str | None = Depends(get_current_user),
     db: Database = Depends(get_db),
 ) -> dict:
@@ -56,7 +69,7 @@ def list_reviews(
         "SELECT * FROM daily_position_reviews ORDER BY report_date DESC LIMIT ?",
         (limit,),
     )
-    items = [_row_to_response(row) for row in rows]
+    items = [_row_to_response(row, lang=lang) for row in rows]
     return {"items": items}
 
 
@@ -141,6 +154,7 @@ def list_review_dates(
 @router.get("/reviews/{date}", response_model=DailyReviewResponse)
 def get_review_by_date(
     date: str,
+    lang: str = Query(default="en", pattern="^(zh|en)$"),
     _user: str | None = Depends(get_current_user),
     db: Database = Depends(get_db),
 ) -> DailyReviewResponse:
@@ -154,7 +168,7 @@ def get_review_by_date(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No daily position review found for date: {date}",
         )
-    return _row_to_response(row)
+    return _row_to_response(row, lang=lang)
 
 
 @router.get("/health", response_model=DailyReviewHealthResponse)

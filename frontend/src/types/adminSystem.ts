@@ -25,9 +25,11 @@ export interface AdminSystemStatus {
     has_data: boolean
     latest_date: string | null
   }
-  email: {
+  notifyhub?: {
     configured: boolean
     enabled: boolean
+    url: string | null
+    topic: string
   }
   auth: {
     password_set: boolean

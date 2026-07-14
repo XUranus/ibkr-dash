@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -20,6 +21,8 @@ from app.domains.portfolio_manager.portfolio_review.service import PortfolioRevi
 from app.domains.portfolio_manager.universe.service import PortfolioUniverseService
 from app.domains.portfolio_manager.watchtower.service import PortfolioWatchtowerService
 
+logger = logging.getLogger(__name__)
+
 MAIN_STEPS = {"sync_holdings", "watchtower", "auto_decision", "portfolio_report"}
 ALL_STEPS = ["sync_holdings", "watchtower", "auto_decision", "portfolio_report", "evaluation", "improvement"]
 
@@ -39,6 +42,8 @@ class PortfolioDailyLoopService:
         portfolio_review_service: PortfolioReviewService,
         evaluation_service: PortfolioEvaluationService,
         improvement_service: PortfolioImprovementService,
+        llm_service: object | None = None,
+        db: object | None = None,
     ) -> None:
         self.repository = repository
         self.universe_service = universe_service
@@ -47,6 +52,8 @@ class PortfolioDailyLoopService:
         self.portfolio_review_service = portfolio_review_service
         self.evaluation_service = evaluation_service
         self.improvement_service = improvement_service
+        self.llm_service = llm_service
+        self.db = db
 
     def create_running_run(
         self,
@@ -95,6 +102,7 @@ class PortfolioDailyLoopService:
         run_watchtower: bool = True,
         run_auto_decision: bool = True,
         generate_portfolio_report: bool = True,
+        generate_daily_review: bool = True,
         run_evaluation: bool = False,
         generate_improvement_report: bool = False,
         dry_run_auto_decision: bool = False,
@@ -111,11 +119,13 @@ class PortfolioDailyLoopService:
         run_metadata: dict | None = None,
     ) -> PortfolioDailyLoopRun:
         effective_date = run_date or datetime.now(timezone.utc).date().isoformat()
+        logger.info("DailyLoop started: date=%s type=%s", effective_date, run_type)
         options = PortfolioDailyLoopOptions(
             sync_holdings=sync_holdings,
             run_watchtower=run_watchtower,
             run_auto_decision=run_auto_decision,
             generate_portfolio_report=generate_portfolio_report,
+            generate_daily_review=generate_daily_review,
             run_evaluation=run_evaluation,
             generate_improvement_report=generate_improvement_report,
             dry_run_auto_decision=dry_run_auto_decision,
@@ -197,6 +207,19 @@ class PortfolioDailyLoopService:
         data_limitations.extend(_step_limitations(portfolio_report_step))
         self._patch_progress(run.id, steps=steps, linked=linked, data_limitations=data_limitations)
 
+        daily_review_step = self._run_step(
+            "daily_review",
+            enabled=generate_daily_review and self.llm_service is not None and self.db is not None,
+            skip_reason="llm_or_db_not_available" if not (self.llm_service and self.db) else None,
+            progress=progress,
+            fn=lambda: self._daily_review(effective_date),
+        )
+        steps.append(daily_review_step)
+        if daily_review_step.run_id:
+            linked["daily_review_id"] = daily_review_step.run_id
+        data_limitations.extend(_step_limitations(daily_review_step))
+        self._patch_progress(run.id, steps=steps, linked=linked, data_limitations=data_limitations)
+
         evaluation_step = self._run_step(
             "evaluation",
             enabled=run_evaluation,
@@ -222,6 +245,7 @@ class PortfolioDailyLoopService:
 
         final_summary = {**_summary(steps), **(run_metadata or {})}
         status = _overall_status(steps)
+        logger.info("DailyLoop finished: date=%s status=%s steps=%d duration_ms=%s", effective_date, status, len(steps), _duration_ms(started_at, utc_now_iso()))
         completed_at = utc_now_iso()
         duration_ms = _duration_ms(started_at, completed_at)
         progress.started("completed")
@@ -259,15 +283,19 @@ class PortfolioDailyLoopService:
 
     def _run_step(self, step: str, *, enabled: bool, progress: PortfolioDailyLoopProgress, fn, skip_reason: str | None = None) -> PortfolioDailyLoopStep:
         if not enabled:
+            logger.info("DailyLoop step skipped: %s reason=%s", step, skip_reason or "disabled")
             progress.started(step)
             summary = {"reason": skip_reason or "disabled"}
             progress.finished(step, status="skipped", summary=summary)
             return PortfolioDailyLoopStep(step=step, status="skipped", summary=summary)
         started = utc_now_iso()
+        logger.info("DailyLoop step started: %s", step)
         progress.started(step)
         try:
             run_id, summary = fn()
             completed = utc_now_iso()
+            duration = _duration_ms(started, completed)
+            logger.info("DailyLoop step finished: %s status=success duration_ms=%s", step, duration)
             status = "success"
             if summary.get("status") in {"partial_success", "failed"} and step == "auto_decision":
                 status = "success" if summary.get("status") == "partial_success" else "failed"
@@ -276,6 +304,7 @@ class PortfolioDailyLoopService:
         except Exception as exc:
             completed = utc_now_iso()
             error_message = str(exc)
+            logger.error("DailyLoop step failed: %s error=%s", step, error_message[:200])
             progress.finished(step, status="failed", summary={}, error=error_message)
             return PortfolioDailyLoopStep(
                 step=step,
@@ -334,6 +363,23 @@ class PortfolioDailyLoopService:
             min_sample_size=min_sample_size,
         )
         return report.id, {"improvement_candidates": len(report.improvement_candidates), "status": report.status, "data_limitations": report.data_limitations}
+
+    def _daily_review(self, report_date: str) -> tuple[str | None, dict]:
+        """Generate daily position review via simplified agent."""
+        import asyncio
+        from app.agents.daily_review.agent import generate_daily_review
+
+        document = asyncio.run(
+            generate_daily_review(self.db, self.llm_service, report_date)
+        )
+
+        if document is None:
+            return None, {"status": "no_data"}
+
+        review_id = document.get("id", "")
+        status = document.get("status", "unknown")
+        summary = document.get("summary", "")[:100]
+        return review_id, {"review_id": review_id, "status": status, "summary": summary}
 
     def _patch_progress(self, run_id: str, *, steps: list[PortfolioDailyLoopStep], linked: dict, data_limitations: list[str]) -> None:
         self.repository.update_run(

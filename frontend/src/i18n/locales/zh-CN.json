@@ -422,8 +422,8 @@
       "scheduler": "调度器",
       "auth": "管理员",
       "advanced": "高级",
-      "email": "邮件",
       "longbridge": "LongBridge MCP",
+      "notifyhub": "消息推送",
       "worker": "Worker"
     },
     "resetAll": "全部重置",
@@ -445,20 +445,13 @@
     "failed": "失败",
     "model": "模型",
     "noResponse": "无响应",
-    "emailSaved": "邮件配置已保存",
-    "smtpHost": "SMTP 主机",
-    "smtpPort": "端口",
-    "smtpUsername": "用户名",
-    "smtpPassword": "密码",
-    "encryption": "加密方式",
-    "authMethod": "认证方式",
-    "authPassword": "密码认证",
-    "authModern": "现代认证",
-    "fromAddress": "发件人",
-    "toAddresses": "收件人",
-    "passwordSet": "已设置",
-    "enableEmail": "启用邮件通知",
-    "sendTest": "发送测试",
+    "notifyHubSaved": "NotifyHub 配置已保存",
+    "notifyHubUrl": "API 地址",
+    "notifyHubApiKey": "API 密钥",
+    "notifyHubApiKeyPlaceholder": "输入 NotifyHub API 密钥",
+    "notifyHubTopic": "主题",
+    "enableNotifyHub": "启用推送通知",
+    "testNotifyHub": "发送测试推送",
     "sending": "发送中...",
     "save": "保存",
     "sent": "已发送",
@@ -467,8 +460,6 @@
     "testIbkr": "测试 IBKR 连接",
     "testLlm": "测试 LLM 连接",
     "testLongbridge": "测试 Longbridge 连接",
-    "testEmail": "发送测试邮件",
-    "smtpSettings": "SMTP 设置",
     "longbridgeStatus": "Longbridge MCP 状态",
     "fields": {
       "FLEX_TOKEN": "Flex Token",
@@ -533,7 +524,9 @@
     "path": "路径",
     "passwordSet": "密码已设置",
     "latestDate": "最新日期",
-    "connectivity": "连通性"
+    "connectivity": "连通性",
+    "notifyhub": "消息推送",
+    "topic": "主题"
   },
   "adminScheduler": {
     "title": "调度器",
@@ -615,30 +608,6 @@
     "testFailed": "测试失败",
     "success": "成功",
     "failed": "失败"
-  },
-  "adminEmail": {
-    "title": "邮件配置",
-    "subtitle": "配置 SMTP 以发送报告和通知。",
-    "smtpSettings": "SMTP 设置",
-    "smtpHost": "SMTP 主机",
-    "port": "端口",
-    "username": "用户名",
-    "password": "密码",
-    "fromAddress": "发件人地址",
-    "toAddresses": "收件人地址（逗号分隔）",
-    "enableEmail": "启用邮件通知",
-    "sendTest": "发送测试邮件",
-    "sending": "发送中...",
-    "save": "保存",
-    "saving": "保存中...",
-    "adminLabel": "管理",
-    "set": "（已设置）",
-    "emailSettingsSaved": "邮件配置已保存。",
-    "failedToLoad": "加载邮件配置失败",
-    "failedToSave": "保存失败",
-    "sent": "已发送",
-    "failed": "失败",
-    "testFailed": "测试失败"
   },
   "adminPrompts": {
     "title": "Prompt 管理",
@@ -815,7 +784,10 @@
     "accountConclusion": "账户结论：",
     "riskAnalysis": "风险分析：",
     "marketContext": "市场背景：",
-    "operationObservation": "操作观察："
+    "operationObservation": "操作观察：",
+    "generate": "生成复盘",
+    "generating": "生成中...",
+    "generateFailed": "生成复盘失败"
   },
   "tradeReviewPage": {
     "eyebrow": "Agent",
@@ -833,7 +805,11 @@
     "improvements": "改进建议：",
     "strengths": "优点：",
     "weaknesses": "不足：",
-    "punishSeverity": "惩罚程度"
+    "punishSeverity": "惩罚程度",
+    "generate": "生成复盘",
+    "generating": "生成中...",
+    "generateFailed": "生成复盘失败",
+    "symbolPlaceholder": "输入标的代码（如 AAPL）"
   },
   "marketEvents": {
     "eyebrow": "市场",

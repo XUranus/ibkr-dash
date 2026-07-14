@@ -8,7 +8,7 @@ from app.domains.portfolio_manager.evaluation.schemas import PortfolioEvaluation
 
 PortfolioDailyLoopRunType = Literal["manual", "scheduled", "backfill"]
 PortfolioDailyLoopStatus = Literal["success", "partial_success", "failed", "running", "cancelled"]
-PortfolioDailyLoopStepName = Literal["sync_holdings", "watchtower", "auto_decision", "portfolio_report", "evaluation", "improvement"]
+PortfolioDailyLoopStepName = Literal["sync_holdings", "watchtower", "auto_decision", "portfolio_report", "evaluation", "improvement", "daily_review"]
 PortfolioDailyLoopStepStatus = Literal["success", "skipped", "failed", "running"]
 
 DEFAULT_DAILY_LOOP_EVALUATION_HORIZONS: list[PortfolioEvaluationHorizon] = ["1d", "5d", "20d"]
@@ -20,6 +20,7 @@ class PortfolioDailyLoopOptions(BaseModel):
     run_watchtower: bool = True
     run_auto_decision: bool = True
     generate_portfolio_report: bool = True
+    generate_daily_review: bool = True
     run_evaluation: bool = False
     generate_improvement_report: bool = False
     dry_run_auto_decision: bool = False
@@ -51,6 +52,7 @@ class PortfolioDailyLoopRunCreate(BaseModel):
     run_watchtower: bool = True
     run_auto_decision: bool = True
     generate_portfolio_report: bool = True
+    generate_daily_review: bool = True
     run_evaluation: bool = False
     generate_improvement_report: bool = False
     dry_run_auto_decision: bool = False

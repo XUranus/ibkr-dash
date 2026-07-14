@@ -30,14 +30,26 @@ AGENT_NAME = "trade_review"
 logger = logging.getLogger(__name__)
 
 
-def _row_to_response(row: dict) -> TradeReviewResponse:
+def _row_to_response(row: dict, lang: str = "en") -> TradeReviewResponse:
     """Convert a database row to a TradeReviewResponse.
 
     Flattens review_output fields into the top-level response so the frontend
     can access overall_score, rating, summary, strengths, etc. directly.
+    When lang="zh", uses review_output_zh for text fields.
     """
-    row = parse_json_fields(row, ["review_output", "metadata", "evidence_summary", "run_trace"])
+    row = parse_json_fields(row, ["review_output", "review_output_zh", "metadata", "evidence_summary", "run_trace"])
     review_output = row.get("review_output") or {}
+    review_output_zh = row.get("review_output_zh") or {}
+
+    # Choose which language version to use for text fields
+    if lang == "zh" and isinstance(review_output_zh, dict) and review_output_zh:
+        # Start with English output (has all fields), then overlay Chinese translations
+        merged_output = {**review_output}
+        for k, v in review_output_zh.items():
+            if v is not None and v != "" and v != []:
+                merged_output[k] = v
+        review_output = merged_output
+
     if isinstance(review_output, dict):
         # Flatten review_output into top-level, but don't overwrite existing keys
         for k, v in review_output.items():
@@ -73,6 +85,11 @@ async def trigger_trade_review(
     except Exception as exc:
         logger.exception("Trade review failed: %s", exc)
         task_service.update_task_status(task["id"], "failed", error=str(exc)[:2000])
+        try:
+            from app.services.notification_service import notify_trade_review_failed
+            notify_trade_review_failed(request.symbol, str(exc))
+        except Exception:
+            logger.debug("TradeReview failure notification skipped", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Trade review failed: {str(exc)[:300]}",
@@ -122,6 +139,7 @@ def list_reviews(
     limit: int = Query(default=20, ge=1, le=100),
     symbol: str | None = Query(default=None),
     review_type: str | None = Query(default=None),
+    lang: str = Query(default="en", pattern="^(zh|en)$"),
     _user: str | None = Depends(get_current_user),
     db: Database = Depends(get_db),
 ) -> TradeReviewListResponse:
@@ -141,13 +159,14 @@ def list_reviews(
     params.append(limit)
 
     rows = db.execute(sql, tuple(params))
-    items = [_row_to_response(row) for row in rows]
+    items = [_row_to_response(row, lang=lang) for row in rows]
     return TradeReviewListResponse(items=items)
 
 
 @router.get("/reviews/{review_id}", response_model=TradeReviewResponse)
 def get_review_by_id(
     review_id: str,
+    lang: str = Query(default="en", pattern="^(zh|en)$"),
     _user: str | None = Depends(get_current_user),
     db: Database = Depends(get_db),
 ) -> TradeReviewResponse:
@@ -161,7 +180,7 @@ def get_review_by_id(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Trade review not found: {review_id}",
         )
-    return _row_to_response(row)
+    return _row_to_response(row, lang=lang)
 
 
 @router.get("/reviews/{review_id}/report")

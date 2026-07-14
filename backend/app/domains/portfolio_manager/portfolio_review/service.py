@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -14,6 +15,8 @@ from app.domains.portfolio_manager.universe.service import PortfolioUniverseServ
 from app.domains.portfolio_manager.watchtower.service import PortfolioWatchtowerService
 from app.services.account_service import AccountService
 from app.services.position_service import PositionService
+
+logger = logging.getLogger(__name__)
 
 
 class PortfolioReviewError(ValueError):
@@ -55,6 +58,7 @@ class PortfolioReviewService:
         auto_decision_run_id: str | None = None,
     ) -> PortfolioManagerReport:
         effective_date = report_date or datetime.now(timezone.utc).date().isoformat()
+        logger.info("PortfolioReview started: date=%s type=%s", effective_date, report_type)
         limitations: list[str] = []
         constitution = self.constitution_service.get_current()
         positions, position_limitations = self._positions()
@@ -105,7 +109,9 @@ class PortfolioReviewService:
         if not positions and not universe_items:
             report_doc["status"] = "failed"
         stored = self.repository.create_report(report_doc)
-        return PortfolioManagerReport.model_validate(stored)
+        report = PortfolioManagerReport.model_validate(stored)
+        logger.info("PortfolioReview completed: date=%s status=%s report_id=%s", effective_date, report_doc.get("status"), report.id)
+        return report
 
     def list_reports(self, *, limit: int = 20, report_date: str | None = None) -> list[PortfolioManagerReport]:
         return [PortfolioManagerReport.model_validate(item) for item in self.repository.list_reports(limit=limit, report_date=report_date)]

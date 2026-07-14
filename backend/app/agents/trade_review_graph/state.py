@@ -43,5 +43,8 @@ class TradeReviewGraphState(BaseGraphState, total=False):
     structured_output: dict | None
     raw_llm_response: dict | str | None
 
+    # Translation output (Chinese)
+    trade_review_output_zh: dict | None
+
     # Persist output
     saved_document: dict | None

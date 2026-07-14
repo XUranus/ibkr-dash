@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections import Counter
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -21,6 +22,8 @@ from app.domains.portfolio_manager.watchtower.schemas import (
 from app.domains.portfolio_manager.watchtower.trigger_rules import SEVERITY_RANK, STATUS_RANK, evaluate_watchtower_triggers
 from app.schemas.positions import PositionItem
 from app.services.position_service import PositionService
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_WATCHTOWER_UNIVERSE_TYPES: list[UniverseType] = ["holding", "watchlist", "candidate"]
 WATCHTOWER_SUMMARY_KEYS: list[WatchtowerItemStatus] = ["normal", "watch", "attention_required", "decision_required"]
@@ -57,6 +60,7 @@ class PortfolioWatchtowerService:
         del force_refresh
         effective_run_date = run_date or datetime.now(timezone.utc).date().isoformat()
         selected_types = [item for item in (universe_types or DEFAULT_WATCHTOWER_UNIVERSE_TYPES) if item != "excluded"]
+        logger.info("Watchtower started: date=%s type=%s universe_types=%s", effective_run_date, run_type, selected_types)
         constitution = self.constitution_service.get_current()
         universe_items = self._enabled_universe_items(selected_types)
         positions, position_limitations = self._current_positions()
@@ -108,6 +112,7 @@ class PortfolioWatchtowerService:
         }
         stored_run = self.repository.create_run(run_doc)
         stored_items = self.repository.bulk_create_items(item_documents)
+        logger.info("Watchtower completed: date=%s run_id=%s items=%d status=%s summary=%s", effective_run_date, run_id, len(item_documents), status, summary)
         return PortfolioWatchtowerRunDetail.model_validate({**stored_run, "items": stored_items})
 
     def list_runs(self, *, limit: int = 20, run_date: str | None = None) -> list[PortfolioWatchtowerRun]:

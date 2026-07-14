@@ -6,12 +6,16 @@ Single function that loads trade facts, builds evidence, calls LLM, and saves.
 
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 from typing import Any
 
 from app.agents.output_schemas import TradeReviewOutput
 from app.agents.prompt_runtime import resolve_runtime_prompt
 from app.agents.trade_review.prompts import SYSTEM_PROMPT
+
+logger = logging.getLogger(__name__)
 
 
 async def review_trade(
@@ -104,7 +108,21 @@ async def review_trade(
     rid = trade_id or symbol
     report_paths = save_report("trade_review", symbol, report_zh, report_en, report_id=rid)
 
-    # Step 6: Save
+    # Step 6: Translate to Chinese
+    review_output_zh = {}
+    try:
+        from app.services.translation_service import translate_trade_review_output
+        import time as _time
+        _t0 = _time.monotonic()
+        loop2 = asyncio.get_running_loop()
+        review_output_zh = await loop2.run_in_executor(
+            None, translate_trade_review_output, llm_service, validated, "English", "Chinese",
+        )
+        logger.info("TradeReview translation completed: duration_ms=%d fields=%d", int((_time.monotonic() - _t0) * 1000), len(review_output_zh) if review_output_zh else 0)
+    except Exception:
+        logger.debug("TradeReview translation skipped", exc_info=True)
+
+    # Step 7: Save
     document = {
         **validated,
         "symbol": symbol,
@@ -120,8 +138,15 @@ async def review_trade(
         "report_paths": report_paths,
         "report_zh": report_zh,
         "report_en": report_en,
+        "review_output_zh": review_output_zh,
     }
     saved = _save_review(db, document)
+    # Push notification
+    try:
+        from app.services.notification_service import notify_trade_review_completed
+        notify_trade_review_completed(saved)
+    except Exception:
+        logger.debug("TradeReview notification skipped", exc_info=True)
     return saved
 
 
@@ -245,12 +270,14 @@ def _save_review(db: Any, document: dict) -> dict:
     """Save trade review to database."""
     from uuid import uuid4
     review_id = str(uuid4())
+    review_output_zh = document.pop("review_output_zh", {})
     db.upsert("trade_reviews", {
         "id": review_id,
         "review_type": document.get("review_type", "symbol_level_review"),
         "symbol": document.get("symbol", ""),
         "trade_id": document.get("trade_id"),
         "review_output": json.dumps(document, ensure_ascii=False, default=str),
+        "review_output_zh": json.dumps(review_output_zh, ensure_ascii=False, default=str) if review_output_zh else None,
         "metadata": json.dumps(document.get("metadata", {}), ensure_ascii=False, default=str),
         "evidence_summary": json.dumps(document.get("evidence_pack", {}), ensure_ascii=False, default=str),
         "run_trace": json.dumps(document.get("run_trace", []), ensure_ascii=False, default=str),

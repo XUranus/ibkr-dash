@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections import Counter
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -20,6 +21,8 @@ from app.domains.portfolio_manager.universe.repository import normalize_universe
 from app.domains.portfolio_manager.universe.service import PortfolioUniverseService
 from app.domains.portfolio_manager.watchtower.repository import utc_now_iso
 from app.domains.portfolio_manager.watchtower.service import PortfolioWatchtowerService
+
+logger = logging.getLogger(__name__)
 
 
 class PortfolioAutoDecisionError(ValueError):
@@ -56,6 +59,7 @@ class PortfolioAutoDecisionService:
     ) -> PortfolioAutoDecisionRunDetail:
         if not watchtower_run_id:
             raise PortfolioAutoDecisionError("watchtower_run_id is required")
+        logger.info("AutoDecision started: watchtower=%s type=%s max=%d dry_run=%s", watchtower_run_id, run_type, max_decisions, dry_run)
         constitution = self.constitution_service.get_current()
         watchtower_run = self.watchtower_service.get_run_detail(watchtower_run_id)
         effective_run_date = run_date or watchtower_run.run_date or datetime.now(timezone.utc).date().isoformat()
@@ -103,7 +107,12 @@ class PortfolioAutoDecisionService:
 
         for candidate in selection.selected:
             item_id = self._item_id(run_id, candidate.symbol)
+            logger.info("AutoDecision running: symbol=%s decision_type=%s", candidate.symbol, candidate.decision_type)
             result = self.runner.run_trade_decision_for_item(candidate)
+            if result.ok:
+                logger.info("AutoDecision item completed: symbol=%s decision_id=%s", candidate.symbol, result.decision_id)
+            else:
+                logger.error("AutoDecision item failed: symbol=%s error=%s", candidate.symbol, result.error_message[:200] if result.error_message else "")
             patch = (
                 {
                     "selection_status": "completed",
@@ -130,6 +139,8 @@ class PortfolioAutoDecisionService:
                 "budget": {**selection.budget.model_dump(), "used_decisions": _count_status(final_items, "completed")},
             },
         ) or stored_run
+        final_status = _run_status(final_items, dry_run=False)
+        logger.info("AutoDecision completed: run_id=%s status=%s items=%d", run_id, final_status, len(final_items))
         return PortfolioAutoDecisionRunDetail.model_validate({**stored_run, "items": final_items})
 
     def list_runs(self, *, limit: int = 20, run_date: str | None = None) -> list[PortfolioAutoDecisionRun]:

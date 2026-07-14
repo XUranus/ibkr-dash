@@ -33,6 +33,7 @@ def scheduled_options(settings: Settings) -> PortfolioDailyLoopOptions:
         run_watchtower=True,
         run_auto_decision=True,
         generate_portfolio_report=True,
+        generate_daily_review=True,
         run_evaluation=settings.portfolio_daily_loop_run_evaluation,
         generate_improvement_report=settings.portfolio_daily_loop_generate_improvement_report,
         dry_run_auto_decision=settings.portfolio_daily_loop_dry_run_auto_decision,

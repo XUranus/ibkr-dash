@@ -604,13 +604,12 @@ def make_compose_trade_review_node(deps):
                 "trade_review_main",
                 TRADE_REVIEW_MAIN_SYSTEM_PROMPT,
             )
+            # Add English output instruction
+            system_prompt = system_prompt + "\n\nIMPORTANT: Output ALL text fields in English. A separate translation step will generate the Chinese version."
             runtime = ToolCallingRuntime(
                 deps.llm_service,
                 agent_name="trade_review",
-                node_name="compose_trade_review",
-                prompt_metadata=prompt_metadata,
                 call_type="compose",
-                run_id=state.get("agent_run_id"),
             )
             result = runtime.run(
                 messages=[
@@ -708,15 +707,58 @@ def make_compose_trade_review_node(deps):
     return compose_trade_review_node
 
 
+# === Translate trade review ===
+
+
+def make_translate_trade_review_node(deps):
+    """Translate trade review output to Chinese for bilingual storage."""
+    import logging
+    logger = logging.getLogger(__name__)
+
+    def translate_trade_review_node(state: dict) -> dict:
+        trace = start_node_trace("translate_trade_review")
+        try:
+            review_output = state.get("trade_review_output") or {}
+            if not review_output:
+                logger.info("translate_trade_review: no review_output, skipping")
+                trace = finish_node_trace(trace, "success")
+                return {"trade_review_output_zh": {}, "node_traces": [trace]}
+
+            logger.info("translate_trade_review: starting translation")
+            from app.services.translation_service import translate_trade_review_output
+
+            translated = translate_trade_review_output(
+                deps.llm_service,
+                review_output,
+                source_lang="English",
+                target_lang="Chinese",
+            )
+            logger.info("translate_trade_review: translation completed, fields=%s", list(translated.keys()) if translated else [])
+            trace = finish_node_trace(trace, "success")
+            return {"trade_review_output_zh": translated, "node_traces": [trace]}
+        except Exception as exc:
+            logger.error("translate_trade_review: failed: %s", exc)
+            trace = finish_node_trace(trace, "fallback", fallback_used=True, fallback_reason=str(exc)[:200])
+            return {"trade_review_output_zh": {}, "node_traces": [trace]}
+    return translate_trade_review_node
+
+
 # === Persist trade review ===
 
 
 def make_persist_trade_review_node(deps):
     """Save trade review document to repository."""
+    import logging
+    logger = logging.getLogger(__name__)
+
     def persist_trade_review_node(state: dict) -> dict:
         trace = start_node_trace("persist_trade_review")
         try:
             review_output = state.get("trade_review_output") or _fallback_review_output(state)
+            review_output_zh = state.get("trade_review_output_zh") or {}
+            logger.info("persist_trade_review: review_output_zh keys=%s, has_content=%s",
+                       list(review_output_zh.keys()) if review_output_zh else [],
+                       bool(review_output_zh))
             review_type = state.get("review_type", "symbol_level_review")
             symbol = state.get("symbol", "")
             trade_id = state.get("trade_id")
@@ -799,6 +841,8 @@ def make_persist_trade_review_node(deps):
                 "model_provider_snapshot": provider_snapshot,
                 "fallback_used": state.get("fallback_used", False),
                 "fallback_reason": state.get("fallback_reason"),
+                # Bilingual: Chinese translation of text fields
+                "review_output_zh": review_output_zh,
                 "created_at": now,
                 "updated_at": now,
             }

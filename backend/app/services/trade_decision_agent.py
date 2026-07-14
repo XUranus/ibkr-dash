@@ -10,6 +10,7 @@ Main entry points:
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from app.agents.evidence_summary import build_evidence_summary
@@ -32,6 +33,8 @@ from app.services.trade_decision_repository import TradeDecisionRepository
 from app.services.trade_decision_account_facts import TradeDecisionAccountFactsBuilder
 from app.services.longbridge_oauth_token_service import LongbridgeOAuthTokenService
 from app.services.mcp.longbridge_mcp_client import LongbridgeMCPClient, get_longbridge_mcp_config
+
+logger = logging.getLogger(__name__)
 
 
 class TradeDecisionAgentError(RuntimeError):
@@ -138,37 +141,61 @@ class TradeDecisionAgent:
         }
 
     def analyze_holding(self, symbol: str, question: str | None = None, *, progress_reporter: Any = None) -> dict:
+        logger.info("TradeDecision started: symbol=%s type=holding", symbol)
         normalized_symbol = normalize_longbridge_symbol(symbol)
         if not normalized_symbol:
             raise ValueError("symbol is required")
         if self.llm_service.get_active_provider() is None:
             raise LLMConfigError("No active LLM provider is configured")
         runner = self._get_graph_runner()
-        if progress_reporter is not None:
-            return runner.analyze_holding(normalized_symbol, question, progress_reporter=progress_reporter)
-        return runner.analyze_holding(normalized_symbol, question)
+        try:
+            if progress_reporter is not None:
+                result = runner.analyze_holding(normalized_symbol, question, progress_reporter=progress_reporter)
+            else:
+                result = runner.analyze_holding(normalized_symbol, question)
+            logger.info("TradeDecision completed: symbol=%s type=holding", symbol)
+            return result
+        except Exception as exc:
+            logger.error("TradeDecision failed: symbol=%s type=holding error=%s", symbol, str(exc)[:200])
+            raise
 
     def analyze_entry(self, symbol: str, question: str | None = None, *, progress_reporter: Any = None) -> dict:
+        logger.info("TradeDecision started: symbol=%s type=entry", symbol)
         normalized_symbol = normalize_longbridge_symbol(symbol)
         if not normalized_symbol:
             raise ValueError("symbol is required")
         if self.llm_service.get_active_provider() is None:
             raise LLMConfigError("No active LLM provider is configured")
         runner = self._get_graph_runner()
-        if progress_reporter is not None:
-            return runner.analyze_entry(normalized_symbol, question, progress_reporter=progress_reporter)
-        return runner.analyze_entry(normalized_symbol, question)
+        try:
+            if progress_reporter is not None:
+                result = runner.analyze_entry(normalized_symbol, question, progress_reporter=progress_reporter)
+            else:
+                result = runner.analyze_entry(normalized_symbol, question)
+            logger.info("TradeDecision completed: symbol=%s type=entry", symbol)
+            return result
+        except Exception as exc:
+            logger.error("TradeDecision failed: symbol=%s type=entry error=%s", symbol, str(exc)[:200])
+            raise
 
     def analyze_trade_decision(self, symbol: str, *, progress_reporter: Any = None) -> dict:
+        logger.info("TradeDecision started: symbol=%s type=auto", symbol)
         normalized_symbol = normalize_longbridge_symbol(symbol)
         if not normalized_symbol:
             raise ValueError("symbol is required")
         if self.llm_service.get_active_provider() is None:
             raise LLMConfigError("No active LLM provider is configured")
         runner = self._get_graph_runner()
-        if progress_reporter is not None:
-            return runner.analyze_trade_decision(normalized_symbol, progress_reporter=progress_reporter)
-        return runner.analyze_trade_decision(normalized_symbol)
+        try:
+            if progress_reporter is not None:
+                result = runner.analyze_trade_decision(normalized_symbol, progress_reporter=progress_reporter)
+            else:
+                result = runner.analyze_trade_decision(normalized_symbol)
+            logger.info("TradeDecision completed: symbol=%s type=auto", symbol)
+            return result
+        except Exception as exc:
+            logger.error("TradeDecision failed: symbol=%s type=auto error=%s", symbol, str(exc)[:200])
+            raise
 
 
 def _build_card_pack_evidence_pack(card_pack) -> dict[str, Any]:

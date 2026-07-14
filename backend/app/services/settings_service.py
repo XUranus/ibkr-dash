@@ -50,6 +50,10 @@ _KEY_TO_PATH: dict[str, str] = {
     "APP_ENV": "advanced.app_env",
     "CACHE_TTL_SECONDS": "advanced.cache_ttl_seconds",
     "WORKER_BACKEND_BASE_URL": "advanced.worker_backend_url",
+    "NOTIFYHUB_ENABLED": "notifyhub.enabled",
+    "NOTIFYHUB_URL": "notifyhub.url",
+    "NOTIFYHUB_API_KEY": "notifyhub.api_key",
+    "NOTIFYHUB_TOPIC": "notifyhub.topic",
 }
 
 # Reverse mapping for convenience
@@ -94,12 +98,6 @@ SETTINGS_SCHEMA: dict[str, dict[str, Any]] = {
     "WORKER_BACKEND_BASE_URL": {"category": "advanced", "label": "Worker Backend URL", "type": "text", "default": "http://localhost:8000"},
 }
 
-# Email keys map to the "email" section (not in SETTINGS_SCHEMA — handled specially by frontend)
-_EMAIL_KEYS = [
-    "email_smtp_host", "email_smtp_port", "email_smtp_username",
-    "email_smtp_password", "email_from_address", "email_to_addresses",
-    "email_enabled",
-]
 
 # ---------------------------------------------------------------------------
 # Public API (used by admin routes)
@@ -112,11 +110,6 @@ def get_setting(key: str) -> str | None:
     dot_path = _KEY_TO_PATH.get(key)
     if dot_path:
         val = get_manager().get(dot_path)
-        return str(val) if val is not None else None
-    # Email keys
-    if key.startswith("email_"):
-        section_key = key.replace("email_", "", 1)
-        val = get_manager().get(f"email.{section_key}")
         return str(val) if val is not None else None
     return None
 
@@ -218,20 +211,3 @@ def reset_settings(keys: list[str] | None = None) -> int:
             mgr.reset(dot_path)
             count += 1
     return count
-
-
-# ---------------------------------------------------------------------------
-# Email helpers (used by admin_email routes)
-# ---------------------------------------------------------------------------
-
-
-def get_email_settings() -> dict[str, Any]:
-    """Get email settings as a dict."""
-    mgr = get_manager()
-    return mgr.get_section("email")
-
-
-def update_email_settings(payload: dict[str, Any]) -> None:
-    """Update email settings."""
-    for key, value in payload.items():
-        get_manager().set(f"email.{key}", value)

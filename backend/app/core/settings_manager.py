@@ -51,19 +51,16 @@ DEFAULTS: dict[str, Any] = {
         "password": "",
         "cookie_secure": False,
     },
-    "email": {
-        "smtp_host": "",
-        "smtp_port": 587,
-        "smtp_username": "",
-        "smtp_password": "",
-        "from_address": "",
-        "to_addresses": [],
-        "enabled": False,
-    },
     "longbridge": {
         "app_key": "",
         "app_secret": "",
         "access_token": "",
+    },
+    "notifyhub": {
+        "enabled": False,
+        "url": "",
+        "api_key": "",
+        "topic": "ibkr",
     },
     "advanced": {
         "app_name": "IBKR Dash",

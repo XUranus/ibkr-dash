@@ -151,6 +151,27 @@ class Settings:
     def portfolio_daily_loop_internal_token(self) -> str:
         return str(get_manager().get("portfolio.daily_loop_internal_token", ""))
 
+    # -- NotifyHub --
+    @property
+    def notifyhub_enabled(self) -> bool:
+        """Return whether NotifyHub push notifications are enabled."""
+        return bool(get_manager().get("notifyhub.enabled", False))
+
+    @property
+    def notifyhub_url(self) -> str:
+        """Return the NotifyHub API URL."""
+        return str(get_manager().get("notifyhub.url", ""))
+
+    @property
+    def notifyhub_api_key(self) -> str:
+        """Return the NotifyHub API key."""
+        return str(get_manager().get("notifyhub.api_key", ""))
+
+    @property
+    def notifyhub_topic(self) -> str:
+        """Return the NotifyHub topic."""
+        return str(get_manager().get("notifyhub.topic", "ibkr"))
+
     # -- Longbridge --
     @property
     def longbridge_app_key(self) -> str:

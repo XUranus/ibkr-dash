@@ -140,7 +140,6 @@ class DailyPositionReviewAgent:
         llm_service: LLMService,
         repository: DailyPositionReviewRepository,
         *,
-        email_service=None,
         related_asset_service=None,
         longbridge_client=None,
         symbol_agent=None,
@@ -153,7 +152,6 @@ class DailyPositionReviewAgent:
         self.review_service = review_service
         self.llm_service = llm_service
         self.repository = repository
-        self._email_service = email_service
         self._related_asset_service = related_asset_service
         self._longbridge_client = longbridge_client or getattr(review_service, "longbridge_client", None)
         self._symbol_agent = symbol_agent
@@ -171,7 +169,6 @@ class DailyPositionReviewAgent:
                 review_service=self.review_service,
                 llm_service=self.llm_service,
                 repository=self.repository,
-                email_service=self._email_service,
                 related_asset_service=self._related_asset_service,
                 longbridge_client=self._longbridge_client,
                 symbol_agent=self._symbol_agent,
@@ -196,7 +193,7 @@ class DailyPositionReviewAgent:
             "message": "Daily position review agent is ready" if llm_configured else "LLM active provider is missing",
         }
 
-    def generate_review(self, report_date: str, *, auto_email: bool = False, progress_reporter: Any = None) -> dict:
+    def generate_review(self, report_date: str, *, progress_reporter: Any = None) -> dict:
         """
         Generate a daily position review document via LangGraph runner.
         """
@@ -205,8 +202,8 @@ class DailyPositionReviewAgent:
 
         runner = self._get_graph_runner()
         if progress_reporter is not None:
-            return runner.generate_review(report_date, auto_email=auto_email, progress_reporter=progress_reporter)
-        return runner.generate_review(report_date, auto_email=auto_email)
+            return runner.generate_review(report_date, progress_reporter=progress_reporter)
+        return runner.generate_review(report_date)
 
     def _generate_review_subagent_cards(self, report_date: str) -> dict:
         """DEPRECATED: Use LangGraph runner via generate_review()."""

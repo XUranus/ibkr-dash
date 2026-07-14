@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 
 from app.domains.portfolio_manager.common import dedupe
@@ -20,6 +21,8 @@ from app.domains.portfolio_manager.portfolio_review.repository import PortfolioR
 from app.domains.portfolio_manager.portfolio_review.schemas import PortfolioManagerReport
 from app.domains.portfolio_manager.watchtower.repository import PortfolioWatchtowerRepository
 from app.domains.portfolio_manager.watchtower.schemas import PortfolioWatchtowerItem
+
+logger = logging.getLogger(__name__)
 
 
 class PortfolioEvaluationError(ValueError):
@@ -61,6 +64,7 @@ class PortfolioEvaluationService:
         effective_date = evaluation_date or datetime.now(timezone.utc).date().isoformat()
         selected_sources = source_types or DEFAULT_EVALUATION_SOURCE_TYPES
         selected_horizons = horizons or DEFAULT_EVALUATION_HORIZONS
+        logger.info("Evaluation started: date=%s sources=%s horizons=%s lookback=%d", effective_date, selected_sources, selected_horizons, lookback_days)
         limitations: list[str] = []
         results: list[dict] = []
         cutoff = (datetime.now(timezone.utc) - timedelta(days=lookback_days)).date().isoformat()
@@ -93,6 +97,7 @@ class PortfolioEvaluationService:
         stored = self.repository.bulk_upsert_results(results)
         summary = build_summary(stored, lookback_days=lookback_days, horizons=selected_horizons)
         pending = sum(1 for item in stored if item.get("evaluation_label") == "pending")
+        logger.info("Evaluation completed: date=%s results=%d pending=%d", effective_date, len(stored), pending)
         return PortfolioEvaluationRunResponse(
             created_or_updated_count=len(stored),
             pending_count=pending,

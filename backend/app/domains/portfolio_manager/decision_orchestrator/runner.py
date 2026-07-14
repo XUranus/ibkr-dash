@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from app.domains.portfolio_manager.decision_orchestrator.schemas import AutoDecisionCandidate, AutoDecisionExecutionResult
 from app.services.llm_service import LLMClientError, LLMConfigError
 from app.services.trade_decision_agent import TradeDecisionAgent, TradeDecisionAgentError
+
+logger = logging.getLogger(__name__)
 
 
 class PortfolioAutoDecisionRunner:
@@ -18,6 +21,7 @@ class PortfolioAutoDecisionRunner:
         source: str = "portfolio_watchtower",
     ) -> AutoDecisionExecutionResult:
         question = _build_question(item, source=source)
+        logger.info("AutoDecisionRunner started: symbol=%s type=%s", item.symbol, item.decision_type)
         try:
             if item.decision_type == "holding_decision":
                 document = self.trade_decision_agent.analyze_holding(symbol=item.symbol, question=question)

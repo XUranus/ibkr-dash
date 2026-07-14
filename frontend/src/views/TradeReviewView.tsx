@@ -8,25 +8,31 @@ import type { TradeReviewResult } from '@/types/tradeReview'
 import AgentEvidencePanel from '@/components/AgentEvidencePanel'
 
 export default function TradeReviewView() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const lang = i18n.language?.startsWith('zh') ? 'zh' : 'en'
   const [reviews, setReviews] = useState<TradeReviewResult[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedReview, setSelectedReview] = useState<TradeReviewResult | null>(null)
 
+  // Generate form state
+  const [symbol, setSymbol] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [generateError, setGenerateError] = useState('')
+
   const loadReviews = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const data = await request<{ items: TradeReviewResult[] }>('/api/trade-review/reviews')
+      const data = await request<{ items: TradeReviewResult[] }>(`/api/trade-review/reviews?lang=${lang}`)
       setReviews(data.items || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : t('tradeReviewPage.failedToLoad'))
     } finally {
       setLoading(false)
     }
-  }, [t])
+  }, [t, lang])
 
   useEffect(() => { void loadReviews() }, [loadReviews])
 
@@ -39,6 +45,24 @@ export default function TradeReviewView() {
     setSelectedReview(review)
   }, [selectedId, reviews])
 
+  const handleGenerate = async () => {
+    if (!symbol.trim()) return
+    setGenerating(true)
+    setGenerateError('')
+    try {
+      await request('/api/trade-review/review', {
+        method: 'POST',
+        body: JSON.stringify({ symbol: symbol.trim().toUpperCase() }),
+      })
+      setSymbol('')
+      await loadReviews()
+    } catch (err) {
+      setGenerateError(err instanceof Error ? err.message : t('tradeReviewPage.generateFailed'))
+    } finally {
+      setGenerating(false)
+    }
+  }
+
   return (
     <section className="page-section" style={{ animation: 'slideUp 0.4s ease' }}>
       <header style={{ marginBottom: 'var(--space-6)' }}>
@@ -46,6 +70,39 @@ export default function TradeReviewView() {
         <h1 className="page-title">{t('tradeReviewPage.title')}</h1>
         <p className="page-subtitle">{t('tradeReviewPage.subtitle')}</p>
       </header>
+
+      {/* Generate form */}
+      <div className="surface-panel" style={{ marginBottom: 'var(--space-4)', padding: '16px' }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <input
+            type="text"
+            value={symbol}
+            onChange={(e) => setSymbol(e.target.value)}
+            placeholder={t('tradeReviewPage.symbolPlaceholder')}
+            style={{
+              flex: 1,
+              padding: '8px 12px',
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--color-text-primary)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.85rem',
+            }}
+            onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+          />
+          <button
+            className="btn btn--primary"
+            onClick={handleGenerate}
+            disabled={generating || !symbol.trim()}
+          >
+            {generating ? t('tradeReviewPage.generating') : t('tradeReviewPage.generate')}
+          </button>
+        </div>
+        {generateError && (
+          <p style={{ color: 'var(--color-negative)', fontSize: '0.82rem', marginTop: 8 }}>{generateError}</p>
+        )}
+      </div>
 
       {error && (
         <div className="surface-panel" style={{ marginBottom: 'var(--space-4)', padding: '12px 16px', borderLeft: '3px solid var(--color-negative)' }}>

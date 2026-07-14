@@ -68,6 +68,11 @@ async def analyze_trade_decision(
     except Exception as exc:
         logger.exception("Trade decision analysis failed: %s", exc)
         task_service.update_task_status(task["id"], "failed", error=str(exc)[:2000])
+        try:
+            from app.services.notification_service import notify_trade_decision_failed
+            notify_trade_decision_failed(request.symbol, str(exc))
+        except Exception:
+            logger.debug("TradeDecision failure notification skipped", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Trade decision analysis failed: {str(exc)[:300]}",

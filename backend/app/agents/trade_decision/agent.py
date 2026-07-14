@@ -181,6 +181,12 @@ async def analyze_trade(
         "report_en": report_en,
     }
     saved = _save_decision(db, document)
+    # Push notification
+    try:
+        from app.services.notification_service import notify_trade_decision_completed
+        notify_trade_decision_completed(saved)
+    except Exception:
+        logger.debug("TradeDecision notification skipped", exc_info=True)
     return saved
 
 

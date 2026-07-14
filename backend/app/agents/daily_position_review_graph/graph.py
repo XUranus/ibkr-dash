@@ -7,7 +7,6 @@ Parallel fan-out/fan-in:
         → build_card_pack
         → compose_daily_review
         → persist_daily_review
-        → optional_email_summary
         → END
 
 All nodes receive deps via closure, not via state.
@@ -26,12 +25,12 @@ from app.agents.daily_position_review_graph.nodes import (
     make_compose_daily_review_node,
     make_load_daily_review_context_node,
     make_macro_card_node,
-    make_optional_email_summary_node,
     make_persist_daily_review_node,
     make_portfolio_attribution_node,
     make_risk_watch_node,
     make_select_focus_symbols_node,
     make_symbol_cards_node,
+    make_translate_daily_review_node,
 )
 
 DAILY_POSITION_REVIEW_GRAPH_NODES = [
@@ -43,8 +42,8 @@ DAILY_POSITION_REVIEW_GRAPH_NODES = [
     {"id": "risk_watch", "label": "风险观察"},
     {"id": "build_card_pack", "label": "构建卡片包"},
     {"id": "compose_daily_review", "label": "生成日报"},
+    {"id": "translate_daily_review", "label": "中文翻译"},
     {"id": "persist_daily_review", "label": "保存结果"},
-    {"id": "optional_email_summary", "label": "邮件摘要"},
 ]
 
 DAILY_POSITION_REVIEW_GRAPH_EDGES = [
@@ -58,8 +57,8 @@ DAILY_POSITION_REVIEW_GRAPH_EDGES = [
     {"source": "portfolio_attribution", "target": "build_card_pack"},
     {"source": "risk_watch", "target": "build_card_pack"},
     {"source": "build_card_pack", "target": "compose_daily_review"},
-    {"source": "compose_daily_review", "target": "persist_daily_review"},
-    {"source": "persist_daily_review", "target": "optional_email_summary"},
+    {"source": "compose_daily_review", "target": "translate_daily_review"},
+    {"source": "translate_daily_review", "target": "persist_daily_review"},
 ]
 from app.agents.daily_position_review_graph.state import DailyPositionReviewGraphState
 
@@ -69,7 +68,6 @@ class DailyPositionReviewGraphDeps:
     review_service: Any
     llm_service: Any
     repository: Any
-    email_service: Any = None
     related_asset_service: Any = None
     longbridge_client: Any = None
     symbol_agent: Any = None
@@ -91,8 +89,8 @@ def build_daily_position_review_graph(deps: DailyPositionReviewGraphDeps) -> Any
     graph.add_node("risk_watch", instrument_graph_node("risk_watch", make_risk_watch_node(deps)))
     graph.add_node("build_card_pack", instrument_graph_node("build_card_pack", make_build_card_pack_node(deps)))
     graph.add_node("compose_daily_review", instrument_graph_node("compose_daily_review", make_compose_daily_review_node(deps)))
+    graph.add_node("translate_daily_review", instrument_graph_node("translate_daily_review", make_translate_daily_review_node(deps)))
     graph.add_node("persist_daily_review", instrument_graph_node("persist_daily_review", make_persist_daily_review_node(deps)))
-    graph.add_node("optional_email_summary", instrument_graph_node("optional_email_summary", make_optional_email_summary_node(deps)))
 
     # Sequential: load → select
     graph.add_edge(START, "load_daily_review_context")
@@ -110,10 +108,10 @@ def build_daily_position_review_graph(deps: DailyPositionReviewGraphDeps) -> Any
     graph.add_edge("portfolio_attribution", "build_card_pack")
     graph.add_edge("risk_watch", "build_card_pack")
 
-    # Sequential tail
+    # Sequential tail: compose → translate → persist
     graph.add_edge("build_card_pack", "compose_daily_review")
-    graph.add_edge("compose_daily_review", "persist_daily_review")
-    graph.add_edge("persist_daily_review", "optional_email_summary")
-    graph.add_edge("optional_email_summary", END)
+    graph.add_edge("compose_daily_review", "translate_daily_review")
+    graph.add_edge("translate_daily_review", "persist_daily_review")
+    graph.add_edge("persist_daily_review", END)
 
     return graph.compile()

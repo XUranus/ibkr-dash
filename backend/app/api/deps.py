@@ -363,6 +363,7 @@ def get_portfolio_daily_loop_service(db: Database = Depends(get_db)):
     from app.domains.portfolio_manager.daily_loop.repository import PortfolioDailyLoopRepository
     from app.domains.portfolio_manager.daily_loop.service import PortfolioDailyLoopService
     services = _build_pm_services(db)
+    llm_svc = get_llm_service()
     return PortfolioDailyLoopService(
         repository=PortfolioDailyLoopRepository(db),
         universe_service=services["universe_service"],
@@ -371,6 +372,8 @@ def get_portfolio_daily_loop_service(db: Database = Depends(get_db)):
         portfolio_review_service=services["review_service"],
         evaluation_service=services["evaluation_service"],
         improvement_service=services["improvement_service"],
+        llm_service=llm_svc,
+        db=db,
     )
 
 
@@ -394,8 +397,6 @@ def get_portfolio_action_alert_service(db: Database = Depends(get_db)):
     from app.domains.portfolio_manager.action_alerts.repository import PortfolioActionAlertRepository
     from app.domains.portfolio_manager.action_alerts.service import PortfolioActionAlertService
     from app.domains.portfolio_manager.action_alerts.alert_builder import PortfolioActionAlertBuilder
-    from app.domains.portfolio_manager.action_alerts.email_renderer import PortfolioActionAlertEmailRenderer
-    from app.services.email_service import EmailService
     services = _build_pm_services(db)
     daily_loop_svc = get_portfolio_daily_loop_service(db)
     return PortfolioActionAlertService(
@@ -404,9 +405,7 @@ def get_portfolio_action_alert_service(db: Database = Depends(get_db)):
         auto_decision_service=services["auto_decision_service"],
         portfolio_review_service=services["review_service"],
         watchtower_service=services["watchtower_service"],
-        email_service=EmailService(get_settings().sqlite_path.replace("ibkr_dash.db", "email_config.json")),
         builder=PortfolioActionAlertBuilder(),
-        renderer=PortfolioActionAlertEmailRenderer(),
     )
 
 

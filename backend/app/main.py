@@ -132,7 +132,7 @@ def create_app() -> FastAPI:
     from app.api.routes.risk_assessment_agent import router as risk_assessment_router
     from app.api.routes.admin_llm import router as admin_llm_router
     from app.api.routes.admin_ibkr import router as admin_ibkr_router
-    from app.api.routes.admin_email import router as admin_email_router
+    from app.api.routes.admin_notifyhub import router as admin_notifyhub_router
     from app.api.routes.admin_settings import router as admin_settings_router
     from app.api.routes.admin_monitoring import router as admin_monitoring_router
     from app.api.routes.admin_scheduler import router as admin_scheduler_router
@@ -174,7 +174,7 @@ def create_app() -> FastAPI:
     app.include_router(risk_assessment_router, prefix="/api")
     app.include_router(admin_llm_router, prefix="/api")
     app.include_router(admin_ibkr_router, prefix="/api")
-    app.include_router(admin_email_router, prefix="/api")
+    app.include_router(admin_notifyhub_router, prefix="/api")
     app.include_router(admin_settings_router, prefix="/api")
     app.include_router(admin_monitoring_router, prefix="/api")
     app.include_router(admin_scheduler_router, prefix="/api")

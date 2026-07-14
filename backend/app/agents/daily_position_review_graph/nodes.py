@@ -658,6 +658,8 @@ def make_compose_daily_review_node(deps):
                 "daily_position_review_main",
                 SYSTEM_PROMPT_SUBAGENT_CARDS,
             )
+            # Add English output instruction
+            system_prompt = system_prompt + "\n\nIMPORTANT: Output ALL text fields in English. A separate translation step will generate the Chinese version."
             runtime = ToolCallingRuntime(
                 deps.llm_service,
                 max_rounds=4,
@@ -757,6 +759,32 @@ def make_compose_daily_review_node(deps):
     return compose_daily_review_node
 
 
+def make_translate_daily_review_node(deps):
+    """Translate daily review output to Chinese for bilingual storage."""
+    def translate_daily_review_node(state: dict) -> dict:
+        trace = start_node_trace("translate_daily_review")
+        try:
+            review_output = state.get("review_output") or {}
+            if not review_output:
+                trace = finish_node_trace(trace, "success")
+                return {"review_output_zh": {}, "node_traces": [trace]}
+
+            from app.services.translation_service import translate_daily_review_output
+
+            translated = translate_daily_review_output(
+                deps.llm_service,
+                review_output,
+                source_lang="English",
+                target_lang="Chinese",
+            )
+            trace = finish_node_trace(trace, "success")
+            return {"review_output_zh": translated, "node_traces": [trace]}
+        except Exception as exc:
+            trace = finish_node_trace(trace, "fallback", fallback_used=True, fallback_reason=str(exc)[:200])
+            return {"review_output_zh": {}, "node_traces": [trace]}
+    return translate_daily_review_node
+
+
 def make_persist_daily_review_node(deps):
     """Persist the daily review document."""
     def persist_daily_review_node(state: dict) -> dict:
@@ -764,6 +792,7 @@ def make_persist_daily_review_node(deps):
         try:
             report_date = state["report_date"]
             review_output = state.get("review_output") or {}
+            review_output_zh = state.get("review_output_zh") or {}
             deterministic_context = state.get("deterministic_context") or {}
             evidence_pack = state.get("evidence_pack") or {}
             card_pack = state.get("card_pack")
@@ -832,6 +861,8 @@ def make_persist_daily_review_node(deps):
                 "graph_version": DAILY_POSITION_REVIEW_GRAPH_VERSION,
                 "fallback_used": state.get("fallback_used", False),
                 "fallback_reason": state.get("fallback_reason"),
+                # Bilingual: Chinese translation of text fields
+                "review_output_zh": review_output_zh,
                 "created_at": now,
                 "updated_at": now,
             }
@@ -840,54 +871,25 @@ def make_persist_daily_review_node(deps):
             document["status"] = classify_agent_status(document)
 
             saved = deps.repository.save_review(document)
-            email_document = {
+            saved_document = {
                 **document,
                 "created_at": saved.get("created_at") or document.get("created_at"),
                 "updated_at": saved.get("updated_at") or document.get("updated_at"),
             }
-            return {"saved_document": email_document, "node_traces": [finished_trace]}
+            # Push notification
+            try:
+                from app.services.notification_service import notify_daily_review_completed
+                notify_daily_review_completed(saved_document)
+            except Exception:
+                import logging
+                logging.getLogger(__name__).debug("DailyReview notification skipped", exc_info=True)
+            return {"saved_document": saved_document, "node_traces": [finished_trace]}
         except Exception as exc:
             error_msg = str(exc)[:200]
             error_trace = start_node_trace("persist_daily_review")
             error_trace = finish_node_trace(error_trace, "failed", error=error_msg)
             return {"errors": [f"persist_daily_review: {error_msg}"], "node_traces": [error_trace]}
     return persist_daily_review_node
-
-
-def make_optional_email_summary_node(deps):
-    """Send email if auto_email is True. Failure only writes warning."""
-    def optional_email_summary_node(state: dict) -> dict:
-        trace = start_node_trace("optional_email_summary")
-        try:
-            auto_email = state.get("auto_email", False)
-            if not auto_email:
-                trace = finish_node_trace(trace, "success", tools_called=[])
-                return {"node_traces": [trace]}
-
-            saved_document = state.get("saved_document")
-            if not saved_document:
-                trace = finish_node_trace(trace, "success", tools_called=[])
-                return {"warnings": ["optional_email: no saved_document to email"], "node_traces": [trace]}
-
-            if deps.email_service is None:
-                trace = finish_node_trace(trace, "success", tools_called=[])
-                return {"warnings": ["optional_email: email_service not configured"], "node_traces": [trace]}
-
-            try:
-                sent = deps.email_service.send_daily_position_review(saved_document)
-                if sent:
-                    trace = finish_node_trace(trace, "success", tools_called=["send_daily_position_review"])
-                else:
-                    trace = finish_node_trace(trace, "success", tools_called=[])
-            except Exception as exc:
-                trace = finish_node_trace(trace, "success", tools_called=[])
-                return {"warnings": [f"optional_email: {str(exc)[:200]}"], "node_traces": [trace]}
-
-            return {"node_traces": [trace]}
-        except Exception as exc:
-            trace = finish_node_trace(trace, "success")
-            return {"warnings": [f"optional_email: {str(exc)[:200]}"], "node_traces": [trace]}
-    return optional_email_summary_node
 
 
 # === Helpers ===

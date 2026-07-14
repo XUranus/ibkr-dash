@@ -7,6 +7,7 @@ Deterministic computations + LLM report composition.
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from app.agents.risk_assessment.cards import (
@@ -19,6 +20,8 @@ from app.agents.risk_assessment.cards import (
     build_fallback_stress_test_card,
     classify_symbol_theme,
 )
+
+logger = logging.getLogger(__name__)
 
 
 async def assess_risk(
@@ -44,6 +47,7 @@ async def assess_risk(
     Returns:
         Saved risk assessment document dict.
     """
+    logger.info("RiskAssessment started")
     from app.agents.output_schemas import RiskAssessmentOutput
     from app.agents.prompt_runtime import resolve_runtime_prompt
     from app.agents.structured_output import StructuredOutputContract, StructuredOutputRuntime
@@ -105,6 +109,7 @@ async def assess_risk(
         "prompt_metadata": {"risk_assessment_composer": prompt_metadata},
     }
     saved = _save_assessment(db, document)
+    logger.info("RiskAssessment completed: risk_level=%s score=%s", saved.get("risk_level"), saved.get("overall_risk_score"))
     return saved
 
 

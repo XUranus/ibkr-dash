@@ -6,12 +6,16 @@ Single async function that loads data, builds evidence, calls LLM, and saves.
 
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 from typing import Any
 
 from app.agents.output_schemas import DailyPositionReviewOutput
 from app.agents.prompt_runtime import resolve_runtime_prompt
 from app.agents.daily_review.prompts import SYSTEM_PROMPT
+
+logger = logging.getLogger(__name__)
 
 
 async def generate_daily_review(
@@ -38,6 +42,7 @@ async def generate_daily_review(
     Returns:
         Saved review document dict.
     """
+    logger.info("DailyReview started: date=%s", report_date)
     from app.agents.evidence import build_daily_position_review_evidence_pack
 
     # Step 1: Load deterministic context from DB
@@ -93,7 +98,21 @@ async def generate_daily_review(
     else:
         validated = _build_fallback_payload(report_date, overview, rankings, risk, focus_symbols)
 
-    # Step 5: Save
+    # Step 5: Translate to Chinese
+    review_output_zh = {}
+    try:
+        from app.services.translation_service import translate_daily_review_output
+        import time as _time
+        _t0 = _time.monotonic()
+        loop2 = asyncio.get_running_loop()
+        review_output_zh = await loop2.run_in_executor(
+            None, translate_daily_review_output, llm_service, validated, "English", "Chinese",
+        )
+        logger.info("DailyReview translation completed: duration_ms=%d fields=%d", int((_time.monotonic() - _t0) * 1000), len(review_output_zh) if review_output_zh else 0)
+    except Exception:
+        logger.debug("DailyReview translation skipped", exc_info=True)
+
+    # Step 6: Save
     document = {
         **validated,
         "id": report_date,
@@ -103,8 +122,16 @@ async def generate_daily_review(
         "fallback_used": not result.ok,
         "run_trace": result.trace if hasattr(result, "trace") else [],
         "prompt_metadata": {"daily_position_review_main": prompt_metadata},
+        "review_output_zh": review_output_zh,
     }
     saved = _save_review(db, document)
+    logger.info("DailyReview completed: date=%s status=%s", report_date, saved.get("status", "ok"))
+    # Push notification
+    try:
+        from app.services.notification_service import notify_daily_review_completed
+        notify_daily_review_completed(saved)
+    except Exception:
+        logger.debug("DailyReview notification skipped", exc_info=True)
     return saved
 
 
@@ -402,10 +429,12 @@ def _save_review(db: Any, document: dict) -> dict:
     import json
     from uuid import uuid4
     review_id = document.get("id") or str(uuid4())
+    review_output_zh = document.pop("review_output_zh", {})
     db.upsert("daily_position_reviews", {
         "id": review_id,
         "report_date": document.get("report_date", ""),
         "review_output": json.dumps(document, ensure_ascii=False, default=str),
+        "review_output_zh": json.dumps(review_output_zh, ensure_ascii=False, default=str) if review_output_zh else None,
         "metadata": json.dumps(document.get("metadata", {}), ensure_ascii=False, default=str),
         "evidence_summary": json.dumps(document.get("evidence_summary", {}), ensure_ascii=False, default=str),
         "run_trace": json.dumps(document.get("run_trace", []), ensure_ascii=False, default=str),

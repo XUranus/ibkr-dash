@@ -8,25 +8,34 @@ import type { DailyPositionReviewResult } from '@/types/dailyPositionReview'
 import AgentEvidencePanel from '@/components/AgentEvidencePanel'
 
 export default function DailyPositionReviewView() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const lang = i18n.language?.startsWith('zh') ? 'zh' : 'en'
   const [reviews, setReviews] = useState<DailyPositionReviewResult[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedReview, setSelectedReview] = useState<DailyPositionReviewResult | null>(null)
 
+  // Generate form state
+  const [reportDate, setReportDate] = useState(() => {
+    const now = new Date()
+    return now.toISOString().split('T')[0]
+  })
+  const [generating, setGenerating] = useState(false)
+  const [generateError, setGenerateError] = useState('')
+
   const loadReviews = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const data = await request<{ items: DailyPositionReviewResult[] }>('/api/daily-position-review')
+      const data = await request<{ items: DailyPositionReviewResult[] }>(`/api/daily-position-review?lang=${lang}`)
       setReviews(data.items || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : t('dailyPositionReview.failedToLoad'))
     } finally {
       setLoading(false)
     }
-  }, [t])
+  }, [t, lang])
 
   useEffect(() => { void loadReviews() }, [loadReviews])
 
@@ -38,6 +47,23 @@ export default function DailyPositionReviewView() {
     const review = reviews.find((r) => r.id === selectedId) || null
     setSelectedReview(review)
   }, [selectedId, reviews])
+
+  const handleGenerate = async () => {
+    if (!reportDate) return
+    setGenerating(true)
+    setGenerateError('')
+    try {
+      await request('/api/daily-position-review/generate', {
+        method: 'POST',
+        body: JSON.stringify({ report_date: reportDate }),
+      })
+      await loadReviews()
+    } catch (err) {
+      setGenerateError(err instanceof Error ? err.message : t('dailyPositionReview.generateFailed'))
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   function renderReviewDetail(review: DailyPositionReviewResult): React.ReactNode {
     return (
@@ -73,6 +99,36 @@ export default function DailyPositionReviewView() {
         <h1 className="page-title">{t('dailyPositionReview.title')}</h1>
         <p className="page-subtitle">{t('dailyPositionReview.subtitle')}</p>
       </header>
+
+      {/* Generate form */}
+      <div className="surface-panel" style={{ marginBottom: 'var(--space-4)', padding: '16px' }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <input
+            type="date"
+            value={reportDate}
+            onChange={(e) => setReportDate(e.target.value)}
+            style={{
+              padding: '8px 12px',
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--color-text-primary)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.85rem',
+            }}
+          />
+          <button
+            className="btn btn--primary"
+            onClick={handleGenerate}
+            disabled={generating || !reportDate}
+          >
+            {generating ? t('dailyPositionReview.generating') : t('dailyPositionReview.generate')}
+          </button>
+        </div>
+        {generateError && (
+          <p style={{ color: 'var(--color-negative)', fontSize: '0.82rem', marginTop: 8 }}>{generateError}</p>
+        )}
+      </div>
 
       {error && (
         <div className="surface-panel" style={{ marginBottom: 'var(--space-4)', padding: '12px 16px', borderLeft: '3px solid var(--color-negative)' }}>

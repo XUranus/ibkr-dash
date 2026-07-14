@@ -32,6 +32,7 @@ from app.agents.trade_review_graph.nodes import (
     make_opportunity_cost_node,
     make_persist_trade_review_node,
     make_position_node,
+    make_translate_trade_review_node,
 )
 from app.agents.trade_review_graph.state import TradeReviewGraphState
 from app.services.trade_review_evidence import TradeReviewEvidenceBuilder
@@ -49,6 +50,7 @@ TRADE_REVIEW_GRAPH_NODES = [
     {"id": "behavior_pattern", "label": "行为模式"},
     {"id": "opportunity_cost", "label": "机会成本"},
     {"id": "compose_trade_review", "label": "生成复盘"},
+    {"id": "translate_trade_review", "label": "中文翻译"},
     {"id": "persist_trade_review", "label": "保存结果"},
 ]
 
@@ -67,7 +69,8 @@ TRADE_REVIEW_GRAPH_EDGES = [
     {"source": "build_trade_review_context", "target": "opportunity_cost"},
     {"source": "behavior_pattern", "target": "compose_trade_review"},
     {"source": "opportunity_cost", "target": "compose_trade_review"},
-    {"source": "compose_trade_review", "target": "persist_trade_review"},
+    {"source": "compose_trade_review", "target": "translate_trade_review"},
+    {"source": "translate_trade_review", "target": "persist_trade_review"},
 ]
 
 
@@ -97,6 +100,7 @@ def build_trade_review_graph(deps: TradeReviewGraphDeps) -> Any:
     graph.add_node("behavior_pattern", instrument_graph_node("behavior_pattern", make_behavior_pattern_node(deps)))
     graph.add_node("opportunity_cost", instrument_graph_node("opportunity_cost", make_opportunity_cost_node(deps)))
     graph.add_node("compose_trade_review", instrument_graph_node("compose_trade_review", make_compose_trade_review_node(deps)))
+    graph.add_node("translate_trade_review", instrument_graph_node("translate_trade_review", make_translate_trade_review_node(deps)))
     graph.add_node("persist_trade_review", instrument_graph_node("persist_trade_review", make_persist_trade_review_node(deps)))
 
     # Fan-out 1: load_trade_facts → 5 parallel evidence nodes
@@ -128,8 +132,9 @@ def build_trade_review_graph(deps: TradeReviewGraphDeps) -> Any:
     # Fan-in 2: both → compose_trade_review
     graph.add_edge(["behavior_pattern", "opportunity_cost"], "compose_trade_review")
 
-    # Sequential tail
-    graph.add_edge("compose_trade_review", "persist_trade_review")
+    # Sequential tail: compose → translate → persist
+    graph.add_edge("compose_trade_review", "translate_trade_review")
+    graph.add_edge("translate_trade_review", "persist_trade_review")
     graph.add_edge("persist_trade_review", END)
 
     return graph.compile()

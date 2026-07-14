@@ -33,7 +33,6 @@ class DailyPositionReviewGraphRunner:
         review_service: Any,
         llm_service: Any,
         repository: Any,
-        email_service: Any = None,
         related_asset_service: Any = None,
         longbridge_client: Any = None,
         symbol_agent: Any = None,
@@ -55,7 +54,6 @@ class DailyPositionReviewGraphRunner:
             review_service=review_service,
             llm_service=llm_service,
             repository=repository,
-            email_service=email_service,
             related_asset_service=related_asset_service,
             longbridge_client=longbridge_client,
             symbol_agent=default_symbol_agent,
@@ -69,13 +67,11 @@ class DailyPositionReviewGraphRunner:
         self,
         report_date: str,
         force_refresh: bool = False,
-        auto_email: bool = False,
         progress_reporter: Any = None,
     ) -> dict:
         state = {
             "report_date": report_date,
             "force_refresh": force_refresh,
-            "auto_email": auto_email,
             "started_at": now_iso(),
             "errors": [],
             "warnings": [],
@@ -94,10 +90,9 @@ class DailyPositionReviewGraphRunner:
         self,
         report_date: str,
         force_refresh: bool = False,
-        auto_email: bool = False,
         progress_reporter: Any = None,
     ) -> dict:
-        initial_state = self._initial_state(report_date, force_refresh, auto_email, progress_reporter)
+        initial_state = self._initial_state(report_date, force_refresh, progress_reporter)
         try:
             final_state = self.graph.invoke(initial_state)
             saved = final_state.get("saved_document")
@@ -208,7 +203,7 @@ class DailyPositionReviewGraphRunner:
         replay = build_replay_snapshot(
             run_id=run_id,
             agent_name="daily_position_review",
-            request={"report_date": initial_state.get("report_date"), "auto_email": initial_state.get("auto_email")},
+            request={"report_date": initial_state.get("report_date")},
             document=document,
             agent_run_trace=trace_doc,
             node_traces=node_traces,

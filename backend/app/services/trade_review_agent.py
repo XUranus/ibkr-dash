@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from pydantic import ValidationError
@@ -11,6 +12,8 @@ from app.agents.trade_review_graph.prompts import TRADE_REVIEW_MAIN_SYSTEM_PROMP
 from app.services.llm_service import LLMConfigError, LLMService
 from app.services.trade_review_evidence import TradeReviewEvidenceBuilder
 from app.services.trade_review_repository import TradeReviewRepository
+
+logger = logging.getLogger(__name__)
 
 SCORE_DIMENSIONS = {
     "return_result_score": 20,
@@ -137,18 +140,32 @@ class TradeReviewAgent:
             raise LLMConfigError("No active LLM provider is configured")
 
     def generate_symbol_review(self, symbol: str, start_date: str | None, end_date: str | None, *, progress_reporter: Any = None) -> dict:
+        logger.info("TradeReview started: symbol=%s start=%s end=%s", symbol, start_date, end_date)
         self._ensure_llm_configured()
         kwargs = {"symbol": symbol, "start_date": start_date, "end_date": end_date}
         if progress_reporter is not None:
             kwargs["progress_reporter"] = progress_reporter
-        return self._get_graph_runner().generate_symbol_review(**kwargs)
+        try:
+            result = self._get_graph_runner().generate_symbol_review(**kwargs)
+            logger.info("TradeReview completed: symbol=%s", symbol)
+            return result
+        except Exception as exc:
+            logger.error("TradeReview failed: symbol=%s error=%s", symbol, str(exc)[:200])
+            raise
 
     def generate_single_trade_review(self, trade_id: str, *, progress_reporter: Any = None) -> dict:
+        logger.info("TradeReview started: trade_id=%s", trade_id)
         self._ensure_llm_configured()
         kwargs = {"trade_id": trade_id}
         if progress_reporter is not None:
             kwargs["progress_reporter"] = progress_reporter
-        return self._get_graph_runner().generate_single_trade_review(**kwargs)
+        try:
+            result = self._get_graph_runner().generate_single_trade_review(**kwargs)
+            logger.info("TradeReview completed: trade_id=%s", trade_id)
+            return result
+        except Exception as exc:
+            logger.error("TradeReview failed: trade_id=%s error=%s", trade_id, str(exc)[:200])
+            raise
 
     def _run_tool_agent(
         self,

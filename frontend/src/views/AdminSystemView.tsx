@@ -160,17 +160,6 @@ export default function AdminSystemView() {
       ],
     })
 
-    // Email
-    cards.push({
-      name: t('adminSystem.email'),
-      level: status.email.configured ? (status.email.enabled ? 'ok' : 'warning') : 'error',
-      statusLabel: status.email.configured ? (status.email.enabled ? t('adminSystem.enabled') : t('adminSystem.disabled')) : t('adminSystem.notSet'),
-      details: [
-        { label: t('adminSystem.configured'), value: status.email.configured ? 'Yes' : 'No' },
-        { label: t('adminSystem.enabled'), value: status.email.enabled ? 'Yes' : 'No' },
-      ],
-    })
-
     // Longbridge
     const lb = status.longbridge
     const lbConnectivityLabel = lb.connectivity === 'ok' ? 'Connected' : lb.connectivity === 'error' ? 'Failed' : lb.connectivity === 'degraded' ? 'Degraded' : '—'
@@ -186,6 +175,22 @@ export default function AdminSystemView() {
         { label: t('adminSystem.connectivity'), value: lbConnectivityLabel },
       ],
     })
+
+    // NotifyHub
+    const nh = status.notifyhub
+    if (nh) {
+      cards.push({
+        name: t('adminSystem.notifyhub'),
+        level: nh.configured ? (nh.enabled ? 'ok' : 'warning') : 'error',
+        statusLabel: nh.configured ? (nh.enabled ? t('adminSystem.enabled') : t('adminSystem.disabled')) : t('adminSystem.notSet'),
+        details: [
+          { label: t('adminSystem.configured'), value: nh.configured ? 'Yes' : 'No' },
+          { label: t('adminSystem.enabled'), value: nh.enabled ? 'Yes' : 'No' },
+          { label: 'URL', value: nh.url ?? '—' },
+          { label: t('adminSystem.topic'), value: nh.topic ?? '—' },
+        ],
+      })
+    }
 
     // Auth
     cards.push({

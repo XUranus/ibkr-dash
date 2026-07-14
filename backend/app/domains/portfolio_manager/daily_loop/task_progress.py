@@ -9,6 +9,7 @@ DAILY_LOOP_GRAPH_NODES = [
     {"id": "watchtower", "label": "Watchtower"},
     {"id": "auto_decision", "label": "Auto Decision"},
     {"id": "portfolio_report", "label": "Portfolio Review"},
+    {"id": "daily_review", "label": "Daily Review"},
     {"id": "evaluation", "label": "Market Evaluation"},
     {"id": "improvement", "label": "Agent Improvement"},
     {"id": "completed", "label": "Completed"},
@@ -18,7 +19,8 @@ DAILY_LOOP_GRAPH_EDGES = [
     {"source": "sync_holdings", "target": "watchtower"},
     {"source": "watchtower", "target": "auto_decision"},
     {"source": "auto_decision", "target": "portfolio_report"},
-    {"source": "portfolio_report", "target": "evaluation"},
+    {"source": "portfolio_report", "target": "daily_review"},
+    {"source": "daily_review", "target": "evaluation"},
     {"source": "evaluation", "target": "improvement"},
     {"source": "improvement", "target": "completed"},
 ]
