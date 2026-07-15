@@ -63,6 +63,10 @@ def run_daily_loop_task(task_id: str, service: PortfolioDailyLoopService, task_r
             run_metadata=payload.get("run_metadata") or None,
         )
         run_action_alerts_for_daily_loop(run, service, action_alert_service)
+
+        # Run market event analysis and position analysis after daily loop
+        _run_post_loop_analyses(run, service)
+
         final_status = "success" if run.status == "success" else "fallback" if run.status == "partial_success" else "failed"
         task_repository.sync_graph_from_run_trace(task_id, [], final_status=final_status)
         if run.status == "failed":
@@ -72,6 +76,50 @@ def run_daily_loop_task(task_id: str, service: PortfolioDailyLoopService, task_r
     except Exception as exc:
         task_repository.mark_graph_failed(task_id, str(exc))
         task_repository.mark_failed(task_id, error_code="DAILY_LOOP_FAILED", error_message=str(exc))
+
+
+def _run_post_loop_analyses(run, service: PortfolioDailyLoopService) -> None:
+    """Run market event analysis and position analysis after daily loop completes."""
+    import asyncio
+    from app.core.settings_manager import get_manager
+    from app.core.database import Database
+    from app.services.llm_service import LLMService
+    from app.core.config import Settings
+
+    settings = Settings()
+    db = Database(settings.sqlite_path)
+    llm_service = LLMService(settings)
+
+    # Market event analysis
+    try:
+        from app.services.market_event_service import generate_market_event_analysis
+        logger.info("Post-loop: generating market event analysis")
+        analysis = generate_market_event_analysis(db, llm_service)
+        if analysis:
+            logger.info("Post-loop: market event analysis completed, id=%s", analysis.get("id"))
+        else:
+            logger.info("Post-loop: market event analysis skipped (no events)")
+    except Exception:
+        logger.debug("Post-loop: market event analysis failed", exc_info=True)
+
+    # Position analysis (async)
+    try:
+        from app.agents.position_analysis.agent import generate_position_analysis
+        account = db.execute_one(
+            "SELECT report_date FROM account_snapshots ORDER BY report_date DESC LIMIT 1"
+        )
+        if account:
+            report_date = account["report_date"]
+            logger.info("Post-loop: generating position analysis for %s", report_date)
+            result = asyncio.run(generate_position_analysis(db, llm_service, report_date))
+            if result:
+                logger.info("Post-loop: position analysis completed")
+            else:
+                logger.info("Post-loop: position analysis skipped")
+        else:
+            logger.info("Post-loop: position analysis skipped (no account data)")
+    except Exception:
+        logger.debug("Post-loop: position analysis failed", exc_info=True)
 
 
 def _update_run_best_effort(service: PortfolioDailyLoopService, run_id: str, patch: dict) -> None:
