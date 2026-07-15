@@ -362,8 +362,10 @@ def get_portfolio_watchtower_service(db: Database = Depends(get_db)):
 def get_portfolio_daily_loop_service(db: Database = Depends(get_db)):
     from app.domains.portfolio_manager.daily_loop.repository import PortfolioDailyLoopRepository
     from app.domains.portfolio_manager.daily_loop.service import PortfolioDailyLoopService
+    from app.services.llm_service import LLMService
     services = _build_pm_services(db)
-    llm_svc = get_llm_service()
+    settings = get_settings()
+    llm_svc = LLMService(settings)
     return PortfolioDailyLoopService(
         repository=PortfolioDailyLoopRepository(db),
         universe_service=services["universe_service"],
