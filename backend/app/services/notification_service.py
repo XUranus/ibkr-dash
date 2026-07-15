@@ -29,20 +29,39 @@ def _send(subject: str, body: str, **kwargs: Any) -> None:
 # 每日持仓复盘
 # ---------------------------------------------------------------------------
 
+def _get_language() -> str:
+    """Get configured notification language."""
+    try:
+        from app.core.settings_manager import get_manager
+        return str(get_manager().get("notifyhub.language", "zh"))
+    except Exception:
+        return "zh"
+
+
+def _pick_text(document: dict, field: str, max_len: int = 300) -> str:
+    """Pick text field based on language config: prefer zh, fallback to en."""
+    lang = _get_language()
+    if lang == "zh":
+        zh = document.get("review_output_zh", {})
+        if isinstance(zh, dict) and zh.get(field):
+            return str(zh[field])[:max_len]
+    return str(document.get(field, ""))[:max_len]
+
+
 def notify_daily_review_completed(document: dict) -> None:
     """每日复盘完成推送."""
     report_date = document.get("report_date", "")
-    summary = document.get("summary", "")
-    conclusion = document.get("account_conclusion", "")
+    summary = _pick_text(document, "summary", 300)
+    conclusion = _pick_text(document, "account_conclusion", 200)
     status = document.get("status", "")
 
     subject = f"📊 每日复盘完成 | {report_date}"
 
     lines = []
     if conclusion:
-        lines.append(f"**账户结论:** {conclusion[:200]}")
+        lines.append(f"**账户结论:** {conclusion}")
     if summary:
-        lines.append(f"**摘要:** {summary[:300]}")
+        lines.append(f"**摘要:** {summary}")
     lines.append(f"**状态:** {status}")
     body = "\n\n".join(lines)
 

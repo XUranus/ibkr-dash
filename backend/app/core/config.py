@@ -172,6 +172,11 @@ class Settings:
         """Return the NotifyHub topic."""
         return str(get_manager().get("notifyhub.topic", "ibkr"))
 
+    @property
+    def notifyhub_language(self) -> str:
+        """Return the NotifyHub notification language ('zh' or 'en')."""
+        return str(get_manager().get("notifyhub.language", "zh"))
+
     # -- Longbridge --
     @property
     def longbridge_app_key(self) -> str:
