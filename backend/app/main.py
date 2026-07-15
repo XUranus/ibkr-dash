@@ -40,7 +40,21 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logging.getLogger(__name__).debug("Longbridge monitor start failed: %s", exc)
 
+    # Start portfolio daily loop scheduler
+    try:
+        from app.core.portfolio_scheduler import start_portfolio_scheduler
+        start_portfolio_scheduler()
+    except Exception as exc:
+        logging.getLogger(__name__).warning("Portfolio scheduler start failed: %s", exc)
+
     yield
+
+    # Shutdown: stop portfolio scheduler
+    try:
+        from app.core.portfolio_scheduler import stop_portfolio_scheduler
+        stop_portfolio_scheduler()
+    except Exception:
+        pass
 
     # Shutdown: stop background monitor
     try:
