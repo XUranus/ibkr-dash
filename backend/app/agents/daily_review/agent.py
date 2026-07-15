@@ -442,7 +442,7 @@ def _save_review(db: Any, document: dict) -> dict:
     import json
     from uuid import uuid4
     review_id = document.get("id") or str(uuid4())
-    review_output_zh = document.pop("review_output_zh", {})
+    review_output_zh = document.get("review_output_zh", {})
     db.upsert("daily_position_reviews", {
         "id": review_id,
         "report_date": document.get("report_date", ""),
