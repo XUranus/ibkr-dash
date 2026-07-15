@@ -137,11 +137,24 @@ async def generate_daily_review(
 
 def _load_deterministic_context(db: Any, report_date: str) -> dict:
     """Load deterministic account context from SQLite database."""
-    # 1. Account snapshot
+    # 1. Account snapshot — fall back to latest available date if requested date has no data
     account = db.execute_one(
         "SELECT * FROM account_snapshots WHERE report_date = ? LIMIT 1",
         (report_date,),
     )
+    actual_date = report_date
+    if not account:
+        # Fallback: use the most recent available date
+        latest = db.execute_one(
+            "SELECT report_date FROM account_snapshots ORDER BY report_date DESC LIMIT 1",
+        )
+        if latest:
+            actual_date = latest["report_date"]
+            logger.info("DailyReview: no data for %s, falling back to latest date %s", report_date, actual_date)
+            account = db.execute_one(
+                "SELECT * FROM account_snapshots WHERE report_date = ? LIMIT 1",
+                (actual_date,),
+            )
     if not account:
         return {
             "overview": {},
@@ -161,7 +174,7 @@ def _load_deterministic_context(db: Any, report_date: str) -> dict:
     # 2. Previous day snapshot for daily PnL
     prev_account = db.execute_one(
         "SELECT total_equity FROM account_snapshots WHERE report_date < ? ORDER BY report_date DESC LIMIT 1",
-        (report_date,),
+        (actual_date,),
     )
     prev_equity = float(prev_account["total_equity"]) if prev_account else 0
     daily_pnl = round(total_equity - prev_equity, 2) if prev_equity > 0 else None
@@ -174,7 +187,7 @@ def _load_deterministic_context(db: Any, report_date: str) -> dict:
         "fifo_pnl_unrealized, total_unrealized_pnl, total_realized_pnl, "
         "previous_day_change_percent "
         "FROM position_snapshots WHERE report_date = ? ORDER BY position_value DESC",
-        (report_date,),
+        (actual_date,),
     )
 
     # Enrich positions with computed fields
