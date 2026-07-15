@@ -93,13 +93,29 @@ def _run_daily_loop(settings: Any) -> None:
 
         # Build services
         llm_service = LLMService(settings)
-        pm_services = _build_pm_services(db, llm_service=llm_service)
+        pm_services = _build_pm_services(db)
+
+        # Set up auto decision runner with LLM
+        auto_decision_svc = pm_services["auto_decision_service"]
+        if auto_decision_svc.runner is None and llm_service.get_active_provider() is not None:
+            from app.services.trade_decision_agent import TradeDecisionAgent
+            from app.services.trade_decision_evidence import TradeDecisionEvidenceBuilder
+            from app.services.trade_decision_repository import TradeDecisionRepository
+            from app.domains.portfolio_manager.decision_orchestrator.runner import PortfolioAutoDecisionRunner
+            from app.services.longbridge_service import LongbridgeExternalDataClient
+            lb_client = LongbridgeExternalDataClient(settings)
+            trade_agent = TradeDecisionAgent(
+                evidence_builder=TradeDecisionEvidenceBuilder(db, settings, lb_client),
+                llm_service=llm_service,
+                repository=TradeDecisionRepository(db),
+            )
+            auto_decision_svc.runner = PortfolioAutoDecisionRunner(trade_agent)
 
         svc = PortfolioDailyLoopService(
             repository=repository,
             universe_service=pm_services["universe_service"],
             watchtower_service=pm_services["watchtower_service"],
-            auto_decision_service=pm_services["auto_decision_service"],
+            auto_decision_service=auto_decision_svc,
             portfolio_review_service=pm_services["review_service"],
             evaluation_service=pm_services["evaluation_service"],
             improvement_service=pm_services["improvement_service"],
