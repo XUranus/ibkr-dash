@@ -370,19 +370,24 @@ def get_portfolio_daily_loop_service(db: Database = Depends(get_db)):
     # Set up auto decision runner with LLM
     auto_decision_svc = services["auto_decision_service"]
     if auto_decision_svc.runner is None and llm_svc.api_key:
-        from app.services.trade_decision_agent import TradeDecisionAgent
-        from app.services.trade_decision_evidence import TradeDecisionEvidenceBuilder
-        from app.services.trade_decision_repository import TradeDecisionRepository
-        from app.domains.portfolio_manager.decision_orchestrator.runner import PortfolioAutoDecisionRunner
-        from app.services.longbridge_service import LongbridgeExternalDataClient
-        from app.core.config import Settings as _Settings
-        lb_client = LongbridgeExternalDataClient(settings)
-        trade_agent = TradeDecisionAgent(
-            evidence_builder=TradeDecisionEvidenceBuilder(db, settings, lb_client),
-            llm_service=llm_svc,
-            repository=TradeDecisionRepository(db),
-        )
-        auto_decision_svc.runner = PortfolioAutoDecisionRunner(trade_agent)
+        try:
+            from app.services.trade_decision_agent import TradeDecisionAgent
+            from app.services.trade_decision_evidence import TradeDecisionEvidenceBuilder
+            from app.services.trade_decision_repository import TradeDecisionRepository
+            from app.domains.portfolio_manager.decision_orchestrator.runner import PortfolioAutoDecisionRunner
+            from app.services.longbridge_service import LongbridgeExternalDataClient
+            from app.clients.es_client import ElasticsearchClient
+            lb_client = LongbridgeExternalDataClient(settings)
+            es_client = ElasticsearchClient(settings)
+            trade_agent = TradeDecisionAgent(
+                evidence_builder=TradeDecisionEvidenceBuilder(es_client, settings, lb_client),
+                llm_service=llm_svc,
+                repository=TradeDecisionRepository(es_client, settings),
+            )
+            auto_decision_svc.runner = PortfolioAutoDecisionRunner(trade_agent)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).debug("Auto decision runner init skipped", exc_info=True)
 
     return PortfolioDailyLoopService(
         repository=PortfolioDailyLoopRepository(db),
