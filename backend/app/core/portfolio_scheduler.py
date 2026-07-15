@@ -155,5 +155,37 @@ def _run_daily_loop(settings: Any) -> None:
         except Exception:
             logger.debug("Portfolio scheduler: action alerts failed", exc_info=True)
 
+        # Run market event analysis
+        try:
+            from app.services.market_event_service import generate_market_event_analysis
+            logger.info("Portfolio scheduler: generating market event analysis")
+            analysis = generate_market_event_analysis(db, llm_service)
+            if analysis:
+                logger.info("Portfolio scheduler: market event analysis completed, id=%s", analysis.get("id"))
+            else:
+                logger.info("Portfolio scheduler: market event analysis skipped (no events)")
+        except Exception:
+            logger.debug("Portfolio scheduler: market event analysis failed", exc_info=True)
+
+        # Run position analysis (async function, run in new event loop)
+        try:
+            import asyncio
+            from app.agents.position_analysis.agent import generate_position_analysis
+            account = db.execute_one(
+                "SELECT report_date FROM account_snapshots ORDER BY report_date DESC LIMIT 1"
+            )
+            if account:
+                report_date = account["report_date"]
+                logger.info("Portfolio scheduler: generating position analysis for %s", report_date)
+                result = asyncio.run(generate_position_analysis(db, llm_service, report_date))
+                if result:
+                    logger.info("Portfolio scheduler: position analysis completed")
+                else:
+                    logger.info("Portfolio scheduler: position analysis skipped")
+            else:
+                logger.info("Portfolio scheduler: position analysis skipped (no account data)")
+        except Exception:
+            logger.debug("Portfolio scheduler: position analysis failed", exc_info=True)
+
     except Exception:
         logger.exception("Portfolio daily loop scheduler: run failed")
