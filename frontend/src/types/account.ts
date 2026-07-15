@@ -19,6 +19,7 @@ export interface AccountOverview {
   fifo_total_realized_pnl: number | null
   fifo_total_unrealized_pnl: number | null
   fifo_total_pnl: number | null
+  fifo_total_pnl_return_rate: number | null
   cnav_twr: number | null
   ytd_twr: number | null
   crtt_dividends_ytd: number | null

@@ -62,6 +62,9 @@ class AccountService:
         # total_pnl = equity - net_cost
         total_pnl = total_equity - net_cost if net_cost > 0 else 0.0
 
+        # P&L return rate = total_pnl / net_cost * 100
+        pnl_return_rate = (total_pnl / net_cost * 100.0) if net_cost > 0 else None
+
         # Get unrealized PnL from position data (ibkr-show-public approach)
         unrealized_pnl = self._compute_unrealized_from_positions(current["report_date"])
 
@@ -83,6 +86,7 @@ class AccountService:
             fifo_total_realized_pnl=realized_pnl,
             fifo_total_unrealized_pnl=unrealized_pnl,
             fifo_total_pnl=total_pnl,
+            fifo_total_pnl_return_rate=pnl_return_rate,
             cnav_mtm=current.get("cnav_mtm"),
             cnav_twr=current.get("cnav_twr"),
         )

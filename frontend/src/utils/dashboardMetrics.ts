@@ -50,8 +50,8 @@ export function buildDashboardStatCards(overview: AccountOverview): DashboardSta
       value: formatNumber(overview.fifo_total_pnl),
       tone: overview.fifo_total_pnl !== null && overview.fifo_total_pnl < 0 ? 'negative' : 'positive',
       deltaAmount: formatSignedNumber(overview.fifo_total_pnl_delta?.amount_change ?? null),
-      deltaPercent: formatSignedPercent(overview.fifo_total_pnl_delta?.percent_change ?? null),
-      deltaTone: deltaTone(overview.fifo_total_pnl_delta),
+      deltaPercent: formatSignedPercent(overview.fifo_total_pnl_return_rate ?? null),
+      deltaTone: overview.fifo_total_pnl_return_rate !== null && overview.fifo_total_pnl_return_rate > 0 ? 'positive' : 'negative',
     },
   ]
 }

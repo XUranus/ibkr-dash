@@ -23,6 +23,7 @@ class AccountOverviewResponse(BaseModel):
     fifo_total_realized_pnl: float | None = None
     fifo_total_unrealized_pnl: float | None = None
     fifo_total_pnl: float | None = None
+    fifo_total_pnl_return_rate: float | None = None  # P&L as % of net cost
     cnav_mtm: float | None = None
     cnav_twr: float | None = None
     total_equity_delta: AccountDeltaMetric | None = None
