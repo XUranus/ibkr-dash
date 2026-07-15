@@ -11,6 +11,9 @@ services:
       - APP_ENV=${APP_ENV:-docker}
       - CONFIG_PATH=/app/backend/data/config.json
     restart: unless-stopped
+    networks:
+      - default
+      - deploy_default
 
   frontend:
     build:
@@ -20,6 +23,10 @@ services:
       - "${FRONTEND_PORT:-8080}:80"
     depends_on:
       - backend
+
+networks:
+  deploy_default:
+    external: true
 
 # volumes:
 #   backend-data:
