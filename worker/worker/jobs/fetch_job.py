@@ -18,6 +18,7 @@ from worker.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
+
 def fetch_flex_statements(
     data_dir: Path | str | None = None,
     query_ids: list[str] | None = None,
@@ -26,6 +27,7 @@ def fetch_flex_statements(
 
     For each query_id, saves as {query_id}_{YYYY-MM-DD}.xml.
     If today's file already exists, skips the pull.
+    Each query is fetched independently — a failure on one does not block others.
 
     Args:
         data_dir: Directory to save files. Defaults to settings.data_dir.
@@ -62,6 +64,7 @@ def fetch_flex_statements(
             saved_files.append(save_path)
             logger.info("Fetched IBKR query %s -> %s", query_id, save_path.name)
         except FlexClientError as exc:
+            # Log but continue — other queries may still succeed
             logger.warning("Failed to fetch IBKR query %s: %s", query_id, exc)
 
     return saved_files

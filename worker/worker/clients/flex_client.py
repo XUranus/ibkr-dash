@@ -5,6 +5,7 @@ Uses the requests library for HTTP communication with the IBKR Flex API.
 """
 
 from pathlib import Path
+import json
 import logging
 import time
 import xml.etree.ElementTree as ET
@@ -18,6 +19,9 @@ logger = logging.getLogger(__name__)
 SEND_REQUEST_PATH = "SendRequest"
 GET_STATEMENT_PATH = "GetStatement"
 STATEMENT_PENDING_CODES = {"1018", "1019"}
+
+# Poll intervals in seconds — exponential backoff to reduce API pressure
+_POLL_INTERVALS = [10, 15, 20, 25, 30, 40, 50, 60, 60, 60]
 
 
 class FlexClientError(RuntimeError):
@@ -149,11 +153,50 @@ class FlexClient:
 
         return body
 
-    def download_flex_statement(self, query_id: str, save_path: str | Path) -> Path:
-        """Download a flex statement with retry logic.
+    def _pending_ref_path(self, query_id: str) -> Path:
+        """Return the path where a pending reference code is saved."""
+        from worker.core.config import get_settings
+        data_dir = Path(get_settings().data_dir)
+        return data_dir / f".pending_ref_{query_id}.json"
 
-        Submits the query, then polls until the statement is ready or retries
-        are exhausted.
+    def _save_pending_ref(self, query_id: str, reference_code: str) -> None:
+        """Save a pending reference code for resumption on next run."""
+        path = self._pending_ref_path(query_id)
+        path.write_text(json.dumps({
+            "query_id": query_id,
+            "reference_code": reference_code,
+            "saved_at": time.time(),
+        }), encoding="utf-8")
+        logger.info("Saved pending reference for query %s: %s", query_id, reference_code)
+
+    def _load_pending_ref(self, query_id: str) -> str | None:
+        """Load a pending reference code from a previous run."""
+        path = self._pending_ref_path(query_id)
+        if not path.exists():
+            return None
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            ref = data.get("reference_code", "")
+            age_hours = (time.time() - data.get("saved_at", 0)) / 3600
+            # IBKR reference codes expire after ~8 hours; discard if older
+            if ref and age_hours < 8:
+                logger.info("Resuming pending reference for query %s (age=%.1fh): %s", query_id, age_hours, ref)
+                return ref
+            logger.info("Pending reference for query %s expired (age=%.1fh), discarding", query_id, age_hours)
+            path.unlink(missing_ok=True)
+        except Exception:
+            logger.debug("Failed to load pending reference for query %s", query_id, exc_info=True)
+        return None
+
+    def _clear_pending_ref(self, query_id: str) -> None:
+        """Remove the pending reference file after successful download."""
+        self._pending_ref_path(query_id).unlink(missing_ok=True)
+
+    def download_flex_statement(self, query_id: str, save_path: str | Path) -> Path:
+        """Download a flex statement with retry logic and exponential backoff.
+
+        Submits the query (or resumes from a saved reference code), then polls
+        until the statement is ready or retries are exhausted.
 
         Args:
             query_id: The IBKR Flex Query ID to execute.
@@ -167,28 +210,44 @@ class FlexClient:
         """
         save_target = Path(save_path)
         save_target.parent.mkdir(parents=True, exist_ok=True)
-        reference_code = self.send_request(query_id)
 
-        for attempt in range(1, self.settings.flex_max_poll_retries + 1):
+        # Try to resume from a saved reference code first
+        reference_code = self._load_pending_ref(query_id)
+        if not reference_code:
+            reference_code = self.send_request(query_id)
+
+        max_retries = self.settings.flex_max_poll_retries
+        t0 = time.monotonic()
+
+        for attempt in range(1, max_retries + 1):
             try:
                 statement = self.get_statement(reference_code)
                 save_target.write_text(statement, encoding="utf-8")
-                logger.info("downloaded Flex statement for query %s to %s", query_id, save_target)
-                return save_target
-            except FlexStatementNotReady as exc:
-                if attempt == self.settings.flex_max_poll_retries:
-                    raise FlexClientError(
-                        "IBKR Flex statement was not ready before retry limit was reached."
-                    ) from exc
+                elapsed = time.monotonic() - t0
                 logger.info(
-                    "Flex statement for query %s not ready yet, retry %s/%s",
-                    query_id,
-                    attempt,
-                    self.settings.flex_max_poll_retries,
+                    "Downloaded Flex statement for query %s to %s (%.0fs, %d polls)",
+                    query_id, save_target, elapsed, attempt,
                 )
-                time.sleep(self.settings.flex_poll_interval_seconds)
+                self._clear_pending_ref(query_id)
+                return save_target
+            except FlexStatementNotReady:
+                # Exponential backoff: use configured intervals, then fall back to 60s
+                interval = _POLL_INTERVALS[attempt - 1] if attempt <= len(_POLL_INTERVALS) else 60
+                elapsed = time.monotonic() - t0
+                logger.info(
+                    "Flex query %s not ready yet, retry %d/%d (elapsed=%.0fs, next poll in %ds)",
+                    query_id, attempt, max_retries, elapsed, interval,
+                )
+                if attempt < max_retries:
+                    time.sleep(interval)
 
-        raise FlexClientError("IBKR Flex statement download exhausted retries unexpectedly.")
+        # Save reference code so the next scheduled run can resume
+        self._save_pending_ref(query_id, reference_code)
+        elapsed = time.monotonic() - t0
+        raise FlexClientError(
+            f"Flex query {query_id} not ready after {max_retries} polls ({elapsed:.0f}s). "
+            f"Reference code saved for resumption on next run."
+        )
 
     def supports_dynamic_history_windows(self) -> bool:
         """Return whether dynamic date window queries are supported."""
