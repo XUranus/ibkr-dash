@@ -92,8 +92,8 @@ def _run_daily_loop(settings: Any) -> None:
             return
 
         # Build services
-        pm_services = _build_pm_services(db)
         llm_service = LLMService(settings)
+        pm_services = _build_pm_services(db, llm_service=llm_service)
 
         svc = PortfolioDailyLoopService(
             repository=repository,

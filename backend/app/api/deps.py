@@ -248,7 +248,7 @@ def get_portfolio_universe_service(db: Database = Depends(get_db)):
     return PortfolioUniverseService(PortfolioUniverseRepository(db), PositionService(db))
 
 
-def _build_pm_services(db: Database):
+def _build_pm_services(db: Database, llm_service=None):
     """Build the full PM dependency graph. Returns a dict of all services."""
     from app.domains.portfolio_manager.constitution.repository import PortfolioConstitutionRepository
     from app.domains.portfolio_manager.constitution.service import PortfolioConstitutionService
@@ -302,14 +302,26 @@ def _build_pm_services(db: Database):
         scanner=PortfolioWatchtowerScanner(WatchtowerPriceHistoryProvider(db)),
     )
 
-    # Layer 3: auto decision (runner=None for read-only API; set via daily-loop runner)
+    # Layer 3: auto decision
+    runner = None
+    if llm_service is not None:
+        from app.services.trade_decision_agent import TradeDecisionAgent
+        from app.services.trade_decision_evidence import TradeDecisionEvidenceBuilder
+        from app.services.trade_decision_repository import TradeDecisionRepository
+        trade_agent = TradeDecisionAgent(
+            evidence_builder=TradeDecisionEvidenceBuilder(db),
+            llm_service=llm_service,
+            repository=TradeDecisionRepository(db),
+        )
+        runner = PortfolioAutoDecisionRunner(trade_agent)
+
     auto_decision_service = PortfolioAutoDecisionService(
         repository=auto_decision_repo,
         watchtower_service=watchtower_service,
         constitution_service=constitution_service,
         universe_service=universe_service,
         trigger_selector=PortfolioAutoDecisionTriggerSelector(),
-        runner=None,
+        runner=runner,
     )
 
     # Layer 4: evaluation, improvement, review
@@ -363,9 +375,9 @@ def get_portfolio_daily_loop_service(db: Database = Depends(get_db)):
     from app.domains.portfolio_manager.daily_loop.repository import PortfolioDailyLoopRepository
     from app.domains.portfolio_manager.daily_loop.service import PortfolioDailyLoopService
     from app.services.llm_service import LLMService
-    services = _build_pm_services(db)
     settings = get_settings()
     llm_svc = LLMService(settings)
+    services = _build_pm_services(db, llm_service=llm_svc)
     return PortfolioDailyLoopService(
         repository=PortfolioDailyLoopRepository(db),
         universe_service=services["universe_service"],
