@@ -97,6 +97,8 @@ def send_notification(
 
     try:
         logger.info("NotifyHub sending: topic=%s subject=%s", effective_topic, subject)
+        logger.debug("NotifyHub payload: channel=%s to=%s format=%s body_len=%d", channel, to, fmt, len(body))
+        logger.debug("NotifyHub body preview: %s", body[:500])
         with httpx.Client(timeout=15) as client:
             resp = client.post(url, json=payload, headers=headers)
             resp.raise_for_status()

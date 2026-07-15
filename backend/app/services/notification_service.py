@@ -158,6 +158,9 @@ def notify_daily_review_completed(document: dict) -> None:
 
     body = "\n\n".join(sections) if sections else "复盘报告已生成，请查看详细内容。"
 
+    logger.debug("DailyReview notification: lang=%s sections=%d body_len=%d", _get_language(), len(sections), len(body))
+    logger.debug("DailyReview notification body:\n%s", body[:1000])
+
     _send(subject, body)
 
 

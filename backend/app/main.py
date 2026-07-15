@@ -19,7 +19,7 @@ async def lifespan(app: FastAPI):
     """Application lifecycle: initialize DB on startup."""
     import logging
     settings = get_settings()
-    setup_logging()
+    setup_logging(level=settings.log_level)
     init_database(settings)
 
     # Auto-seed market events on first startup (harmless if already seeded)
