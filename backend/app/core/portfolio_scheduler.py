@@ -97,7 +97,7 @@ def _run_daily_loop(settings: Any) -> None:
 
         # Set up auto decision runner with LLM
         auto_decision_svc = pm_services["auto_decision_service"]
-        if auto_decision_svc.runner is None and llm_service.get_active_provider() is not None:
+        if auto_decision_svc.runner is None and llm_service.api_key:
             from app.services.trade_decision_agent import TradeDecisionAgent
             from app.services.trade_decision_evidence import TradeDecisionEvidenceBuilder
             from app.services.trade_decision_repository import TradeDecisionRepository

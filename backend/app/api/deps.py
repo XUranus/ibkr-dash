@@ -369,7 +369,7 @@ def get_portfolio_daily_loop_service(db: Database = Depends(get_db)):
 
     # Set up auto decision runner with LLM
     auto_decision_svc = services["auto_decision_service"]
-    if auto_decision_svc.runner is None and llm_svc.get_active_provider() is not None:
+    if auto_decision_svc.runner is None and llm_svc.api_key:
         from app.services.trade_decision_agent import TradeDecisionAgent
         from app.services.trade_decision_evidence import TradeDecisionEvidenceBuilder
         from app.services.trade_decision_repository import TradeDecisionRepository
