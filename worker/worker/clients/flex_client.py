@@ -32,6 +32,10 @@ class FlexStatementNotReady(FlexClientError):
     """Raised when the statement is still being generated."""
 
 
+class FlexRateLimited(FlexClientError):
+    """Raised when IBKR token is rate-limited (too many requests)."""
+
+
 class FlexClient:
     """Client for the IBKR Flex Web Service API.
 
@@ -136,6 +140,9 @@ class FlexClient:
             message = error_message or "IBKR Flex statement is not ready."
 
             if error_code in STATEMENT_PENDING_CODES:
+                # Distinguish "statement not ready" from "rate limited"
+                if "too many requests" in message.lower():
+                    raise FlexRateLimited(message)
                 raise FlexStatementNotReady(message)
 
             # Successful FlexQueryResponse (contains the actual data)
@@ -230,6 +237,14 @@ class FlexClient:
                 )
                 self._clear_pending_ref(query_id)
                 return save_target
+            except FlexRateLimited:
+                # Token is rate-limited — no point retrying, save reference for later
+                self._save_pending_ref(query_id, reference_code)
+                elapsed = time.monotonic() - t0
+                raise FlexClientError(
+                    f"IBKR rate limited for query {query_id} (too many requests). "
+                    f"Reference code saved; will retry on next scheduled run."
+                )
             except FlexStatementNotReady:
                 # Exponential backoff: use configured intervals, then fall back to 60s
                 interval = _POLL_INTERVALS[attempt - 1] if attempt <= len(_POLL_INTERVALS) else 60

@@ -50,6 +50,12 @@ class LLMService:
             limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
         )
 
+    def get_active_provider(self) -> str | None:
+        """Return the active LLM provider name, or None if not configured."""
+        if not self.base_url or not self.api_key:
+            return None
+        return self.default_model or "default"
+
     def chat(
         self,
         messages: list[dict[str, Any]],

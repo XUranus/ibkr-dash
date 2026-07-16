@@ -79,6 +79,8 @@ class Settings:
 
     # --- Backend integration ---
     backend_base_url: str
+    backend_auth_username: str
+    backend_auth_password: str
 
     # --- Market Events ---
     market_events_sync_interval_hours: int
@@ -115,6 +117,8 @@ def get_settings() -> Settings:
         flex_poll_interval_seconds=int(ibkr.get("flex_poll_interval_seconds", 10)),
         flex_max_poll_retries=int(ibkr.get("flex_max_poll_retries", 120)),
         backend_base_url=str(advanced.get("worker_backend_url", "http://localhost:8000")),
+        backend_auth_username=str(cfg.get("auth", {}).get("username", "")),
+        backend_auth_password=str(cfg.get("auth", {}).get("password", "")),
         market_events_sync_interval_hours=int(scheduler.get("market_events_sync_interval_hours", 24)),
         bls_api_key=str(cfg.get("llm", {}).get("bls_api_key", "")),
     )

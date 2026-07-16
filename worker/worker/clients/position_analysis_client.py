@@ -27,7 +27,10 @@ def trigger_position_analysis(settings: Settings) -> dict | None:
     try:
         base_url = settings.backend_base_url.rstrip("/")
         url = f"{base_url}/api/position-analysis/generate"
-        response = requests.post(url, timeout=10)
+        auth = None
+        if settings.backend_auth_username and settings.backend_auth_password:
+            auth = (settings.backend_auth_username, settings.backend_auth_password)
+        response = requests.post(url, timeout=10, auth=auth)
         response.raise_for_status()
         payload = response.json()
         logger.info("Position analysis triggered: %s", payload.get("id"))
