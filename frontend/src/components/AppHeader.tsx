@@ -37,6 +37,7 @@ export default function AppHeader() {
     { label: t('nav.copilot'), to: '/copilot' },
     { label: t('nav.events'), to: '/market-events' },
     { label: t('nav.policy'), to: '/investment-policy' },
+    { label: t('nav.flexReports'), to: '/admin/flex-reports' },
     { label: t('nav.admin'), to: '/admin/system' },
   ]
 

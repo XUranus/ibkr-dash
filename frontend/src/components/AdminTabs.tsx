@@ -12,7 +12,7 @@ export default function AdminTabs() {
     { path: '/admin/agent-monitoring', label: t('admin.monitoring') },
     { path: '/admin/eval-harness', label: 'Eval' },
     { path: '/admin/agent-replays', label: 'Replays' },
-    { path: '/admin/flex-reports', label: 'Flex Reports' },
+    { path: '/admin/flex-reports', label: t('admin.flexReports') },
     { path: '/admin/scheduler', label: t('admin.scheduler') },
     { path: '/admin/prompts', label: t('admin.prompts') },
   ]

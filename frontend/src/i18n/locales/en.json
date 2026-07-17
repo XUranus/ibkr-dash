@@ -20,7 +20,8 @@
     "tradeReview": "Trade Review",
     "events": "Events",
     "policy": "Policy",
-    "admin": "Admin"
+    "admin": "Admin",
+    "flexReports": "Flex Reports"
   },
   "auth": {
     "login": "Login",
@@ -412,7 +413,8 @@
     "scheduler": "Scheduler",
     "harness": "Harness Console",
     "evalHarness": "Eval Harness",
-    "agentReplays": "Agent Replays"
+    "agentReplays": "Agent Replays",
+    "flexReports": "Flex Reports"
   },
   "adminSettings": {
     "subtitle": "Manage all system settings. Overrides .env file.",
@@ -938,5 +940,23 @@
     "empty": "empty",
     "ok": "ok",
     "noGraphSnapshot": "No LangGraph progress snapshot for this task."
+  },
+  "flexReports": {
+    "title": "Flex Reports",
+    "subtitle": "Manage downloaded IBKR Flex Web Service XML reports",
+    "fileName": "File Name",
+    "queryId": "Query ID",
+    "size": "Size",
+    "downloadedAt": "Downloaded At",
+    "actions": "Actions",
+    "download": "Download",
+    "delete": "Delete",
+    "downloadAll": "Download All",
+    "refresh": "Refresh",
+    "confirmDelete": "Delete {name}?",
+    "noReports": "No flex reports found",
+    "loading": "Loading...",
+    "failedToLoad": "Failed to load reports",
+    "failedToDelete": "Failed to delete"
   }
 }

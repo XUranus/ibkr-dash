@@ -1,6 +1,7 @@
 /** Admin Flex Reports page -- manage downloaded IBKR Flex XML reports. */
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { request } from '@/api/http'
 import AdminTabs from '@/components/AdminTabs'
 
@@ -31,6 +32,7 @@ function formatTime(iso: string): string {
 }
 
 export default function AdminFlexReportsView() {
+  const { t } = useTranslation()
   const [files, setFiles] = useState<FlexReport[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -44,22 +46,22 @@ export default function AdminFlexReportsView() {
       const data = await request<FlexReport[]>('/api/admin/flex-reports')
       setFiles(data || [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load reports')
+      setError(err instanceof Error ? err.message : t('flexReports.failedToLoad'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => { void loadFiles() }, [loadFiles])
 
   async function handleDelete(name: string) {
-    if (!confirm(`Delete ${name}?`)) return
+    if (!confirm(t('flexReports.confirmDelete', { name }))) return
     setDeleting(name)
     try {
       await request(`/api/admin/flex-reports/${encodeURIComponent(name)}`, { method: 'DELETE' })
       setFiles((prev) => prev.filter((f) => f.name !== name))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete')
+      setError(err instanceof Error ? err.message : t('flexReports.failedToDelete'))
     } finally {
       setDeleting(null)
     }
@@ -73,8 +75,7 @@ export default function AdminFlexReportsView() {
   async function handleDownloadAll() {
     setDownloadingAll(true)
     try {
-      const url = '/api/admin/flex-reports/download-all'
-      window.open(url, '_blank')
+      window.open('/api/admin/flex-reports/download-all', '_blank')
     } finally {
       setDownloadingAll(false)
     }
@@ -87,8 +88,8 @@ export default function AdminFlexReportsView() {
       <AdminTabs />
       <header style={{ marginBottom: 'var(--space-6)' }}>
         <p className="eyebrow">Admin</p>
-        <h1 className="page-title">Flex Reports</h1>
-        <p className="page-subtitle">Manage downloaded IBKR Flex Web Service XML reports</p>
+        <h1 className="page-title">{t('flexReports.title')}</h1>
+        <p className="page-subtitle">{t('flexReports.subtitle')}</p>
       </header>
 
       {error && (
@@ -99,37 +100,39 @@ export default function AdminFlexReportsView() {
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 'var(--space-4)', alignItems: 'center' }}>
         <button className="btn btn--accent btn--sm" onClick={handleDownloadAll} disabled={downloadingAll || files.length === 0}>
-          {downloadingAll ? 'Packing...' : `Download All (${files.length} files, ${formatBytes(totalSize)})`}
+          {downloadingAll ? '...' : `${t('flexReports.downloadAll')} (${files.length}, ${formatBytes(totalSize)})`}
         </button>
         <button className="btn btn--ghost btn--sm" onClick={loadFiles} disabled={loading}>
-          {loading ? 'Loading...' : 'Refresh'}
+          {loading ? t('flexReports.loading') : t('flexReports.refresh')}
         </button>
       </div>
 
       {loading && files.length === 0 ? (
-        <p style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>Loading...</p>
+        <p style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>{t('flexReports.loading')}</p>
       ) : files.length === 0 ? (
-        <p style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>No flex reports found.</p>
+        <p style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>{t('flexReports.noReports')}</p>
       ) : (
-        <div className="surface-panel" style={{ overflow: 'auto' }}>
-          <table className="table" style={{ width: '100%' }}>
+        <div className="table-shell">
+          <table className="data-table" style={{ minWidth: 800 }}>
             <thead>
               <tr>
-                <th style={{ textAlign: 'left' }}>File Name</th>
-                <th style={{ textAlign: 'left' }}>Query ID</th>
-                <th style={{ textAlign: 'right' }}>Size</th>
-                <th style={{ textAlign: 'left' }}>Downloaded At</th>
-                <th style={{ textAlign: 'center' }}>Actions</th>
+                <th style={{ width: '30%', textAlign: 'left' }}>{t('flexReports.fileName')}</th>
+                <th style={{ width: '12%', textAlign: 'center' }}>{t('flexReports.queryId')}</th>
+                <th style={{ width: '12%', textAlign: 'right' }}>{t('flexReports.size')}</th>
+                <th style={{ width: '24%', textAlign: 'left' }}>{t('flexReports.downloadedAt')}</th>
+                <th style={{ width: '22%', textAlign: 'center' }}>{t('flexReports.actions')}</th>
               </tr>
             </thead>
             <tbody>
               {files.map((f) => (
                 <tr key={f.name}>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>{f.name}</td>
                   <td>
+                    <span className="table-symbol__code">{f.name}</span>
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
                     <span className="tag tag--accent">{f.query_id}</span>
                   </td>
-                  <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>
+                  <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '0.82rem', fontVariantNumeric: 'tabular-nums' }}>
                     {formatBytes(f.size)}
                   </td>
                   <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>
@@ -140,18 +143,16 @@ export default function AdminFlexReportsView() {
                       <button
                         className="btn btn--ghost btn--sm"
                         onClick={() => handleDownload(f.name)}
-                        title="Download"
                       >
-                        Download
+                        {t('flexReports.download')}
                       </button>
                       <button
                         className="btn btn--ghost btn--sm"
                         onClick={() => handleDelete(f.name)}
                         disabled={deleting === f.name}
                         style={{ color: 'var(--color-negative)' }}
-                        title="Delete"
                       >
-                        {deleting === f.name ? 'Deleting...' : 'Delete'}
+                        {deleting === f.name ? '...' : t('flexReports.delete')}
                       </button>
                     </div>
                   </td>

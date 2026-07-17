@@ -20,7 +20,8 @@
     "tradeReview": "交易复盘",
     "events": "市场事件",
     "policy": "投资策略",
-    "admin": "管理"
+    "admin": "管理",
+    "flexReports": "Flex 报告"
   },
   "auth": {
     "login": "登录",
@@ -412,7 +413,8 @@
     "scheduler": "调度器",
     "harness": "测试控制台",
     "evalHarness": "评测框架",
-    "agentReplays": "Agent 回放"
+    "agentReplays": "Agent 回放",
+    "flexReports": "Flex 报告"
   },
   "adminSettings": {
     "subtitle": "管理所有系统配置，优先级高于 .env 文件",
@@ -939,5 +941,23 @@
     "empty": "空",
     "ok": "成功",
     "noGraphSnapshot": "该任务暂无 LangGraph 进度快照。"
+  },
+  "flexReports": {
+    "title": "Flex 报告",
+    "subtitle": "管理 IBKR Flex Web Service 下载的 XML 报告",
+    "fileName": "文件名",
+    "queryId": "查询 ID",
+    "size": "大小",
+    "downloadedAt": "下载时间",
+    "actions": "操作",
+    "download": "下载",
+    "delete": "删除",
+    "downloadAll": "打包下载",
+    "refresh": "刷新",
+    "confirmDelete": "确定删除 {name} 吗？",
+    "noReports": "暂无 Flex 报告",
+    "loading": "加载中...",
+    "failedToLoad": "加载报告失败",
+    "failedToDelete": "删除失败"
   }
 }
