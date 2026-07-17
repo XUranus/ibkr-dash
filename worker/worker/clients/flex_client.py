@@ -107,6 +107,9 @@ class FlexClient:
         message = error_message or "Unknown IBKR Flex send_request failure."
         if error_code:
             message = f"{message} (error_code={error_code})"
+        # Rate limit at SendRequest level
+        if error_code == "1018" and "too many requests" in (error_message or "").lower():
+            raise FlexRateLimited(message)
         raise FlexClientError(message)
 
     def get_statement(self, reference_code: str) -> str:

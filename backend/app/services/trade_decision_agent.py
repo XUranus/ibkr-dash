@@ -87,8 +87,10 @@ class TradeDecisionAgent:
             )
             adapter = LongbridgeMCPToolAdapter(self._get_mcp_client())
             try:
+                from app.core.database import get_database
+                db = get_database()
                 market_event_query_service = MarketEventQueryService(
-                    self.repository.es_client,
+                    db,
                     self.repository.settings,
                 )
             except Exception:
