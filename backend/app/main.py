@@ -165,6 +165,7 @@ def create_app() -> FastAPI:
     from app.api.routes.admin_agent_replays import router as admin_agent_replays_router
     from app.api.routes.admin_longbridge_mcp import router as admin_longbridge_mcp_router
     from app.api.routes.admin_longbridge_openapi import router as admin_longbridge_openapi_router
+    from app.api.routes.admin_flex_reports import router as admin_flex_reports_router
     from app.domains.portfolio_manager.api.routes import router as portfolio_manager_router
 
     app.include_router(health_router, prefix="/api")
@@ -207,6 +208,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_agent_replays_router, prefix="/api")
     app.include_router(admin_longbridge_mcp_router, prefix="/api")
     app.include_router(admin_longbridge_openapi_router, prefix="/api")
+    app.include_router(admin_flex_reports_router, prefix="/api")
     app.include_router(portfolio_manager_router, prefix="/api")
 
     return app
