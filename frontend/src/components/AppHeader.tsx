@@ -50,9 +50,7 @@ export default function AppHeader() {
   const navItems = authenticated ? [...baseNavItems, ...protectedNavItems] : baseNavItems
 
   function isActive(path: string): boolean {
-    if (location.pathname === path) return true
-    if (path.startsWith('/admin')) return location.pathname.startsWith('/admin')
-    return false
+    return location.pathname === path
   }
 
   async function handleLogin(e: React.FormEvent) {
