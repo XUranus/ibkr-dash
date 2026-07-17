@@ -87,11 +87,14 @@ class FlexClient:
             FlexClientError: If the request fails or returns an error.
         """
         token = self._require_token()
+        t0 = time.monotonic()
+        logger.info("IBKR SendRequest: query=%s sending...", query_id)
         response = self.session.get(
             self._build_url(SEND_REQUEST_PATH),
             params={"t": token, "q": query_id, "v": "3"},
             timeout=30,
         )
+        elapsed = time.monotonic() - t0
         response.raise_for_status()
         root = self._parse_xml(response.text)
 
@@ -101,7 +104,10 @@ class FlexClient:
         error_message = self._extract_text(root, ("ErrorMessage", "Message"))
 
         if status and status.lower() == "success" and reference_code:
-            logger.info("submitted Flex query %s successfully", query_id)
+            logger.info(
+                "IBKR SendRequest: query=%s ref=%s elapsed=%.1fs",
+                query_id, reference_code, elapsed,
+            )
             return reference_code
 
         message = error_message or "Unknown IBKR Flex send_request failure."
@@ -229,14 +235,21 @@ class FlexClient:
         max_retries = self.settings.flex_max_poll_retries
         t0 = time.monotonic()
 
+        logger.info(
+            "IBKR GetStatement: query=%s ref=%s polling (max_retries=%d)...",
+            query_id, reference_code, max_retries,
+        )
+
         for attempt in range(1, max_retries + 1):
             try:
                 statement = self.get_statement(reference_code)
                 save_target.write_text(statement, encoding="utf-8")
                 elapsed = time.monotonic() - t0
+                file_size = save_target.stat().st_size if save_target.exists() else 0
                 logger.info(
-                    "Downloaded Flex statement for query %s to %s (%.0fs, %d polls)",
-                    query_id, save_target, elapsed, attempt,
+                    "IBKR GetStatement: query=%s completed file=%s size=%d bytes "
+                    "polls=%d elapsed=%.1fs",
+                    query_id, save_target.name, file_size, attempt, elapsed,
                 )
                 self._clear_pending_ref(query_id)
                 return save_target
@@ -253,7 +266,7 @@ class FlexClient:
                 interval = _POLL_INTERVALS[attempt - 1] if attempt <= len(_POLL_INTERVALS) else 60
                 elapsed = time.monotonic() - t0
                 logger.info(
-                    "Flex query %s not ready yet, retry %d/%d (elapsed=%.0fs, next poll in %ds)",
+                    "IBKR GetStatement: query=%s not ready, poll=%d/%d elapsed=%.1fs next_poll=%ds",
                     query_id, attempt, max_retries, elapsed, interval,
                 )
                 if attempt < max_retries:

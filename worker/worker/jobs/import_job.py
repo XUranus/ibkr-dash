@@ -16,8 +16,6 @@ from worker.parsers.base import FlexParseResult
 
 logger = logging.getLogger(__name__)
 
-logger = logging.getLogger(__name__)
-
 IMPORTED_FILES_LOG = "imported_files.txt"
 
 
@@ -102,14 +100,26 @@ def import_flex_file(
     Returns:
         Dict with counts of records imported per table.
     """
-    file_path = Path(file_path)
-    logger.info("Importing %s", file_path.name)
+    import time as _time
 
+    file_path = Path(file_path)
+    file_size = file_path.stat().st_size if file_path.exists() else 0
+    logger.info("IBKR import started: file=%s size=%d bytes", file_path.name, file_size)
+
+    t_parse = _time.monotonic()
     results = parse_flex_file(file_path)
+    parse_elapsed = _time.monotonic() - t_parse
+
+    t_write = _time.monotonic()
     counts = _write_results(writer, results)
+    write_elapsed = _time.monotonic() - t_write
 
     total = sum(counts.values())
-    logger.info("Imported %s: %d records (%s)", file_path.name, total, counts)
+    logger.info(
+        "IBKR import completed: file=%s records=%d details=%s "
+        "parse_time=%.1fs write_time=%.1fs",
+        file_path.name, total, counts, parse_elapsed, write_elapsed,
+    )
     return counts
 
 
