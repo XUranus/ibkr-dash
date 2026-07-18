@@ -48,120 +48,101 @@ def _pick(document: dict, field: str, fallback: str = "") -> str:
     return str(document.get(field, fallback))
 
 
+# Track recently sent review dates to avoid duplicate pushes
+_recently_sent_reviews: set[str] = set()
+
+
 def notify_daily_review_completed(document: dict) -> None:
-    """每日复盘完成推送 — 发送完整报告."""
+    """每日复盘完成推送 — 精简格式，只推摘要+归因+风险."""
     report_date = document.get("report_date", "")
-    subject = f"📊 每日持仓复盘 | {report_date}"
 
-    sections = []
+    # Dedup: skip if already sent for this report_date
+    if report_date in _recently_sent_reviews:
+        logger.info("DailyReview notification skipped (already sent): date=%s", report_date)
+        return
 
-    # 1. 摘要与结论
+    # Skip if no meaningful content (no account data)
     summary = _pick(document, "summary")
     conclusion = _pick(document, "account_conclusion")
-    if summary:
-        sections.append(f"## 摘要\n\n{summary}")
-    if conclusion:
-        sections.append(f"## 账户结论\n\n{conclusion}")
-
-    # 2. 归因分析
-    attribution = _pick(document, "attribution_summary")
-    if attribution:
-        sections.append(f"## 归因分析\n\n{attribution}")
-
-    # 3. 主要贡献者
     contributors = _pick_list(document, "major_contributors_analysis")
-    if contributors:
-        lines = []
-        for item in contributors:
-            symbol = item.get("symbol", "")
-            analysis = item.get("analysis", "")
-            if symbol and analysis:
-                lines.append(f"- **{symbol}**: {analysis}")
-        if lines:
-            sections.append("## 主要贡献者\n\n" + "\n".join(lines))
-
-    # 4. 主要拖累
     drags = _pick_list(document, "major_drags_analysis")
-    if drags:
-        lines = []
-        for item in drags:
-            symbol = item.get("symbol", "")
+
+    # Detect empty/no-data reviews
+    _no_data_markers = [
+        "No account performance data",
+        "Account data is unavailable",
+        "Insufficient data",
+        "数据不可用",
+        "无法生成",
+    ]
+    combined = f"{summary} {conclusion}".strip()
+    if any(marker.lower() in combined.lower() for marker in _no_data_markers) and not contributors:
+        logger.info("DailyReview notification skipped (no data): date=%s", report_date)
+        return
+
+    fallback = document.get("fallback_used", False)
+    tag = "📊" if not fallback else "📋"
+    subject = f"{tag} 每日复盘 | {report_date}"
+
+    lines = []
+
+    # 1. 摘要（一行）
+    if summary:
+        lines.append(summary)
+
+    # 2. 贡献者 / 拖累者（紧凑格式）
+    if contributors:
+        c_lines = []
+        for item in contributors:
+            sym = item.get("symbol", "")
             analysis = item.get("analysis", "")
-            if symbol and analysis:
-                lines.append(f"- **{symbol}**: {analysis}")
-        if lines:
-            sections.append("## 主要拖累\n\n" + "\n".join(lines))
+            if sym:
+                # Truncate analysis for push brevity
+                short = analysis[:80] + "..." if len(analysis) > 80 else analysis
+                c_lines.append(f"  ✅ {sym}: {short}")
+        if c_lines:
+            lines.append("贡献者:")
+            lines.extend(c_lines)
 
-    # 5. 重点标的分析
-    focus = _pick_list(document, "focus_symbol_analyses")
-    if focus:
-        lines = []
-        for item in focus:
-            symbol = item.get("symbol", "")
-            parts = []
-            if item.get("price_action"):
-                parts.append(f"**走势**: {item['price_action']}")
-            if item.get("account_impact"):
-                parts.append(f"**账户影响**: {item['account_impact']}")
-            if item.get("possible_reasons"):
-                reasons = "; ".join(item["possible_reasons"][:3])
-                parts.append(f"**可能原因**: {reasons}")
-            if item.get("valuation_note"):
-                parts.append(f"**估值**: {item['valuation_note']}")
-            if item.get("cost_position_note"):
-                parts.append(f"**成本仓位**: {item['cost_position_note']}")
-            if item.get("watch_points"):
-                watch = "; ".join(item["watch_points"][:3])
-                parts.append(f"**关注点**: {watch}")
-            if symbol and parts:
-                lines.append(f"### {symbol}\n\n" + "\n\n".join(parts))
-        if lines:
-            sections.append("## 重点标的分析\n\n" + "\n\n".join(lines))
+    if drags:
+        d_lines = []
+        for item in drags:
+            sym = item.get("symbol", "")
+            analysis = item.get("analysis", "")
+            if sym:
+                short = analysis[:80] + "..." if len(analysis) > 80 else analysis
+                d_lines.append(f"  ❌ {sym}: {short}")
+        if d_lines:
+            lines.append("拖累者:")
+            lines.extend(d_lines)
 
-    # 6. 市场背景
-    market = _pick(document, "market_context")
-    if market:
-        sections.append(f"## 市场背景\n\n{market}")
-
-    # 7. 风险分析
+    # 3. 风险提醒（如果有）
     risk = _pick(document, "risk_analysis")
-    if risk:
-        sections.append(f"## 风险分析\n\n{risk}")
+    if risk and "没有明显" not in risk and len(risk) > 5:
+        lines.append(f"⚠️ {risk}")
 
-    # 8. 明日关注
+    # 4. 明日关注（只取前2个，一行一个）
     watchlist = _pick_list(document, "tomorrow_watchlist")
     if watchlist:
-        lines = []
-        for item in watchlist:
-            symbol = item.get("symbol", "")
+        watch_lines = []
+        for item in watchlist[:2]:
+            sym = item.get("symbol", "")
             reason = item.get("reason", "")
-            conditions = item.get("conditions", [])
-            parts = []
-            if reason:
-                parts.append(reason)
-            if conditions:
-                parts.append("条件: " + "; ".join(conditions[:3]))
-            if symbol and parts:
-                lines.append(f"- **{symbol}**: {' | '.join(parts)}")
-        if lines:
-            sections.append("## 明日关注\n\n" + "\n".join(lines))
+            if sym and reason:
+                watch_lines.append(f"  👁 {sym}: {reason[:50]}")
+        if watch_lines:
+            lines.append("明日关注:")
+            lines.extend(watch_lines)
 
-    # 9. 操作观察
-    ops = _pick(document, "operation_observation")
-    if ops:
-        sections.append(f"## 操作观察\n\n{ops}")
+    body = "\n".join(lines) if lines else "复盘报告已生成，请查看详情。"
 
-    # 10. 数据限制
-    limitations = _pick_list(document, "data_limitations")
-    if limitations:
-        sections.append("## 数据限制\n\n" + "\n".join(f"- {item}" for item in limitations if item))
+    # Limit push body length
+    if len(body) > 800:
+        body = body[:797] + "..."
 
-    body = "\n\n".join(sections) if sections else "复盘报告已生成，请查看详细内容。"
-
-    logger.debug("DailyReview notification: lang=%s sections=%d body_len=%d", _get_language(), len(sections), len(body))
-    logger.debug("DailyReview notification body:\n%s", body[:1000])
-
+    logger.info("DailyReview notification: date=%s fallback=%s body_len=%d", report_date, fallback, len(body))
     _send(subject, body)
+    _recently_sent_reviews.add(report_date)
 
 
 def _pick_list(document: dict, field: str) -> list:

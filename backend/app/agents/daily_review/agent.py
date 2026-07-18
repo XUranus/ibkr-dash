@@ -47,6 +47,18 @@ async def generate_daily_review(
 
     # Step 1: Load deterministic context from DB
     deterministic_context = _load_deterministic_context(db, report_date)
+
+    # Guard: skip if no account data at all
+    data_quality = deterministic_context.get("data_quality", {})
+    if data_quality.get("error"):
+        logger.warning("DailyReview skipped: date=%s reason=%s", report_date, data_quality["error"])
+        return {
+            "report_date": report_date,
+            "summary": "",
+            "account_conclusion": "",
+            "status": "skipped_no_data",
+            "data_limitations": [data_quality["error"]],
+        }
     overview = deterministic_context.get("overview", {})
     rankings = deterministic_context.get("rankings", {})
     risk = deterministic_context.get("risk", {})
@@ -394,46 +406,150 @@ def _normalize_output(payload: dict, report_date: str, deterministic_context: di
 def _build_fallback_payload(
     report_date: str, overview: dict, rankings: dict, risk: dict, focus_symbols: list[str],
 ) -> dict:
-    """Build fallback payload when LLM output fails validation."""
+    """Build fallback payload when LLM output fails validation.
+
+    Uses deterministic IBKR data directly. No technical error messages
+    are exposed to the user — all content reads as a normal review.
+    """
     top_contributors = rankings.get("profit_contributors", [])[:3]
     top_drags = rankings.get("loss_drags", [])[:3]
-    contributor_symbols = ", ".join(item.get("symbol", "") for item in top_contributors) or "None"
-    drag_symbols = ", ".join(item.get("symbol", "") for item in top_drags) or "None"
-    daily_pnl = overview.get("daily_pnl", "N/A")
-    daily_return = overview.get("daily_return_percent", "N/A")
+    contributor_symbols = "、".join(item.get("symbol", "") for item in top_contributors if item.get("symbol")) or "暂无"
+    drag_symbols = "、".join(item.get("symbol", "") for item in top_drags if item.get("symbol")) or "暂无"
+    daily_pnl = overview.get("daily_pnl")
+    daily_return = overview.get("daily_return_percent")
+    total_equity = overview.get("total_equity", 0)
+    cash_ratio = overview.get("cash_ratio", 0)
+    position_count = overview.get("position_count", 0)
+
+    # Build a human-readable P&L line
+    if daily_pnl is not None:
+        pnl_sign = "+" if daily_pnl >= 0 else ""
+        pnl_line = f"当日盈亏 {pnl_sign}{daily_pnl:,.0f} 美元（{pnl_sign}{daily_return}%）"
+    else:
+        pnl_line = "当日盈亏数据不可用"
+
+    equity_line = f"总权益 {total_equity:,.0f} 美元，现金占比 {cash_ratio}%，持仓 {position_count} 只"
+
+    # Build contributor analysis with actual data
+    def _build_position_analysis(item: dict, is_drag: bool = False) -> dict:
+        symbol = item.get("symbol", "")
+        pnl = item.get("daily_pnl", 0)
+        weight = item.get("weight", 0)
+        unrealized = item.get("unrealized_pnl", 0)
+        change_pct = item.get("daily_change_percent", 0)
+
+        parts = []
+        if pnl:
+            pnl_s = f"+{pnl:,.0f}" if pnl > 0 else f"{pnl:,.0f}"
+            parts.append(f"当日估算盈亏 {pnl_s} 美元")
+        if change_pct:
+            chg_s = f"+{change_pct:.2f}%" if change_pct > 0 else f"{change_pct:.2f}%"
+            parts.append(f"日内变动 {chg_s}")
+        if weight:
+            parts.append(f"仓位权重 {weight:.1f}%")
+        if unrealized:
+            unr_s = f"+{unrealized:,.0f}" if unrealized > 0 else f"{unrealized:,.0f}"
+            parts.append(f"累计浮盈亏 {unr_s} 美元")
+
+        analysis = "；".join(parts) if parts else f"仓位权重 {weight:.1f}%"
+        return {"symbol": symbol, "analysis": analysis}
+
+    # Build focus symbol analyses with position-specific context
+    def _build_focus_analysis(symbol: str) -> dict:
+        # Find the position data
+        all_positions = (rankings.get("profit_contributors", []) or []) + (rankings.get("loss_drags", []) or []) + (rankings.get("top_weights", []) or [])
+        pos = next((p for p in all_positions if p.get("symbol") == symbol), None)
+
+        if pos:
+            pnl = pos.get("daily_pnl", 0)
+            weight = pos.get("weight", 0)
+            unrealized = pos.get("unrealized_pnl", 0)
+            asset_class = pos.get("asset_class", "")
+            cost = pos.get("cost_basis", 0)
+            market_val = pos.get("market_value", 0)
+
+            impact_parts = []
+            if pnl:
+                impact_parts.append(f"当日{'贡献' if pnl > 0 else '拖累'} {abs(pnl):,.0f} 美元")
+            if weight:
+                impact_parts.append(f"权重 {weight:.1f}%")
+
+            cost_parts = []
+            if cost > 0 and market_val > 0:
+                cost_parts.append(f"市值 {market_val:,.0f}，成本 {cost:,.0f}")
+            if unrealized:
+                unr_pct = (unrealized / cost * 100) if cost > 0 else 0
+                cost_parts.append(f"浮盈亏 {unrealized:+,.0f}（{unr_pct:+.1f}%）")
+
+            # Position-type-specific watch points
+            watch = []
+            if "OPT" in asset_class or "P00" in symbol or "C00" in symbol:
+                watch.append("关注期权到期日和时间衰减")
+                watch.append("标的股价与行权价的相对位置")
+            elif weight and weight > 15:
+                watch.append("仓位较重，关注集中度风险")
+            else:
+                watch.append("关注基本面变化和成交量")
+
+            return {
+                "symbol": symbol,
+                "price_action": f"日内变动 {pos.get('daily_change_percent', 0):+.2f}%" if pos.get("daily_change_percent") else "日内变动数据不可用",
+                "account_impact": "；".join(impact_parts) if impact_parts else "影响较小",
+                "possible_reasons": [],
+                "valuation_note": "、".join(cost_parts) if cost_parts else "成本数据不可用",
+                "cost_position_note": f"权重 {weight:.1f}%" if weight else "",
+                "watch_points": watch,
+                "data_limitations": [],
+            }
+
+        return {
+            "symbol": symbol,
+            "price_action": "数据不可用",
+            "account_impact": "重点持仓",
+            "possible_reasons": [],
+            "valuation_note": "",
+            "cost_position_note": "",
+            "watch_points": ["关注基本面变化"],
+            "data_limitations": ["持仓数据不足"],
+        }
+
+    # Build differentiated watchlist
+    def _build_watchlist_item(symbol: str) -> dict:
+        all_positions = (rankings.get("profit_contributors", []) or []) + (rankings.get("loss_drags", []) or []) + (rankings.get("top_weights", []) or [])
+        pos = next((p for p in all_positions if p.get("symbol") == symbol), None)
+        asset_class = pos.get("asset_class", "") if pos else ""
+        weight = pos.get("weight", 0) if pos else 0
+
+        if "OPT" in asset_class or "P00" in symbol or "C00" in symbol:
+            reason = "期权头寸，关注到期日和 Greeks 变化"
+            conditions = ["标的股价是否突破关键价位", "隐含波动率变化"]
+        elif weight and weight > 15:
+            reason = "重仓标的，关注仓位变化"
+            conditions = ["是否有重大消息面", "成交量是否异常"]
+        else:
+            reason = "重点持仓，继续观察"
+            conditions = ["关注行业动态和财报日期"]
+
+        return {"symbol": symbol, "reason": reason, "key_levels": [], "events": [], "conditions": conditions}
+
+    # Risk analysis from deterministic data
+    risk_flags = risk.get("risk_flags", [])
+    risk_summary = "；".join(risk_flags) if risk_flags else "当前没有明显集中度警报"
 
     return {
         "report_date": report_date,
-        "summary": f"Daily review generated with fallback. PnL: {daily_pnl}, Return: {daily_return}%.",
-        "account_conclusion": f"Account PnL {daily_pnl}, return {daily_return}%. Contributors: {contributor_symbols}. Drags: {drag_symbols}.",
-        "attribution_summary": f"Contributors: {contributor_symbols}. Drags: {drag_symbols}.",
-        "major_contributors_analysis": [
-            {"symbol": item.get("symbol"), "analysis": f"PnL {item.get('daily_pnl')}, contribution {item.get('contribution_ratio')}, weight {item.get('weight')}."}
-            for item in top_contributors[:5]
-        ],
-        "major_drags_analysis": [
-            {"symbol": item.get("symbol"), "analysis": f"PnL {item.get('daily_pnl')}, contribution {item.get('contribution_ratio')}, weight {item.get('weight')}."}
-            for item in top_drags[:5]
-        ],
-        "focus_symbol_analyses": [
-            {
-                "symbol": symbol, "price_action": "LLM output format error; price explanation pending.",
-                "account_impact": "See deterministic position contribution rankings below.",
-                "possible_reasons": [], "valuation_note": "Public market explanation insufficient.",
-                "cost_position_note": "See position details for cost and unrealized PnL.",
-                "watch_points": ["Regenerate LLM review"], "data_limitations": ["LLM output was not valid JSON"],
-            }
-            for symbol in focus_symbols[:5]
-        ],
-        "market_context": "LLM output was not valid JSON; market explanation not generated.",
-        "risk_analysis": "See deterministic risk data.",
-        "tomorrow_watchlist": [
-            {"symbol": symbol, "reason": "Key position or daily mover", "key_levels": [], "events": [], "conditions": ["Monitor volume and key moving averages"]}
-            for symbol in focus_symbols[:5]
-        ],
-        "operation_observation": "Fallback review; no buy/sell conclusions. Regenerate when LLM output recovers.",
-        "data_limitations": ["LLM output was not valid JSON; using deterministic fallback"],
-        "evidence_used": ["deterministic IBKR data"],
+        "summary": f"{pnl_line}。{equity_line}。",
+        "account_conclusion": f"{pnl_line}。主要贡献来自 {contributor_symbols}，主要拖累来自 {drag_symbols}。",
+        "attribution_summary": f"贡献者：{contributor_symbols}。拖累者：{drag_symbols}。",
+        "major_contributors_analysis": [_build_position_analysis(item) for item in top_contributors[:5]],
+        "major_drags_analysis": [_build_position_analysis(item, is_drag=True) for item in top_drags[:5]],
+        "focus_symbol_analyses": [_build_focus_analysis(symbol) for symbol in focus_symbols[:5]],
+        "market_context": "",
+        "risk_analysis": risk_summary,
+        "tomorrow_watchlist": [_build_watchlist_item(symbol) for symbol in focus_symbols[:5]],
+        "operation_observation": "以上为确定性数据分析，不构成投资建议。",
+        "data_limitations": ["LLM 分析暂不可用，本次使用确定性数据生成"],
+        "evidence_used": ["IBKR 账户和持仓归因数据"],
     }
 
 
