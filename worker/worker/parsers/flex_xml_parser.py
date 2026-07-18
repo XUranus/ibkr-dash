@@ -52,13 +52,27 @@ _MONTH_MAP = {
 
 
 def _safe_float(value: str | None, default: float = 0.0) -> float:
-    """Safely convert a string to float."""
+    """Safely convert a string to float. Returns *default* when value is None."""
     if value is None:
         return default
     try:
         return float(value)
     except (ValueError, TypeError):
         return default
+
+
+def _optional_float(value: str | None) -> float | None:
+    """Convert a string to float, returning *None* when the field is absent.
+
+    Use this for ChangeInNAV component fields so the writer can distinguish
+    "IBKR returned 0" (write 0) from "field missing" (preserve old value).
+    """
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return None
 
 
 def _format_date(raw: str | None) -> str:
@@ -358,14 +372,65 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexParseResult]:
             starting_value = _safe_float(nav.get("startingValue"))
             twr = _safe_float(nav.get("twr"))
 
-            # Compute cumulative MTM from starting/ending values.
-            # This includes deposits/withdrawals; the chart service will
-            # compute the true daily MTM by subtracting consecutive days
-            # and adjusting for deposits.
-            mtm = ending_value - starting_value if starting_value > 0 else _safe_float(nav.get("mtm"))
+            # Read raw component values from the Flex report.
+            # Use _optional_float so that "field absent" → None (distinct from 0).
+            # The writer's UPSERT uses IS NOT NULL guards: None preserves old
+            # values, while 0.0 is written through as a genuine zero.
+            raw_mtm = _optional_float(nav.get("mtm"))
+            raw_realized = _optional_float(nav.get("realized"))
+            raw_chg_unr = _optional_float(nav.get("changeInUnrealized"))
+            deposits = _safe_float(nav.get("depositsWithdrawals"))
+
+            # Compute daily equity change
+            daily_change = ending_value - starting_value if starting_value > 0 else 0
+
+            # Detect incomplete Flex report: IBKR sometimes returns all-zero
+            # component breakdown (mtm=0, realized=0, changeInUnrealized=0)
+            # while the startingValue and endingValue are correct.
+            # In this case, infer the breakdown from the daily change.
+            mtm_val = raw_mtm or 0.0
+            rlsd_val = raw_realized or 0.0
+            chg_unr_val = raw_chg_unr or 0.0
+            is_incomplete = (
+                raw_mtm is not None and abs(mtm_val) < 0.01
+                and raw_realized is not None and abs(rlsd_val) < 0.01
+                and raw_chg_unr is not None and abs(chg_unr_val) < 0.01
+                and abs(daily_change) > 1.0
+            )
+
+            if is_incomplete:
+                # Incomplete report: infer changeInUnrealized from daily change
+                # Formula: daily_change = realized + changeInUnrealized + deposits
+                inferred_chg_unr = daily_change - rlsd_val - deposits
+                mtm = inferred_chg_unr  # best approximation
+                realized = rlsd_val
+                change_in_unrealized = inferred_chg_unr
+                logger.warning(
+                    "Incomplete ChangeInNAV for %s on %s: "
+                    "components all zero but daily_change=%.2f. "
+                    "Inferring changeInUnrealized=%.2f",
+                    account_id, report_date, daily_change, inferred_chg_unr,
+                )
+            else:
+                mtm = raw_mtm
+                realized = raw_realized
+                change_in_unrealized = raw_chg_unr
+
+            # Cross-validate: endingValue - startingValue should ≈ realized + changeInUnrealized + deposits
+            if starting_value > 0 and ending_value > 0 and realized is not None and change_in_unrealized is not None:
+                expected = realized + change_in_unrealized + deposits
+                discrepancy = daily_change - expected
+                if abs(discrepancy) > 5.0:
+                    logger.info(
+                        "ChangeInNAV reconciliation for %s on %s: "
+                        "daily_change=%.2f, components=%.2f (realized=%.2f + chgUnr=%.2f + deposits=%.2f), "
+                        "discrepancy=%.2f (likely fees/interest/dividends)",
+                        account_id, report_date,
+                        daily_change, expected, realized, change_in_unrealized, deposits,
+                        discrepancy,
+                    )
 
             # Daily deposit/withdrawal amount (for daily MTM adjustment)
-            deposits = _safe_float(nav.get("depositsWithdrawals"))
 
             # Compute cash: try CashReport first, then estimate from equity - positions
             cash_balance = 0.0
@@ -385,7 +450,6 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexParseResult]:
                 cash_balance = max(ending_value - total_position_value, 0)
 
             # Compute cumulative unrealized PnL from position-level data.
-            # mtm = ending - starting is the daily NAV change, NOT cumulative.
             cumulative_unrealized = sum(
                 p.get("fifo_pnl_unrealized", 0) or 0 for p in result.positions
             )
@@ -402,8 +466,8 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexParseResult]:
                 "cnav_deposits": deposits,
                 "cnav_starting_value": starting_value,
                 "cnav_ending_value": ending_value,
-                "cnav_realized": _safe_float(nav.get("realized")),
-                "cnav_change_in_unrealized": _safe_float(nav.get("changeInUnrealized")),
+                "cnav_realized": realized,
+                "cnav_change_in_unrealized": change_in_unrealized,
                 "fifo_total_realized_pnl": 0,
                 "fifo_total_unrealized_pnl": cumulative_unrealized,
             }
@@ -433,5 +497,40 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexParseResult]:
             len(result.positions), len(result.trades), len(result.cash_flows),
         )
         results.append(result)
+
+        # Parse EquitySummaryByReportDateInBase for additional daily snapshots.
+        # ChangeInNAV only covers the report_date; EquitySummary has data for
+        # many prior dates.  We create extra FlexParseResult entries for dates
+        # not already covered so that the writer can fill gaps.
+        seen_dates = {report_date}
+        for eq in stmt.findall(".//EquitySummaryByReportDateInBase"):
+            eq_date = _format_date(eq.get("reportDate"))
+            if not eq_date or eq_date in seen_dates:
+                continue
+            seen_dates.add(eq_date)
+            eq_total = _safe_float(eq.get("total"))
+            eq_cash = _safe_float(eq.get("cash"))
+            eq_stock = _safe_float(eq.get("stock"))
+            eq_options = _safe_float(eq.get("options"))
+            eq_funds = _safe_float(eq.get("funds"))
+            eq_crypto = _safe_float(eq.get("crypto"))
+            if eq_total <= 0:
+                continue
+            eq_result = FlexParseResult(
+                account_id=account_id,
+                report_date=eq_date,
+            )
+            eq_result.account_snapshot = {
+                "account_id": account_id,
+                "report_date": eq_date,
+                "currency": "USD",
+                "total_equity": eq_total,
+                "cash": eq_cash,
+                "stock_value": eq_stock,
+                "options_value": eq_options,
+                "funds_value": eq_funds,
+                "crypto_value": eq_crypto,
+            }
+            results.append(eq_result)
 
     return results

@@ -17,12 +17,29 @@ from app.schemas.account import (
     AccountSnapshotListResponse,
 )
 
+# Must match chart_service.DEPOSIT_WITHDRAWAL_FLOW_TYPE
+_DEPOSIT_WITHDRAWAL_FLOW_TYPE = "Deposits/Withdrawals"
+
 
 class AccountService:
     """Service for retrieving account overview and summary data."""
 
     def __init__(self, db: Database) -> None:
         self.db = db
+
+    def _resolve_cash(self, row: dict, total_equity: float) -> float:
+        """Resolve cash balance: use DB value, or recompute from positions if zero."""
+        cash = float(row.get("cash") or 0)
+        if cash > 0:
+            return cash
+        pos_row = self.db.execute_one(
+            "SELECT COALESCE(SUM(position_value), 0.0) AS total FROM position_snapshots WHERE report_date = ?",
+            (row["report_date"],),
+        )
+        pos_total = float(pos_row["total"]) if pos_row else 0
+        if total_equity > 0 and pos_total > 0:
+            return max(total_equity - pos_total, 0)
+        return 0.0
 
     def get_overview(self) -> AccountOverviewResponse | None:
         """Return the latest account overview with deltas vs. previous day. Cached."""
@@ -44,20 +61,10 @@ class AccountService:
         current = snapshots[0]
         previous = snapshots[1] if len(snapshots) > 1 else None
         total_equity = float(current.get("total_equity") or 0)
+        cash = self._resolve_cash(current, total_equity)
 
-        # Compute cash from DB if stored value is 0
-        cash = current.get("cash") or 0
-        if cash == 0:
-            pos_row = self.db.execute_one(
-                "SELECT COALESCE(SUM(position_value), 0.0) AS total FROM position_snapshots WHERE report_date = ?",
-                (current["report_date"],),
-            )
-            pos_total = float(pos_row["total"]) if pos_row else 0
-            if total_equity > 0 and pos_total > 0:
-                cash = max(total_equity - pos_total, 0)
-
-        # Compute net cost from TWR-based cumulative PnL
-        net_cost = self._compute_net_cost(current["report_date"], total_equity, cash)
+        # Compute net cost: prefer actual cash flow data, fall back to TWR
+        net_cost = self._compute_net_cost(current["account_id"], current["report_date"], total_equity)
 
         # total_pnl = equity - net_cost
         total_pnl = total_equity - net_cost if net_cost > 0 else 0.0
@@ -69,9 +76,10 @@ class AccountService:
         unrealized_pnl = self._compute_unrealized_from_positions(current["report_date"])
 
         # Derive realized PnL: realized = total_pnl - unrealized
-        # This is more accurate than SUM(fifo_pnl_realized) from trades,
-        # because the real-time API zeroes out fifo_pnl_realized.
         realized_pnl = total_pnl - unrealized_pnl
+
+        # stock_value = total_equity - cash (always recompute, never trust DB value)
+        stock_value = total_equity - cash if total_equity else 0.0
 
         overview = AccountOverviewResponse(
             account_id=current["account_id"],
@@ -79,7 +87,7 @@ class AccountService:
             currency=current.get("currency"),
             total_equity=total_equity,
             cash=cash,
-            stock_value=current.get("stock_value") or (total_equity - cash if total_equity else 0),
+            stock_value=stock_value,
             options_value=current.get("options_value"),
             funds_value=current.get("funds_value"),
             crypto_value=current.get("crypto_value"),
@@ -95,17 +103,8 @@ class AccountService:
             prev_equity = float(previous.get("total_equity") or 0)
             overview.total_equity_delta = self._build_delta(total_equity, prev_equity)
 
-            prev_cash = previous.get("cash") or 0
-            if prev_cash == 0:
-                prev_pos = self.db.execute_one(
-                    "SELECT COALESCE(SUM(position_value), 0.0) AS total FROM position_snapshots WHERE report_date = ?",
-                    (previous["report_date"],),
-                )
-                prev_pos_total = float(prev_pos["total"]) if prev_pos else 0
-                if prev_equity > 0 and prev_pos_total > 0:
-                    prev_cash = max(prev_equity - prev_pos_total, 0)
-
-            prev_net_cost = self._compute_net_cost(previous["report_date"], prev_equity, prev_cash)
+            prev_cash = self._resolve_cash(previous, prev_equity)
+            prev_net_cost = self._compute_net_cost(previous["account_id"], previous["report_date"], prev_equity)
             prev_total_pnl = prev_equity - prev_net_cost if prev_net_cost > 0 else 0.0
             prev_unrealized = self._compute_unrealized_from_positions(previous["report_date"])
             prev_realized = prev_total_pnl - prev_unrealized
@@ -210,15 +209,28 @@ class AccountService:
         """Compute FIFO cost basis for symbols from trade records."""
         return query_fifo_cost_basis(self.db, symbols)
 
-    def _compute_net_cost(self, report_date: str, total_equity: float, _cash: float) -> float:
-        """Compute net cost (total investment) using TWR-based cumulative PnL.
+    def _compute_net_cost(self, account_id: str, report_date: str, total_equity: float) -> float:
+        """Compute net cost (total investment = deposits - withdrawals).
 
-        net_cost = total_equity - cumulative_market_pnl
-        where cumulative_market_pnl = Σ(daily_twr * prev_equity / 100) for all days up to report_date.
-
-        This correctly handles deposits: when a deposit arrives, total_equity rises
-        but cumulative_market_pnl doesn't (TWR excludes cash flows), so net_cost increases.
+        Prefers actual cash flow data from the cash_flows table.
+        Falls back to deriving net_cost from TWR-based cumulative market PnL:
+            net_cost = total_equity - cumulative_market_pnl
         """
+        # --- Strategy 1: actual cash flow data (most accurate) ---
+        row = self.db.execute_one(
+            """
+            SELECT COALESCE(SUM(amount_in_base), 0.0) AS total
+            FROM cash_flows
+            WHERE account_id = ? AND flow_type = ? AND date_time <= ?
+            """,
+            (account_id, _DEPOSIT_WITHDRAWAL_FLOW_TYPE, report_date),
+        )
+        if row:
+            total = float(row["total"] or 0)
+            if abs(total) > 0.01:
+                return total
+
+        # --- Strategy 2: TWR-based cumulative market PnL (same logic as chart_service) ---
         rows = self.db.execute(
             """
             SELECT total_equity, cnav_twr, cnav_mtm, cnav_deposits,
@@ -232,32 +244,49 @@ class AccountService:
         if not rows:
             return 0.0
 
-        cumulative_pnl = 0.0
+        cumulative_market_pnl = 0.0
         prev_equity = None
         for row in rows:
             equity = row.get("total_equity")
             twr = row.get("cnav_twr")
             cumtm = row.get("cnav_mtm")
-            deposits = row.get("cnav_deposits") or 0.0
+            deposits = float(row.get("cnav_deposits") or 0.0)
             chg_unreal = row.get("cnav_change_in_unrealized")
             rlsd = row.get("cnav_realized")
 
-            # Compute daily PnL (same logic as chart_service)
-            detail_pnl = (float(chg_unreal or 0) + float(rlsd or 0))
-            detail_ok = (
-                chg_unreal is not None and rlsd is not None
-                and not (detail_pnl == 0.0 and twr is not None and float(twr or 0) != 0.0)
+            # Compute daily market PnL — mirrors chart_service's logic exactly.
+            # The guard includes `deposits == 0` so that on deposit days where
+            # the market didn't move, we still use the detail fields (daily_mtm=0)
+            # instead of falling through to TWR (which would include deposit effect).
+            detail_pnl = float(chg_unreal or 0) + float(rlsd or 0)
+            detail_fields_populated = (
+                chg_unreal is not None
+                and rlsd is not None
+                and not (
+                    detail_pnl == 0.0
+                    and deposits == 0.0
+                    and twr is not None
+                    and float(twr or 0) != 0.0
+                )
             )
-            if detail_ok:
-                cumulative_pnl += detail_pnl
+            if detail_fields_populated:
+                daily_mtm = detail_pnl
             elif twr is not None and prev_equity is not None and prev_equity != 0:
-                cumulative_pnl += float(prev_equity) * float(twr) / 100.0
+                daily_mtm = float(prev_equity) * float(twr) / 100.0
             elif cumtm is not None:
-                cumulative_pnl += float(cumtm) - float(deposits)
+                daily_mtm = float(cumtm) - deposits
+            else:
+                # No data for this day (e.g. EquitySummary-only snapshot).
+                # Skip — cannot determine market P&L.
+                daily_mtm = None
 
-            prev_equity = float(equity) if equity is not None else prev_equity
+            if daily_mtm is not None:
+                cumulative_market_pnl += daily_mtm
 
-        net_cost = float(total_equity) - cumulative_pnl
+            if equity is not None:
+                prev_equity = float(equity)
+
+        net_cost = float(total_equity) - cumulative_market_pnl
         return max(net_cost, 0.0)
 
     @staticmethod

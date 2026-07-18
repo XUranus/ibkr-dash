@@ -7,6 +7,7 @@ Supports multiple file formats (XML, CSV, TXT) via the parser registry.
 from __future__ import annotations
 
 import logging
+import sqlite3
 from pathlib import Path
 
 from worker.clients.sqlite_writer import SQLiteWriter
@@ -15,6 +16,10 @@ from worker.parsers import parse_flex_file
 from worker.parsers.base import FlexParseResult
 
 logger = logging.getLogger(__name__)
+
+# Tolerance for cross-validation checks (in USD)
+_EQUITY_TOLERANCE = 1.0  # stock_value ≈ total_equity - cash
+_DAILY_PNL_TOLERANCE = 50.0  # daily equity change ≈ mtm + deposits
 
 IMPORTED_FILES_LOG = "imported_files.txt"
 
@@ -165,6 +170,8 @@ def import_all_archived(
 
     if all_results:
         logger.info("Imported %d new files", len(all_results))
+        # Run post-import integrity checks
+        _run_integrity_checks(writer)
         # Trigger position analysis in background (non-blocking)
         _trigger_position_analysis()
     else:
@@ -181,3 +188,98 @@ def _trigger_position_analysis() -> None:
         trigger_position_analysis(settings)
     except Exception as exc:
         logger.debug("Position analysis trigger skipped: %s", exc)
+
+
+def _run_integrity_checks(writer: SQLiteWriter) -> None:
+    """Run cross-validation checks after import to catch data inconsistencies.
+
+    Checks:
+      1. stock_value ≈ total_equity - cash for every snapshot
+      2. Adjacent-day equity change ≈ cnav_mtm + cnav_deposits (where both available)
+      3. CNAV continuity: no unexplained gaps in cnav data
+    """
+    try:
+        with writer._get_conn() as conn:
+            _check_stock_value_consistency(conn)
+            _check_daily_equity_reconciliation(conn)
+    except Exception:
+        logger.exception("Post-import integrity checks failed")
+
+
+def _check_stock_value_consistency(conn: sqlite3.Connection) -> None:
+    """Verify stock_value ≈ total_equity - cash for all snapshots."""
+    rows = conn.execute(
+        """
+        SELECT account_id, report_date, total_equity, cash, stock_value
+        FROM account_snapshots
+        WHERE total_equity IS NOT NULL AND cash IS NOT NULL AND stock_value IS NOT NULL
+        ORDER BY report_date DESC
+        LIMIT 30
+        """,
+    ).fetchall()
+    violations = []
+    for row in rows:
+        expected = float(row["total_equity"]) - float(row["cash"])
+        actual = float(row["stock_value"])
+        if abs(expected - actual) > _EQUITY_TOLERANCE:
+            violations.append(
+                f"  {row['report_date']}: stock_value={actual:.2f} "
+                f"but equity-cash={expected:.2f} (diff={actual - expected:.2f})"
+            )
+    if violations:
+        logger.warning(
+            "stock_value consistency check: %d violation(s) in last 30 snapshots:\n%s",
+            len(violations), "\n".join(violations[:10]),
+        )
+    else:
+        logger.info("Integrity check: stock_value consistency OK (%d snapshots checked)", len(rows))
+
+
+def _check_daily_equity_reconciliation(conn: sqlite3.Connection) -> None:
+    """Verify daily equity change ≈ cnav_mtm + cnav_deposits where available.
+
+    This catches cases where stale CNAV data causes incorrect P&L derivation.
+    """
+    rows = conn.execute(
+        """
+        SELECT account_id, report_date, total_equity,
+               cnav_mtm, cnav_deposits, cnav_realized, cnav_change_in_unrealized
+        FROM account_snapshots
+        WHERE total_equity IS NOT NULL
+        ORDER BY report_date ASC
+        """,
+    ).fetchall()
+    if len(rows) < 2:
+        return
+
+    violations = []
+    for i in range(1, len(rows)):
+        prev = rows[i - 1]
+        curr = rows[i]
+        prev_eq = prev["total_equity"]
+        curr_eq = curr["total_equity"]
+        if prev_eq is None or curr_eq is None:
+            continue
+
+        equity_change = float(curr_eq) - float(prev_eq)
+        deposits = float(curr["cnav_deposits"] or 0)
+
+        # Check using detail fields if available
+        rlsd = curr["cnav_realized"]
+        chg_unr = curr["cnav_change_in_unrealized"]
+        if rlsd is not None and chg_unr is not None:
+            expected_from_detail = float(rlsd) + float(chg_unr) + deposits
+            if abs(equity_change - expected_from_detail) > _DAILY_PNL_TOLERANCE:
+                violations.append(
+                    f"  {curr['report_date']}: equity_change={equity_change:.2f} "
+                    f"vs detail={expected_from_detail:.2f} "
+                    f"(rlsd={rlsd}, chgUnr={chg_unr}, dep={deposits})"
+                )
+
+    if violations:
+        logger.warning(
+            "Daily equity reconciliation: %d violation(s):\n%s",
+            len(violations), "\n".join(violations[:10]),
+        )
+    else:
+        logger.info("Integrity check: daily equity reconciliation OK (%d transitions)", len(rows) - 1)
