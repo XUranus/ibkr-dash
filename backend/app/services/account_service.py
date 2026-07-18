@@ -51,6 +51,7 @@ class AccountService:
         snapshots = self.db.execute(
             """
             SELECT * FROM account_snapshots
+            WHERE total_equity > 0
             ORDER BY report_date DESC
             LIMIT 2
             """
@@ -125,6 +126,7 @@ class AccountService:
                    cnav_mtm, cnav_twr, fifo_total_realized_pnl,
                    fifo_total_unrealized_pnl
             FROM account_snapshots
+            WHERE total_equity > 0
             ORDER BY report_date DESC
             LIMIT ?
             """,
@@ -236,7 +238,7 @@ class AccountService:
             SELECT total_equity, cnav_twr, cnav_mtm, cnav_deposits,
                    cnav_change_in_unrealized, cnav_realized
             FROM account_snapshots
-            WHERE report_date <= ?
+            WHERE report_date <= ? AND total_equity > 0
             ORDER BY report_date ASC
             """,
             (report_date,),

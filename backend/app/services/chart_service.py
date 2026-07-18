@@ -70,7 +70,7 @@ class ChartService:
             SELECT account_id, report_date, total_equity, cnav_mtm, cnav_twr, cnav_deposits,
                    cnav_realized, cnav_change_in_unrealized
             FROM account_snapshots
-            WHERE report_date <= ?
+            WHERE report_date <= ? AND total_equity > 0
             ORDER BY report_date ASC
             """,
             (effective_end.isoformat(),),
@@ -396,7 +396,7 @@ class ChartService:
         self, start: date | None, end: date
     ) -> list[DailyPerformanceEntry]:
         """Compute daily MTM and TWR entries for a date range."""
-        conditions = ["report_date <= ?"]
+        conditions = ["report_date <= ?", "total_equity > 0"]
         params: list = [end.isoformat()]
         if start:
             conditions.append("report_date >= ?")
@@ -649,13 +649,13 @@ class ChartService:
 
     def _get_latest_report_date(self) -> date | None:
         row = self.db.execute_one(
-            "SELECT report_date FROM account_snapshots ORDER BY report_date DESC LIMIT 1"
+            "SELECT report_date FROM account_snapshots WHERE total_equity > 0 ORDER BY report_date DESC LIMIT 1"
         )
         return parse_date(row["report_date"]) if row else None
 
     def _get_earliest_report_date(self) -> date | None:
         row = self.db.execute_one(
-            "SELECT report_date FROM account_snapshots ORDER BY report_date ASC LIMIT 1"
+            "SELECT report_date FROM account_snapshots WHERE total_equity > 0 ORDER BY report_date ASC LIMIT 1"
         )
         return parse_date(row["report_date"]) if row else None
 

@@ -370,112 +370,120 @@ def parse_flex_xml(xml_path: str | Path) -> list[FlexParseResult]:
         if nav is not None:
             ending_value = _safe_float(nav.get("endingValue"))
             starting_value = _safe_float(nav.get("startingValue"))
-            twr = _safe_float(nav.get("twr"))
 
-            # Read raw component values from the Flex report.
-            # Use _optional_float so that "field absent" → None (distinct from 0).
-            # The writer's UPSERT uses IS NOT NULL guards: None preserves old
-            # values, while 0.0 is written through as a genuine zero.
-            raw_mtm = _optional_float(nav.get("mtm"))
-            raw_realized = _optional_float(nav.get("realized"))
-            raw_chg_unr = _optional_float(nav.get("changeInUnrealized"))
-            deposits = _safe_float(nav.get("depositsWithdrawals"))
-
-            # Compute daily equity change
-            daily_change = ending_value - starting_value if starting_value > 0 else 0
-
-            # Detect incomplete Flex report: IBKR sometimes returns all-zero
-            # component breakdown (mtm=0, realized=0, changeInUnrealized=0)
-            # while the startingValue and endingValue are correct.
-            # In this case, infer the breakdown from the daily change.
-            mtm_val = raw_mtm or 0.0
-            rlsd_val = raw_realized or 0.0
-            chg_unr_val = raw_chg_unr or 0.0
-            is_incomplete = (
-                raw_mtm is not None and abs(mtm_val) < 0.01
-                and raw_realized is not None and abs(rlsd_val) < 0.01
-                and raw_chg_unr is not None and abs(chg_unr_val) < 0.01
-                and abs(daily_change) > 1.0
-            )
-
-            if is_incomplete:
-                # Incomplete report: infer changeInUnrealized from daily change
-                # Formula: daily_change = realized + changeInUnrealized + deposits
-                inferred_chg_unr = daily_change - rlsd_val - deposits
-                mtm = inferred_chg_unr  # best approximation
-                realized = rlsd_val
-                change_in_unrealized = inferred_chg_unr
-                logger.warning(
-                    "Incomplete ChangeInNAV for %s on %s: "
-                    "components all zero but daily_change=%.2f. "
-                    "Inferring changeInUnrealized=%.2f",
-                    account_id, report_date, daily_change, inferred_chg_unr,
+            # Skip snapshots for inactive/empty accounts (equity = 0).
+            # IBKR returns ChangeInNAV with endingValue=0 for periods before
+            # the account was funded — these are ghost snapshots that pollute
+            # the performance calendar with false "no change" entries.
+            if ending_value <= 0:
+                logger.info(
+                    "Skipping ChangeInNAV for %s on %s: ending_value=%.2f (account inactive)",
+                    account_id, report_date, ending_value,
                 )
             else:
-                mtm = raw_mtm
-                realized = raw_realized
-                change_in_unrealized = raw_chg_unr
+                twr = _safe_float(nav.get("twr"))
 
-            # Cross-validate: endingValue - startingValue should ≈ realized + changeInUnrealized + deposits
-            if starting_value > 0 and ending_value > 0 and realized is not None and change_in_unrealized is not None:
-                expected = realized + change_in_unrealized + deposits
-                discrepancy = daily_change - expected
-                if abs(discrepancy) > 5.0:
-                    logger.info(
-                        "ChangeInNAV reconciliation for %s on %s: "
-                        "daily_change=%.2f, components=%.2f (realized=%.2f + chgUnr=%.2f + deposits=%.2f), "
-                        "discrepancy=%.2f (likely fees/interest/dividends)",
-                        account_id, report_date,
-                        daily_change, expected, realized, change_in_unrealized, deposits,
-                        discrepancy,
+                # Read raw component values from the Flex report.
+                # Use _optional_float so that "field absent" → None (distinct from 0).
+                # The writer's UPSERT uses IS NOT NULL guards: None preserves old
+                # values, while 0.0 is written through as a genuine zero.
+                raw_mtm = _optional_float(nav.get("mtm"))
+                raw_realized = _optional_float(nav.get("realized"))
+                raw_chg_unr = _optional_float(nav.get("changeInUnrealized"))
+                deposits = _safe_float(nav.get("depositsWithdrawals"))
+
+                # Compute daily equity change
+                daily_change = ending_value - starting_value if starting_value > 0 else 0
+
+                # Detect incomplete Flex report: IBKR sometimes returns all-zero
+                # component breakdown (mtm=0, realized=0, changeInUnrealized=0)
+                # while the startingValue and endingValue are correct.
+                # In this case, infer the breakdown from the daily change.
+                mtm_val = raw_mtm or 0.0
+                rlsd_val = raw_realized or 0.0
+                chg_unr_val = raw_chg_unr or 0.0
+                is_incomplete = (
+                    raw_mtm is not None and abs(mtm_val) < 0.01
+                    and raw_realized is not None and abs(rlsd_val) < 0.01
+                    and raw_chg_unr is not None and abs(chg_unr_val) < 0.01
+                    and abs(daily_change) > 1.0
+                )
+
+                if is_incomplete:
+                    # Incomplete report: infer changeInUnrealized from daily change
+                    # Formula: daily_change = realized + changeInUnrealized + deposits
+                    inferred_chg_unr = daily_change - rlsd_val - deposits
+                    mtm = inferred_chg_unr  # best approximation
+                    realized = rlsd_val
+                    change_in_unrealized = inferred_chg_unr
+                    logger.warning(
+                        "Incomplete ChangeInNAV for %s on %s: "
+                        "components all zero but daily_change=%.2f. "
+                        "Inferring changeInUnrealized=%.2f",
+                        account_id, report_date, daily_change, inferred_chg_unr,
                     )
+                else:
+                    mtm = raw_mtm
+                    realized = raw_realized
+                    change_in_unrealized = raw_chg_unr
 
-            # Daily deposit/withdrawal amount (for daily MTM adjustment)
+                # Cross-validate: endingValue - startingValue should ≈ realized + changeInUnrealized + deposits
+                if starting_value > 0 and realized is not None and change_in_unrealized is not None:
+                    expected = realized + change_in_unrealized + deposits
+                    discrepancy = daily_change - expected
+                    if abs(discrepancy) > 5.0:
+                        logger.info(
+                            "ChangeInNAV reconciliation for %s on %s: "
+                            "daily_change=%.2f, components=%.2f (realized=%.2f + chgUnr=%.2f + deposits=%.2f), "
+                            "discrepancy=%.2f (likely fees/interest/dividends)",
+                            account_id, report_date,
+                            daily_change, expected, realized, change_in_unrealized, deposits,
+                            discrepancy,
+                        )
 
-            # Compute cash: try CashReport first, then estimate from equity - positions
-            cash_balance = 0.0
-            for cash in stmt.findall(".//CashReport/CashReportBalance"):
-                cash_balance += _safe_float(cash.get("endingCash"))
+                # Compute cash: try CashReport first, then estimate from equity - positions
+                cash_balance = 0.0
+                for cash in stmt.findall(".//CashReport/CashReportBalance"):
+                    cash_balance += _safe_float(cash.get("endingCash"))
 
-            if cash_balance == 0:
-                # Estimate cash from equity minus position values (with FX conversion)
-                total_position_value = 0.0
-                for pos in stmt.findall(".//OpenPositions/OpenPosition"):
-                    val = _safe_float(pos.get("positionValue"))
-                    cur = pos.get("currency", "USD")
-                    fx = _safe_float(pos.get("fxRateToBase"), 1.0)
-                    if cur != "USD" and fx > 0:
-                        val = val * fx
-                    total_position_value += val
-                cash_balance = max(ending_value - total_position_value, 0)
+                if cash_balance == 0:
+                    # Estimate cash from equity minus position values (with FX conversion)
+                    total_position_value = 0.0
+                    for pos in stmt.findall(".//OpenPositions/OpenPosition"):
+                        val = _safe_float(pos.get("positionValue"))
+                        cur = pos.get("currency", "USD")
+                        fx = _safe_float(pos.get("fxRateToBase"), 1.0)
+                        if cur != "USD" and fx > 0:
+                            val = val * fx
+                        total_position_value += val
+                    cash_balance = max(ending_value - total_position_value, 0)
 
-            # Compute cumulative unrealized PnL from position-level data.
-            cumulative_unrealized = sum(
-                p.get("fifo_pnl_unrealized", 0) or 0 for p in result.positions
-            )
+                # Compute cumulative unrealized PnL from position-level data.
+                cumulative_unrealized = sum(
+                    p.get("fifo_pnl_unrealized", 0) or 0 for p in result.positions
+                )
 
-            result.account_snapshot = {
-                "account_id": account_id,
-                "report_date": report_date,
-                "currency": "USD",
-                "total_equity": ending_value,
-                "cash": cash_balance,
-                "stock_value": ending_value - cash_balance,
-                "cnav_mtm": mtm,
-                "cnav_twr": twr,
-                "cnav_deposits": deposits,
-                "cnav_starting_value": starting_value,
-                "cnav_ending_value": ending_value,
-                "cnav_realized": realized,
-                "cnav_change_in_unrealized": change_in_unrealized,
-                "fifo_total_realized_pnl": 0,
-                "fifo_total_unrealized_pnl": cumulative_unrealized,
-            }
+                result.account_snapshot = {
+                    "account_id": account_id,
+                    "report_date": report_date,
+                    "currency": "USD",
+                    "total_equity": ending_value,
+                    "cash": cash_balance,
+                    "stock_value": ending_value - cash_balance,
+                    "cnav_mtm": mtm,
+                    "cnav_twr": twr,
+                    "cnav_deposits": deposits,
+                    "cnav_starting_value": starting_value,
+                    "cnav_ending_value": ending_value,
+                    "cnav_realized": realized,
+                    "cnav_change_in_unrealized": change_in_unrealized,
+                    "fifo_total_realized_pnl": 0,
+                    "fifo_total_unrealized_pnl": cumulative_unrealized,
+                }
 
-            # Recompute percent_of_nav using actual total equity.
-            # IBKR's percentOfNAV is unreliable for options and some other
-            # instruments (can report values > 100% or wildly incorrect).
-            if ending_value > 0:
+                # Recompute percent_of_nav using actual total equity.
+                # IBKR's percentOfNAV is unreliable for options and some other
+                # instruments (can report values > 100% or wildly incorrect).
                 for p in result.positions:
                     p["percent_of_nav"] = round(
                         (p["position_value"] / ending_value) * 100, 2
