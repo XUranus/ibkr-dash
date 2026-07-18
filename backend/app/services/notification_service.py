@@ -141,7 +141,7 @@ def notify_daily_review_completed(document: dict) -> None:
         body = body[:797] + "..."
 
     logger.info("DailyReview notification: date=%s fallback=%s body_len=%d", report_date, fallback, len(body))
-    _send(subject, body)
+    _send(subject, body, fmt="text")
     _recently_sent_reviews.add(report_date)
 
 
