@@ -414,7 +414,8 @@
     "harness": "Harness Console",
     "evalHarness": "Eval Harness",
     "agentReplays": "Agent Replays",
-    "flexReports": "Flex Reports"
+    "flexReports": "Flex Reports",
+    "apiAccess": "Access API"
   },
   "adminSettings": {
     "subtitle": "Manage all system settings. Overrides .env file.",
@@ -528,6 +529,38 @@
     "connectivity": "Connectivity",
     "notifyhub": "NotifyHub Push",
     "topic": "Topic"
+  },
+  "adminApiTokens": {
+    "title": "Access API",
+    "subtitle": "Generate API tokens for external integrations (MCP servers, AI agents, automation tools).",
+    "createToken": "Create Token",
+    "tokenName": "Token Name",
+    "tokenNamePlaceholder": "e.g. MCP Server, AI Agent",
+    "description": "Description",
+    "descriptionPlaceholder": "Optional description",
+    "scopes": "Scopes",
+    "expiresAt": "Expires At",
+    "tokenCreated": "Token created successfully",
+    "tokenCreatedWarning": "Copy this token now — it won't be shown again.",
+    "noTokens": "No API tokens yet. Create one to get started.",
+    "tokenPreview": "Token",
+    "lastUsed": "Last Used",
+    "createdAt": "Created",
+    "status": "Status",
+    "active": "Active",
+    "revoked": "Revoked",
+    "expired": "Expired",
+    "revoke": "Revoke",
+    "delete": "Delete",
+    "revokeConfirm": "Revoke this token? It can no longer be used.",
+    "deleteConfirm": "Delete this token permanently?",
+    "never": "Never",
+    "mcpBaseUrl": "MCP Base URL",
+    "mcpBaseUrlHint": "Use this base URL with your MCP client. All endpoints require Bearer token authentication.",
+    "availableEndpoints": "Available Endpoints",
+    "scopesHint": "Grants read access to selected data types. 'read' grants all.",
+    "bearerAuth": "Bearer Token Auth",
+    "bearerAuthHint": "Pass the token in the Authorization header: Bearer <token>"
   },
   "adminScheduler": {
     "title": "Import Scheduler",

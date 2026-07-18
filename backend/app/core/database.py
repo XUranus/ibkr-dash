@@ -599,6 +599,20 @@ _MIGRATIONS = [
     )""",
     "CREATE INDEX IF NOT EXISTS idx_pm_alerts_date ON pm_action_alerts(run_date)",
     "CREATE INDEX IF NOT EXISTS idx_pm_alerts_symbol ON pm_action_alerts(symbol)",
+    # API tokens for external access (MCP, integrations)
+    """CREATE TABLE IF NOT EXISTS api_tokens (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        token           TEXT NOT NULL UNIQUE,
+        name            TEXT NOT NULL DEFAULT '',
+        description     TEXT DEFAULT '',
+        scopes          TEXT DEFAULT '[]',
+        last_used_at    TEXT,
+        expires_at      TEXT,
+        revoked         INTEGER DEFAULT 0,
+        created_at      TEXT DEFAULT (datetime('now'))
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_api_tokens_token ON api_tokens(token)",
+    "CREATE INDEX IF NOT EXISTS idx_api_tokens_revoked ON api_tokens(revoked)",
 ]
 
 

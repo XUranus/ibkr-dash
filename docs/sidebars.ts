@@ -82,6 +82,7 @@ const sidebars: SidebarsConfig = {
         'api/charts',
         'api/copilot',
         'api/agents',
+        'api/mcp',
         'api/admin',
       ],
     },

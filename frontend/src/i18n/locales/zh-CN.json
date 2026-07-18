@@ -414,7 +414,8 @@
     "harness": "测试控制台",
     "evalHarness": "评测框架",
     "agentReplays": "Agent 回放",
-    "flexReports": "Flex 报告"
+    "flexReports": "Flex 报告",
+    "apiAccess": "访问 API"
   },
   "adminSettings": {
     "subtitle": "管理所有系统配置，优先级高于 .env 文件",
@@ -529,6 +530,38 @@
     "connectivity": "连通性",
     "notifyhub": "消息推送",
     "topic": "主题"
+  },
+  "adminApiTokens": {
+    "title": "访问 API",
+    "subtitle": "生成 API Token 用于外部接入（MCP 服务器、AI 代理、自动化工具）。",
+    "createToken": "创建 Token",
+    "tokenName": "Token 名称",
+    "tokenNamePlaceholder": "如 MCP Server、AI Agent",
+    "description": "描述",
+    "descriptionPlaceholder": "可选描述",
+    "scopes": "权限范围",
+    "expiresAt": "过期时间",
+    "tokenCreated": "Token 创建成功",
+    "tokenCreatedWarning": "请立即复制此 Token —— 它不会再次显示。",
+    "noTokens": "暂无 API Token。创建一个以开始使用。",
+    "tokenPreview": "Token",
+    "lastUsed": "最近使用",
+    "createdAt": "创建时间",
+    "status": "状态",
+    "active": "有效",
+    "revoked": "已撤销",
+    "expired": "已过期",
+    "revoke": "撤销",
+    "delete": "删除",
+    "revokeConfirm": "确定撤销此 Token？撤销后将无法使用。",
+    "deleteConfirm": "确定永久删除此 Token？",
+    "never": "从未",
+    "mcpBaseUrl": "MCP 基础 URL",
+    "mcpBaseUrlHint": "将此基础 URL 用于 MCP 客户端。所有端点需要 Bearer Token 认证。",
+    "availableEndpoints": "可用端点",
+    "scopesHint": "授予对所选数据类型的读取权限。'read' 授予所有权限。",
+    "bearerAuth": "Bearer Token 认证",
+    "bearerAuthHint": "在 Authorization 请求头中传递 Token：Bearer <token>"
   },
   "adminScheduler": {
     "title": "调度器",

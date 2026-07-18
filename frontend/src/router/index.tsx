@@ -63,6 +63,7 @@ const AdminMarketEventsView = lazy(() => import('@/views/AdminMarketEventsView')
 const AdminEvalHarnessView = lazy(() => import('@/views/AdminEvalHarnessView'))
 const AdminAgentReplaysView = lazy(() => import('@/views/AdminAgentReplaysView'))
 const AdminFlexReportsView = lazy(() => import('@/views/AdminFlexReportsView'))
+const AdminApiAccessView = lazy(() => import('@/views/AdminApiAccessView'))
 
 function lazyView(Component: React.LazyExoticComponent<React.ComponentType>) {
   return (
@@ -119,6 +120,7 @@ export const router = createBrowserRouter(
       { path: 'admin/eval-harness', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AdminEvalHarnessView)}</ProtectedRoute> },
       { path: 'admin/agent-replays', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AdminAgentReplaysView)}</ProtectedRoute> },
       { path: 'admin/flex-reports', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AdminFlexReportsView)}</ProtectedRoute> },
+      { path: 'admin/api-access', element: <ProtectedRoute>{lazyViewWithErrorBoundary(AdminApiAccessView)}</ProtectedRoute> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },

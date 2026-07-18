@@ -9,6 +9,7 @@ export default function AdminTabs() {
   const adminTabs = [
     { path: '/admin/settings', label: t('admin.settings') },
     { path: '/admin/system', label: t('admin.system') },
+    { path: '/admin/api-access', label: t('admin.apiAccess') },
     { path: '/admin/agent-monitoring', label: t('admin.monitoring') },
     { path: '/admin/eval-harness', label: 'Eval' },
     { path: '/admin/agent-replays', label: 'Replays' },
