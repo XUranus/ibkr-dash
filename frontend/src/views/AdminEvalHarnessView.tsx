@@ -70,137 +70,170 @@ export default function AdminEvalHarnessView() {
 
   useEffect(() => { void loadData() }, [loadData])
 
-  function severityClass(severity: string): string {
+  function severityTag(severity: string) {
     if (severity === 'critical') return 'tag tag--negative'
     if (severity === 'high') return 'tag tag--warning'
     if (severity === 'medium') return 'tag tag--accent'
     return 'tag tag--neutral'
   }
 
-  function statusClass(status: string): string {
+  function statusTag(status: string) {
     if (status === 'success' || status === 'completed') return 'tag tag--positive'
     if (status === 'failed' || status === 'error') return 'tag tag--negative'
     if (status === 'running') return 'tag tag--accent'
     return 'tag tag--neutral'
   }
 
-  if (loading) {
-    return <div style={{ textAlign: 'center', padding: 40, color: '#adc0df' }}>Loading...</div>
-  }
-
   return (
-    <div className="view-container">
-      <AdminTabs />
-      <h2>Agent Eval Harness</h2>
-      {errorMessage && <div className="error-banner">{errorMessage}</div>}
+    <section className="page-section">
+      <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease' }}>
+        <div className="surface-panel__content">
+          <div className="section-header" style={{ alignItems: 'center' }}>
+            <div>
+              <p className="eyebrow">{t('adminSystem.adminLabel')}</p>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--color-text-bright)' }}>Eval Harness</h2>
+            </div>
+          </div>
+          <AdminTabs />
+        </div>
+      </section>
 
-      <div className="tab-bar" style={{ marginBottom: 16 }}>
-        <button className={`tab-btn ${activeTab === 'cases' ? 'tab-btn--active' : ''}`} onClick={() => setActiveTab('cases')}>
+      {errorMessage && (
+        <div style={{ padding: '12px 16px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(242,92,92,0.2)', background: 'rgba(242,92,92,0.05)', color: 'var(--color-negative)', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
+          {errorMessage}
+        </div>
+      )}
+
+      {/* Sub-tabs */}
+      <div style={{ display: 'flex', gap: 4 }}>
+        <button
+          className={`btn ${activeTab === 'cases' ? 'btn--accent' : ''}`}
+          onClick={() => setActiveTab('cases')}
+        >
           Eval Cases ({cases.length})
         </button>
-        <button className={`tab-btn ${activeTab === 'runs' ? 'tab-btn--active' : ''}`} onClick={() => setActiveTab('runs')}>
+        <button
+          className={`btn ${activeTab === 'runs' ? 'btn--accent' : ''}`}
+          onClick={() => setActiveTab('runs')}
+        >
           Eval Runs ({runs.length})
         </button>
       </div>
 
-      {activeTab === 'cases' && (
-        <div className="card">
-          <div className="card__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>Eval Cases</span>
-            <button className="btn btn--primary btn--sm" onClick={() => loadCases()}>刷新</button>
-          </div>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Case ID</th>
-                <th>Agent</th>
-                <th>Title</th>
-                <th>Severity</th>
-                <th>Scope</th>
-                <th>Source</th>
-                <th>Enabled</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {cases.map(c => (
-                <tr key={c.case_id} onClick={() => setSelectedCase(c)} style={{ cursor: 'pointer' }}>
-                  <td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{c.case_id.slice(0, 20)}...</td>
-                  <td><span className="tag tag--accent">{c.agent_name}</span></td>
-                  <td>{c.title}</td>
-                  <td><span className={severityClass(c.severity)}>{c.severity}</span></td>
-                  <td>{c.eval_scope}</td>
-                  <td>{c.source}</td>
-                  <td>{c.enabled ? '✅' : '❌'}</td>
-                  <td style={{ fontSize: '0.8rem', color: '#8b949e' }}>{c.created_at?.slice(0, 10)}</td>
-                </tr>
-              ))}
-              {cases.length === 0 && (
-                <tr><td colSpan={8} style={{ textAlign: 'center', color: '#8b949e' }}>No eval cases found</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {loading ? (
+        <section className="surface-panel"><div className="surface-panel__content"><p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>{t('common.loading')}</p></div></section>
+      ) : activeTab === 'cases' ? (
+        <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease 0.1s both' }}>
+          <div className="surface-panel__content">
+            <div className="section-header">
+              <h3 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--color-text-bright)' }}>Eval Cases</h3>
+              <button className="btn btn--accent btn--sm" onClick={() => loadCases()}>
+                {t('common.refresh', { defaultValue: 'Refresh' })}
+              </button>
+            </div>
 
-      {activeTab === 'runs' && (
-        <div className="card">
-          <div className="card__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>Eval Runs</span>
-            <button className="btn btn--primary btn--sm" onClick={() => loadRuns()}>刷新</button>
+            {cases.length === 0 ? (
+              <div className="empty-state">No eval cases found</div>
+            ) : (
+              <div className="table-shell">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Case ID</th>
+                      <th>Agent</th>
+                      <th>Title</th>
+                      <th>Severity</th>
+                      <th>Scope</th>
+                      <th>Source</th>
+                      <th>Enabled</th>
+                      <th>Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cases.map(c => (
+                      <tr key={c.case_id} onClick={() => setSelectedCase(c)} style={{ cursor: 'pointer' }}>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>{c.case_id.slice(0, 20)}...</td>
+                        <td><span className="tag tag--accent">{c.agent_name}</span></td>
+                        <td>{c.title}</td>
+                        <td><span className={severityTag(c.severity)}>{c.severity}</span></td>
+                        <td>{c.eval_scope}</td>
+                        <td>{c.source}</td>
+                        <td>{c.enabled ? '✅' : '❌'}</td>
+                        <td style={{ fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>{c.created_at?.slice(0, 10)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Run ID</th>
-                <th>Name</th>
-                <th>Agent</th>
-                <th>Status</th>
-                <th>Started</th>
-                <th>Finished</th>
-              </tr>
-            </thead>
-            <tbody>
-              {runs.map(r => (
-                <tr key={r.eval_run_id}>
-                  <td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{r.eval_run_id.slice(0, 20)}...</td>
-                  <td>{r.name}</td>
-                  <td><span className="tag tag--accent">{r.agent_name}</span></td>
-                  <td><span className={statusClass(r.status)}>{r.status}</span></td>
-                  <td style={{ fontSize: '0.8rem' }}>{r.started_at?.slice(0, 19)}</td>
-                  <td style={{ fontSize: '0.8rem' }}>{r.finished_at?.slice(0, 19) || '-'}</td>
-                </tr>
-              ))}
-              {runs.length === 0 && (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: '#8b949e' }}>No eval runs found</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        </section>
+      ) : (
+        <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease 0.1s both' }}>
+          <div className="surface-panel__content">
+            <div className="section-header">
+              <h3 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--color-text-bright)' }}>Eval Runs</h3>
+              <button className="btn btn--accent btn--sm" onClick={() => loadRuns()}>
+                {t('common.refresh', { defaultValue: 'Refresh' })}
+              </button>
+            </div>
+
+            {runs.length === 0 ? (
+              <div className="empty-state">No eval runs found</div>
+            ) : (
+              <div className="table-shell">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Run ID</th>
+                      <th>Name</th>
+                      <th>Agent</th>
+                      <th>Status</th>
+                      <th>Started</th>
+                      <th>Finished</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {runs.map(r => (
+                      <tr key={r.eval_run_id}>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>{r.eval_run_id.slice(0, 20)}...</td>
+                        <td>{r.name}</td>
+                        <td><span className="tag tag--accent">{r.agent_name}</span></td>
+                        <td><span className={statusTag(r.status)}>{r.status}</span></td>
+                        <td style={{ fontSize: '0.82rem' }}>{r.started_at?.slice(0, 19)}</td>
+                        <td style={{ fontSize: '0.82rem' }}>{r.finished_at?.slice(0, 19) || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
       )}
 
       {selectedCase && (
         <div className="modal-backdrop" onClick={() => setSelectedCase(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 700, maxHeight: '80vh', overflow: 'auto' }}>
+          <div className="modal-dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 700, maxHeight: '80vh', overflow: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 style={{ margin: 0 }}>Eval Case Detail</h3>
-              <button className="btn btn--secondary btn--sm" onClick={() => setSelectedCase(null)}>✕</button>
+              <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--color-text-bright)' }}>Eval Case Detail</h3>
+              <button className="btn btn--ghost btn--sm" onClick={() => setSelectedCase(null)}>✕</button>
             </div>
-            <div style={{ display: 'grid', gap: 12 }}>
-              <div><strong>Case ID:</strong> {selectedCase.case_id}</div>
-              <div><strong>Agent:</strong> {selectedCase.agent_name}</div>
-              <div><strong>Title:</strong> {selectedCase.title}</div>
-              <div><strong>Description:</strong> {selectedCase.description || '-'}</div>
-              <div><strong>Severity:</strong> <span className={severityClass(selectedCase.severity)}>{selectedCase.severity}</span></div>
-              <div><strong>Category:</strong> {selectedCase.category || '-'}</div>
-              <div><strong>Scope:</strong> {selectedCase.eval_scope}</div>
-              <div><strong>Source:</strong> {selectedCase.source}</div>
-              <div><strong>Tags:</strong> {selectedCase.tags?.join(', ') || '-'}</div>
-              <div><strong>Enabled:</strong> {selectedCase.enabled ? 'Yes' : 'No'}</div>
+            <div style={{ display: 'grid', gap: 8, fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
+              <div><span style={{ color: 'var(--color-text-muted)' }}>Case ID:</span> {selectedCase.case_id}</div>
+              <div><span style={{ color: 'var(--color-text-muted)' }}>Agent:</span> {selectedCase.agent_name}</div>
+              <div><span style={{ color: 'var(--color-text-muted)' }}>Title:</span> {selectedCase.title}</div>
+              <div><span style={{ color: 'var(--color-text-muted)' }}>Description:</span> {selectedCase.description || '-'}</div>
+              <div><span style={{ color: 'var(--color-text-muted)' }}>Severity:</span> <span className={severityTag(selectedCase.severity)}>{selectedCase.severity}</span></div>
+              <div><span style={{ color: 'var(--color-text-muted)' }}>Category:</span> {selectedCase.category || '-'}</div>
+              <div><span style={{ color: 'var(--color-text-muted)' }}>Scope:</span> {selectedCase.eval_scope}</div>
+              <div><span style={{ color: 'var(--color-text-muted)' }}>Source:</span> {selectedCase.source}</div>
+              <div><span style={{ color: 'var(--color-text-muted)' }}>Tags:</span> {selectedCase.tags?.join(', ') || '-'}</div>
+              <div><span style={{ color: 'var(--color-text-muted)' }}>Enabled:</span> {selectedCase.enabled ? 'Yes' : 'No'}</div>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </section>
   )
 }

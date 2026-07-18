@@ -115,7 +115,7 @@ export default function AdminSchedulerView() {
               </span>
             )}
             <button
-              className="btn btn--sm btn--secondary"
+              className="btn btn--sm btn--ghost"
               onClick={handleTriggerAiReport}
               disabled={aiRunning}
             >

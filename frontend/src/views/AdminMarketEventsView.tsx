@@ -1,10 +1,13 @@
 /** Admin market events page -- manage and sync market events. */
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
+import AdminTabs from '@/components/AdminTabs'
 import { request } from '@/api/http'
 import type { MarketEvent } from '@/types/marketEvent'
 
 export default function AdminMarketEventsView() {
+  const { t } = useTranslation()
   const [events, setEvents] = useState<MarketEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -77,12 +80,19 @@ export default function AdminMarketEventsView() {
   }
 
   return (
-    <section className="page-section" style={{ animation: 'slideUp 0.4s ease' }}>
-      <header style={{ marginBottom: 'var(--space-6)' }}>
-        <p className="eyebrow">Admin</p>
-        <h1 className="page-title">Market Events Management</h1>
-        <p className="page-subtitle">Seed and sync market events from external sources</p>
-      </header>
+    <section className="page-section">
+      <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease' }}>
+        <div className="surface-panel__content">
+          <div className="section-header" style={{ alignItems: 'center' }}>
+            <div>
+              <p className="eyebrow">{t('adminSystem.adminLabel')}</p>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--color-text-bright)' }}>Market Events Management</h2>
+              <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Seed and sync market events from external sources</p>
+            </div>
+          </div>
+          <AdminTabs />
+        </div>
+      </section>
 
       {error && (
         <div className="surface-panel" style={{ marginBottom: 'var(--space-4)', padding: '12px 16px', borderLeft: '3px solid var(--color-negative)' }}>

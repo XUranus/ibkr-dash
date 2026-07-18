@@ -92,7 +92,7 @@ export default function TradeReviewView() {
             onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
           />
           <button
-            className="btn btn--primary"
+            className="btn btn--accent"
             onClick={handleGenerate}
             disabled={generating || !symbol.trim()}
           >

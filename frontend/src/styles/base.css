@@ -42,6 +42,20 @@ button, input, textarea, select { font: inherit; }
   padding-top: var(--space-3);
 }
 
+/* ── Page header ── */
+.page-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-text-bright);
+}
+
+.page-subtitle {
+  margin: 4px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
 /* ── Panel — flat, no gradient, no glow ── */
 .surface-panel {
   position: relative;

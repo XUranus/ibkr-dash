@@ -118,7 +118,7 @@ export default function DailyPositionReviewView() {
             }}
           />
           <button
-            className="btn btn--primary"
+            className="btn btn--accent"
             onClick={handleGenerate}
             disabled={generating || !reportDate}
           >
