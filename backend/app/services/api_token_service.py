@@ -6,6 +6,7 @@ used for external access (MCP integrations, etc.).
 
 from __future__ import annotations
 
+import json
 import logging
 import secrets
 from datetime import datetime, timezone
@@ -40,7 +41,7 @@ class ApiTokenService:
     ) -> dict[str, Any]:
         """Create a new API token. Returns the token record (including the raw token)."""
         token = _generate_token()
-        scopes_json = str(scopes or ["read"])
+        scopes_json = json.dumps(scopes or ["read"])
         now = datetime.now(timezone.utc).isoformat()
 
         self._db.insert("api_tokens", {

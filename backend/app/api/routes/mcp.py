@@ -63,10 +63,20 @@ def _get_token_info(
 
 def _check_scope(token_info: dict, required: str) -> None:
     """Check if the token has the required scope. Raises 403 if not."""
-    scopes_str = token_info.get("scopes", "[]")
-    try:
-        scopes = json.loads(scopes_str) if isinstance(scopes_str, str) else scopes_str
-    except (json.JSONDecodeError, TypeError):
+    scopes_raw = token_info.get("scopes", "[]")
+    if isinstance(scopes_raw, list):
+        scopes = scopes_raw
+    elif isinstance(scopes_raw, str):
+        try:
+            scopes = json.loads(scopes_raw)
+        except (json.JSONDecodeError, TypeError):
+            # Handle Python repr format like "['read']"
+            try:
+                import ast
+                scopes = ast.literal_eval(scopes_raw)
+            except (ValueError, SyntaxError):
+                scopes = []
+    else:
         scopes = []
 
     if "read" in scopes:
