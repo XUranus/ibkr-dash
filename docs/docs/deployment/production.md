@@ -257,55 +257,29 @@ sudo ufw enable
 
 ## Database Backup
 
-The SQLite database is stored in a Docker volume. Back it up regularly.
+All persistent data (database, config, flex exports) lives on the host at `/opt/ibkr-dash/data/`, bind-mounted into the container. See [Backup & Migration](./backup-migration.md) for full details.
 
-### Manual backup
-
-```bash
-# Copy the database out of the container
-docker compose exec backend cp /app/backend/data/ibkr_dash.db /tmp/backup.db
-docker compose cp backend:/tmp/backup.db ./backup-$(date +%Y%m%d).db
-```
-
-### Automated daily backup (cron)
-
-Create a backup script:
+### Quick backup
 
 ```bash
-sudo nano /opt/ibkr-dash/backup.sh
-```
-
-```bash
-#!/bin/bash
-BACKUP_DIR="/opt/backups/ibkr-dash"
-mkdir -p "$BACKUP_DIR"
-DATE=$(date +%Y%m%d_%H%M%S)
-
-docker compose -f /opt/ibkr-dash/docker-compose.yml \
-  exec -T backend cp /app/backend/data/ibkr_dash.db /tmp/backup.db
-
-docker compose -f /opt/ibkr-dash/docker-compose.yml \
-  cp backend:/tmp/backup.db "$BACKUP_DIR/backup_$DATE.db"
-
-# Keep only last 30 backups
-ls -t "$BACKUP_DIR"/backup_*.db | tail -n +31 | xargs rm -f
-```
-
-```bash
-chmod +x /opt/ibkr-dash/backup.sh
-
-# Add to crontab (daily at 2 AM)
-crontab -e
-# Add: 0 2 * * * /opt/ibkr-dash/backup.sh
+cd /opt/ibkr-dash
+docker compose stop backend
+tar czf ~/ibkr-dash-backup-$(date +%Y%m%d).tar.gz -C /opt/ibkr-dash data/
+docker compose start backend
 ```
 
 ### Restore from backup
 
 ```bash
-docker compose stop backend worker
-docker compose cp ./backup.db backend:/app/backend/data/ibkr_dash.db
-docker compose start backend worker
+cd /opt/ibkr-dash
+docker compose down
+tar xzf ~/ibkr-dash-backup-20250718.tar.gz -C /opt/ibkr-dash/
+docker compose up -d
 ```
+
+### Automated daily backup
+
+See [Backup & Migration — Automated Daily Backup](./backup-migration.md#automated-daily-backup-cron).
 
 ---
 

@@ -68,6 +68,7 @@ const sidebars: SidebarsConfig = {
         'deployment/local',
         'deployment/docker',
         'deployment/production',
+        'deployment/backup-migration',
       ],
     },
     {
