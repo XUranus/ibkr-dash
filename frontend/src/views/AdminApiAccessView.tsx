@@ -91,9 +91,20 @@ export default function AdminApiAccessView() {
     }
   }
 
-  const copyToken = () => {
-    if (newTokenResult) {
-      void navigator.clipboard.writeText(newTokenResult)
+  const copyToken = async () => {
+    if (!newTokenResult) return
+    try {
+      await navigator.clipboard.writeText(newTokenResult)
+    } catch {
+      // Fallback for non-secure contexts (HTTP)
+      const el = document.createElement('textarea')
+      el.value = newTokenResult
+      el.style.position = 'fixed'
+      el.style.opacity = '0'
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
     }
   }
 

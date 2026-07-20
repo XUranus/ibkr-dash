@@ -8,10 +8,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_db, require_admin_session
 from app.core.database import Database
 from app.services.api_token_service import ApiTokenService
 
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/admin/api-tokens", tags=["admin"])
 class CreateTokenRequest(BaseModel):
     name: str = ""
     description: str = ""
-    scopes: list[str] = ["read"]
+    scopes: list[str] = Field(default_factory=lambda: ["read"])
     expires_at: str | None = None
 
 
@@ -43,7 +43,7 @@ class TokenResponse(BaseModel):
 @router.get("")
 def list_tokens(
     db: Database = Depends(get_db),
-    _user: str | None = Depends(get_current_user),
+    _user: str | None = Depends(require_admin_session),
 ) -> list[dict]:
     """List all API tokens (token values are masked)."""
     svc = ApiTokenService(db)
@@ -54,7 +54,7 @@ def list_tokens(
 def create_token(
     req: CreateTokenRequest,
     db: Database = Depends(get_db),
-    _user: str | None = Depends(get_current_user),
+    _user: str | None = Depends(require_admin_session),
 ) -> dict:
     """Create a new API token. The full token is only returned once."""
     svc = ApiTokenService(db)
@@ -71,7 +71,7 @@ def create_token(
 def revoke_token(
     token_id: int,
     db: Database = Depends(get_db),
-    _user: str | None = Depends(get_current_user),
+    _user: str | None = Depends(require_admin_session),
 ) -> dict:
     """Revoke an API token."""
     svc = ApiTokenService(db)
@@ -84,7 +84,7 @@ def revoke_token(
 def delete_token(
     token_id: int,
     db: Database = Depends(get_db),
-    _user: str | None = Depends(get_current_user),
+    _user: str | None = Depends(require_admin_session),
 ) -> dict:
     """Permanently delete an API token."""
     svc = ApiTokenService(db)

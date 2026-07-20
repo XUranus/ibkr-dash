@@ -93,12 +93,18 @@ export default function DailyPositionReviewView() {
   }
 
   return (
-    <section className="page-section" style={{ animation: 'slideUp 0.4s ease' }}>
-      <header style={{ marginBottom: 'var(--space-6)' }}>
-        <p className="eyebrow">{t('dailyPositionReview.eyebrow')}</p>
-        <h1 className="page-title">{t('dailyPositionReview.title')}</h1>
-        <p className="page-subtitle">{t('dailyPositionReview.subtitle')}</p>
-      </header>
+    <section className="page-section">
+      <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease' }}>
+        <div className="surface-panel__content">
+          <div className="section-header">
+            <div>
+              <p className="eyebrow">{t('dailyPositionReview.eyebrow')}</p>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--color-text-bright)' }}>{t('dailyPositionReview.title')}</h2>
+              <p className="panel-subtitle">{t('dailyPositionReview.subtitle')}</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Generate form */}
       <div className="surface-panel" style={{ marginBottom: 'var(--space-4)', padding: '16px' }}>

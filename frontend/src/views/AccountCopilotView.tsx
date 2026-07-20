@@ -128,7 +128,19 @@ export default function AccountCopilotView() {
   }
 
   return (
-    <section className="page-section" style={{ animation: 'slideUp 0.4s ease' }}>
+    <section className="page-section">
+      <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease' }}>
+        <div className="surface-panel__content">
+          <div className="section-header">
+            <div>
+              <p className="eyebrow">{t('copilot.eyebrow')}</p>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--color-text-bright)' }}>{t('copilot.title')}</h2>
+              <p className="panel-subtitle">{t('copilot.subtitle')}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <div style={{ display: 'grid', gridTemplateColumns: sidebarOpen ? '280px 1fr' : '1fr', gap: 'var(--space-4)', minHeight: '70vh' }}>
         {/* Sidebar */}
         {sidebarOpen && (

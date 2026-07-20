@@ -46,12 +46,18 @@ export default function InvestmentPolicyView() {
     : null
 
   return (
-    <section className="page-section" style={{ animation: 'slideUp 0.4s ease' }}>
-      <header style={{ marginBottom: 'var(--space-6)' }}>
-        <p className="eyebrow">{t('investmentPolicy.eyebrow')}</p>
-        <h1 className="page-title">{t('investmentPolicy.title')}</h1>
-        <p className="page-subtitle">{t('investmentPolicy.subtitle')}</p>
-      </header>
+    <section className="page-section">
+      <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease' }}>
+        <div className="surface-panel__content">
+          <div className="section-header">
+            <div>
+              <p className="eyebrow">{t('investmentPolicy.eyebrow')}</p>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--color-text-bright)' }}>{t('investmentPolicy.title')}</h2>
+              <p className="panel-subtitle">{t('investmentPolicy.subtitle')}</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {error && (
         <div className="surface-panel" style={{ marginBottom: 'var(--space-4)', padding: '12px 16px', borderLeft: '3px solid var(--color-negative)' }}>

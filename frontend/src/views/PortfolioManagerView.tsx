@@ -30,12 +30,18 @@ export default function PortfolioManagerView() {
   const totalValue = useMemo(() => positions.reduce((sum, p) => sum + (p.position_value || 0), 0), [positions])
 
   return (
-    <section className="page-section" style={{ animation: 'slideUp 0.4s ease' }}>
-      <header style={{ marginBottom: 'var(--space-6)' }}>
-        <p className="eyebrow">{t('portfolio.eyebrow')}</p>
-        <h1 className="page-title">{t('portfolio.title')}</h1>
-        <p className="page-subtitle">{t('portfolio.subtitle')}</p>
-      </header>
+    <section className="page-section">
+      <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease' }}>
+        <div className="surface-panel__content">
+          <div className="section-header">
+            <div>
+              <p className="eyebrow">{t('portfolio.eyebrow')}</p>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--color-text-bright)' }}>{t('portfolio.title')}</h2>
+              <p className="panel-subtitle">{t('portfolio.subtitle')}</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {error && (
         <div className="surface-panel" style={{ marginBottom: 'var(--space-4)', padding: '12px 16px', borderLeft: '3px solid var(--color-negative)' }}>

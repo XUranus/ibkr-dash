@@ -223,7 +223,12 @@ class ChartService:
     # ------------------------------------------------------------------
 
     def get_performance_calendar(self, view: str, anchor: str | None) -> PerformanceCalendarResponse:
-        """Build performance calendar for month/year/all-years views."""
+        """Build performance calendar for month/year/all-years views. Cached for performance."""
+        cache_key = cache.make_key("perf_calendar", view, anchor or "")
+        cached_result = cache.get(cache_key)
+        if cached_result is not None:
+            return cached_result
+
         if view not in PERFORMANCE_CALENDAR_VIEWS:
             raise ValueError("view must be one of: month, year, all-years")
 
@@ -245,24 +250,27 @@ class ChartService:
         earliest_report_date = self._get_earliest_report_date() or latest_report_date
 
         if view == "month":
-            return self._build_month_calendar_response(
+            result = self._build_month_calendar_response(
                 latest_report_date=latest_report_date,
                 latest_anchor=latest_month_anchor,
                 earliest_report_date=earliest_report_date,
                 anchor=effective_anchor,
             )
         elif view == "year":
-            return self._build_year_calendar_response(
+            result = self._build_year_calendar_response(
                 latest_report_date=latest_report_date,
                 latest_anchor=latest_year_anchor,
                 earliest_report_date=earliest_report_date,
                 anchor=effective_anchor,
             )
         else:
-            return self._build_all_years_calendar_response(
+            result = self._build_all_years_calendar_response(
                 latest_report_date=latest_report_date,
                 earliest_report_date=earliest_report_date,
             )
+
+        cache.put(cache_key, result)
+        return result
 
     # ------------------------------------------------------------------
     # Calendar builders

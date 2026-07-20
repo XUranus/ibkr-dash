@@ -4,7 +4,13 @@ import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { request } from '@/api/http'
 import { formatNumber, formatSignedNumber, formatPercent, formatSignedPercent, pnlClass } from '@/utils/format'
+import StatCard from '@/components/StatCard'
 import type { PerformanceSeriesResponse, AccountPerformancePoint } from '@/types/performance'
+
+function formatMoney(value: number | null | undefined): string {
+  if (value == null) return '--'
+  return `$${formatNumber(value)}`
+}
 
 export default function PerformanceView() {
   const { t } = useTranslation()
@@ -33,21 +39,22 @@ export default function PerformanceView() {
 
   useEffect(() => { void loadData() }, [loadData])
 
-  function formatMoney(value: number | null | undefined): string {
-    if (value == null) return '--'
-    return `$${formatNumber(value)}`
-  }
-
   const summary = data?.summary
   const series = data?.series || []
 
   return (
-    <section className="page-section" style={{ animation: 'slideUp 0.4s ease' }}>
-      <header style={{ marginBottom: 'var(--space-6)' }}>
-        <p className="eyebrow">{t('performance.eyebrow')}</p>
-        <h1 className="page-title">{t('performance.title')}</h1>
-        <p className="page-subtitle">{t('performance.subtitle')}</p>
-      </header>
+    <section className="page-section">
+      <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease' }}>
+        <div className="surface-panel__content">
+          <div className="section-header">
+            <div>
+              <p className="eyebrow">{t('performance.eyebrow')}</p>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--color-text-bright)' }}>{t('performance.title')}</h2>
+              <p className="panel-subtitle">{t('performance.subtitle')}</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {error && (
         <div className="surface-panel" style={{ marginBottom: 'var(--space-4)', padding: '12px 16px', borderLeft: '3px solid var(--color-negative)' }}>
@@ -77,16 +84,16 @@ export default function PerformanceView() {
       ) : (
         <>
           {/* Summary cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 'var(--space-4)' }}>
-            <SummaryCard label={t('performance.startNav')} value={formatMoney(summary.start_nav)} />
-            <SummaryCard label={t('performance.endNav')} value={formatMoney(summary.end_nav)} />
-            <SummaryCard label={t('performance.twrReturn')} value={formatPercent(summary.twr_total_return != null ? summary.twr_total_return * 100 : null)} color={summary.twr_total_return != null && summary.twr_total_return >= 0 ? 'var(--color-positive)' : 'var(--color-negative)'} />
-            <SummaryCard label={t('performance.annualized')} value={formatPercent(summary.annualized_return != null ? summary.annualized_return * 100 : null)} />
-            <SummaryCard label={t('performance.maxDrawdown')} value={formatPercent(summary.max_drawdown != null ? summary.max_drawdown * 100 : null)} color="var(--color-negative)" />
-            <SummaryCard label={t('performance.volatility')} value={formatPercent(summary.volatility != null ? summary.volatility * 100 : null)} />
-            <SummaryCard label={t('performance.sharpe')} value={summary.sharpe_ratio != null ? summary.sharpe_ratio.toFixed(2) : '--'} />
-            <SummaryCard label={t('performance.cashFlows')} value={formatMoney(summary.total_net_cash_flow)} />
-          </div>
+          <section className="stats-grid stats-grid--summary" style={{ marginBottom: 'var(--space-4)' }}>
+            <StatCard title={t('performance.startNav')} value={formatMoney(summary.start_nav)} tone="neutral" />
+            <StatCard title={t('performance.endNav')} value={formatMoney(summary.end_nav)} tone="neutral" />
+            <StatCard title={t('performance.twrReturn')} value={formatPercent(summary.twr_total_return != null ? summary.twr_total_return * 100 : null)} tone={summary.twr_total_return == null ? 'neutral' : summary.twr_total_return >= 0 ? 'positive' : 'negative'} />
+            <StatCard title={t('performance.annualized')} value={formatPercent(summary.annualized_return != null ? summary.annualized_return * 100 : null)} tone="accent" />
+            <StatCard title={t('performance.maxDrawdown')} value={formatPercent(summary.max_drawdown != null ? summary.max_drawdown * 100 : null)} tone="negative" />
+            <StatCard title={t('performance.volatility')} value={formatPercent(summary.volatility != null ? summary.volatility * 100 : null)} tone="neutral" />
+            <StatCard title={t('performance.sharpe')} value={summary.sharpe_ratio != null ? summary.sharpe_ratio.toFixed(2) : '--'} tone="neutral" />
+            <StatCard title={t('performance.cashFlows')} value={formatMoney(summary.total_net_cash_flow)} tone="neutral" />
+          </section>
 
           {/* Data quality */}
           <div style={{ marginBottom: 'var(--space-4)', padding: 8, background: 'rgba(10,14,26,0.3)', borderRadius: 'var(--radius-sm)', fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
@@ -133,14 +140,5 @@ export default function PerformanceView() {
         </>
       )}
     </section>
-  )
-}
-
-function SummaryCard({ label, value, color }: { label: string; value: string; color?: string }) {
-  return (
-    <div style={{ padding: 12, background: 'rgba(10,14,26,0.5)', borderRadius: 'var(--radius-sm)' }}>
-      <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--color-text-muted)', marginBottom: 4 }}>{label}</p>
-      <p style={{ fontSize: '1.1rem', fontWeight: 600, color: color || 'var(--color-accent-strong)', margin: 0 }}>{value}</p>
-    </div>
   )
 }

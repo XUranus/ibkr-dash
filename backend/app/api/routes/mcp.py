@@ -63,20 +63,8 @@ def _get_token_info(
 
 def _check_scope(token_info: dict, required: str) -> None:
     """Check if the token has the required scope. Raises 403 if not."""
-    scopes_raw = token_info.get("scopes", "[]")
-    if isinstance(scopes_raw, list):
-        scopes = scopes_raw
-    elif isinstance(scopes_raw, str):
-        try:
-            scopes = json.loads(scopes_raw)
-        except (json.JSONDecodeError, TypeError):
-            # Handle Python repr format like "['read']"
-            try:
-                import ast
-                scopes = ast.literal_eval(scopes_raw)
-            except (ValueError, SyntaxError):
-                scopes = []
-    else:
+    scopes = token_info.get("scopes", [])
+    if not isinstance(scopes, list):
         scopes = []
 
     if "read" in scopes:
@@ -88,6 +76,17 @@ def _check_scope(token_info: dict, required: str) -> None:
         status_code=status.HTTP_403_FORBIDDEN,
         detail=f"Token lacks required scope: {required}",
     )
+
+
+def _parse_json_fields(row: dict, fields: tuple[str, ...]) -> dict:
+    """Parse JSON string fields in a row dict in-place."""
+    for field in fields:
+        if row.get(field) and isinstance(row[field], str):
+            try:
+                row[field] = json.loads(row[field])
+            except (json.JSONDecodeError, TypeError):
+                pass
+    return row
 
 
 # ---------------------------------------------------------------------------
@@ -382,14 +381,7 @@ def mcp_reviews(
         )
         if not row:
             raise HTTPException(status_code=404, detail=f"No review found for {report_date}")
-        # Parse JSON fields
-        for field in ("review_output", "metadata"):
-            if row.get(field) and isinstance(row[field], str):
-                try:
-                    row[field] = json.loads(row[field])
-                except (json.JSONDecodeError, TypeError):
-                    pass
-        return {"review": row}
+        return {"review": _parse_json_fields(row, ("review_output", "metadata"))}
 
     rows = db.execute(
         "SELECT id, report_date, review_output, metadata, created_at "
@@ -397,12 +389,7 @@ def mcp_reviews(
         (limit,),
     )
     for row in rows:
-        for field in ("review_output", "metadata"):
-            if row.get(field) and isinstance(row[field], str):
-                try:
-                    row[field] = json.loads(row[field])
-                except (json.JSONDecodeError, TypeError):
-                    pass
+        _parse_json_fields(row, ("review_output", "metadata"))
 
     return {"reviews": rows, "count": len(rows)}
 
@@ -425,12 +412,7 @@ def mcp_portfolio_review(
         )
         if not row:
             raise HTTPException(status_code=404, detail=f"No portfolio review found for {report_date}")
-        if row.get("data_json") and isinstance(row["data_json"], str):
-            try:
-                row["data_json"] = json.loads(row["data_json"])
-            except (json.JSONDecodeError, TypeError):
-                pass
-        return {"review": row}
+        return {"review": _parse_json_fields(row, ("data_json",))}
 
     rows = db.execute(
         "SELECT id, report_date, report_type, status, data_json "
@@ -438,11 +420,7 @@ def mcp_portfolio_review(
         (limit,),
     )
     for row in rows:
-        if row.get("data_json") and isinstance(row["data_json"], str):
-            try:
-                row["data_json"] = json.loads(row["data_json"])
-            except (json.JSONDecodeError, TypeError):
-                pass
+        _parse_json_fields(row, ("data_json",))
 
     return {"reviews": rows, "count": len(rows)}
 

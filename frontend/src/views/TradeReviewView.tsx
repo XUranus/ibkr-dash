@@ -64,12 +64,18 @@ export default function TradeReviewView() {
   }
 
   return (
-    <section className="page-section" style={{ animation: 'slideUp 0.4s ease' }}>
-      <header style={{ marginBottom: 'var(--space-6)' }}>
-        <p className="eyebrow">{t('tradeReviewPage.eyebrow')}</p>
-        <h1 className="page-title">{t('tradeReviewPage.title')}</h1>
-        <p className="page-subtitle">{t('tradeReviewPage.subtitle')}</p>
-      </header>
+    <section className="page-section">
+      <section className="surface-panel" style={{ animation: 'slideUp 0.4s ease' }}>
+        <div className="surface-panel__content">
+          <div className="section-header">
+            <div>
+              <p className="eyebrow">{t('tradeReviewPage.eyebrow')}</p>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'var(--color-text-bright)' }}>{t('tradeReviewPage.title')}</h2>
+              <p className="panel-subtitle">{t('tradeReviewPage.subtitle')}</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Generate form */}
       <div className="surface-panel" style={{ marginBottom: 'var(--space-4)', padding: '16px' }}>

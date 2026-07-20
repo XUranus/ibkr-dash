@@ -278,7 +278,9 @@
     "type": "类型"
   },
   "copilot": {
+    "eyebrow": "AI 助手",
     "title": "智能助手",
+    "subtitle": "询问关于你的投资组合、持仓和交易的问题。",
     "sessions": "会话",
     "newChat": "+ 新建",
     "noSessions": "暂无会话。",

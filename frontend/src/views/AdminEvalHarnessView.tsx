@@ -39,21 +39,13 @@ export default function AdminEvalHarnessView() {
   const [selectedCase, setSelectedCase] = useState<EvalCase | null>(null)
 
   const loadCases = useCallback(async () => {
-    try {
-      const data = await request<{ items?: EvalCase[] } | EvalCase[]>('/api/admin/agent-eval/cases?limit=100')
-      setCases(Array.isArray(data) ? data : (data.items ?? []))
-    } catch (err) {
-      console.error('Failed to load eval cases:', err)
-    }
+    const data = await request<{ items?: EvalCase[] } | EvalCase[]>('/api/admin/agent-eval/cases?limit=100')
+    setCases(Array.isArray(data) ? data : (data.items ?? []))
   }, [])
 
   const loadRuns = useCallback(async () => {
-    try {
-      const data = await request<{ items?: EvalRun[] } | EvalRun[]>('/api/admin/agent-eval/runs?limit=50')
-      setRuns(Array.isArray(data) ? data : (data.items ?? []))
-    } catch (err) {
-      console.error('Failed to load eval runs:', err)
-    }
+    const data = await request<{ items?: EvalRun[] } | EvalRun[]>('/api/admin/agent-eval/runs?limit=50')
+    setRuns(Array.isArray(data) ? data : (data.items ?? []))
   }, [])
 
   const loadData = useCallback(async () => {
@@ -152,13 +144,13 @@ export default function AdminEvalHarnessView() {
                   <tbody>
                     {cases.map(c => (
                       <tr key={c.case_id} onClick={() => setSelectedCase(c)} style={{ cursor: 'pointer' }}>
-                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>{c.case_id.slice(0, 20)}...</td>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>{c.case_id.length > 20 ? c.case_id.slice(0, 20) + '...' : c.case_id}</td>
                         <td><span className="tag tag--accent">{c.agent_name}</span></td>
                         <td>{c.title}</td>
                         <td><span className={severityTag(c.severity)}>{c.severity}</span></td>
                         <td>{c.eval_scope}</td>
                         <td>{c.source}</td>
-                        <td>{c.enabled ? '✅' : '❌'}</td>
+                        <td><span className={c.enabled ? 'tag tag--positive' : 'tag tag--negative'}>{c.enabled ? 'ON' : 'OFF'}</span></td>
                         <td style={{ fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>{c.created_at?.slice(0, 10)}</td>
                       </tr>
                     ))}
@@ -196,7 +188,7 @@ export default function AdminEvalHarnessView() {
                   <tbody>
                     {runs.map(r => (
                       <tr key={r.eval_run_id}>
-                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>{r.eval_run_id.slice(0, 20)}...</td>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>{r.eval_run_id.length > 20 ? r.eval_run_id.slice(0, 20) + '...' : r.eval_run_id}</td>
                         <td>{r.name}</td>
                         <td><span className="tag tag--accent">{r.agent_name}</span></td>
                         <td><span className={statusTag(r.status)}>{r.status}</span></td>

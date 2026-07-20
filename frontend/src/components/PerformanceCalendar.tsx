@@ -39,7 +39,7 @@ function formatSignedInteger(value: number | null, t: (key: string) => string): 
 
 function formatSignedPercent(value: number | null): string {
   value = normalizeNumericValue(value)
-  if (value === null || value === 0) return ''
+  if (value === null) return ''
   return `${value > 0 ? '+' : ''}${new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)}%`
 }
 
@@ -67,7 +67,7 @@ export default function PerformanceCalendar({ latestReportDate }: Props) {
     try {
       const data = await fetchPerformanceCalendar({
         view: activeView,
-        anchor: nextAnchor ?? response?.anchor ?? buildDefaultAnchor(activeView, latestReportDate),
+        anchor: nextAnchor ?? buildDefaultAnchor(activeView, latestReportDate),
       })
       setResponse(data)
     } catch (err) {
@@ -75,16 +75,14 @@ export default function PerformanceCalendar({ latestReportDate }: Props) {
     } finally {
       if (showLoading) setLoading(false)
     }
-  }, [activeView, latestReportDate, response?.anchor])
+  }, [activeView, latestReportDate])
 
   useEffect(() => {
-    if (!latestReportDate) { setResponse(null); return }
-    void loadCalendar(response === null, response?.anchor ?? buildDefaultAnchor(activeView, latestReportDate))
-  }, [latestReportDate, activeView])
+    void loadCalendar(true)
+  }, [loadCalendar])
 
   function switchView(nextView: PerformanceCalendarView) {
     if (activeView === nextView) return
-    setResponse(null)
     setActiveView(nextView)
   }
 
@@ -98,13 +96,37 @@ export default function PerformanceCalendar({ latestReportDate }: Props) {
 
   const monthCells = useMemo<CalendarCell[]>(() => {
     if (!response || response.view !== 'month') return []
-    // Filter to weekdays only (Mon-Fri), skip weekends
-    const cells: CalendarCell[] = []
+    // Build a lookup from period_key → item
+    const itemMap = new Map<string, PerformanceCalendarItem>()
     for (const item of response.items) {
-      const d = new Date(item.period_key + 'T00:00:00Z')
-      const dow = d.getUTCDay() // 0=Sun, 1=Mon, ..., 6=Sat
+      itemMap.set(item.period_key, item)
+    }
+    const [yearStr, monthStr] = response.anchor.split('-')
+    const year = Number(yearStr)
+    const month = Number(monthStr) // 1-based
+    const daysInMonth = new Date(year, month, 0).getDate()
+
+    // Monday-first offset: JS getDay() 0=Sun → 6, 1=Mon → 0, ..., 6=Sat → 5
+    const firstDow = new Date(year, month - 1, 1).getDay()
+    const leading = firstDow === 0 ? 6 : firstDow - 1
+
+    const cells: CalendarCell[] = []
+    // Leading empty cells to align the first day to its correct weekday column
+    for (let i = 0; i < leading; i++) {
+      cells.push({ key: `pad-${i}`, label: null, item: null, isCurrentMonth: false })
+    }
+    // Actual weekdays only (Mon-Fri) — weekends are not shown in the 5-col grid
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dow = new Date(year, month - 1, day).getDay()
       if (dow === 0 || dow === 6) continue // skip weekends
-      cells.push({ key: item.period_key, label: item.label, item, isCurrentMonth: true })
+      const periodKey = `${yearStr}-${monthStr}-${String(day).padStart(2, '0')}`
+      const item = itemMap.get(periodKey) ?? null
+      cells.push({
+        key: periodKey,
+        label: String(day),
+        item,
+        isCurrentMonth: true,
+      })
     }
     return cells
   }, [response])
@@ -213,23 +235,33 @@ export default function PerformanceCalendar({ latestReportDate }: Props) {
             {activeView === 'month' && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 4 }}>
                 {weekdayLabels.map((label, i) => (
-                  <div key={label} style={{ padding: '0 4px 3px', color: 'var(--color-text-muted)', fontSize: '0.72rem', fontWeight: 600, textAlign: 'center', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t(weekdayKeys[i])}</div>
+                  <div key={label} style={{ padding: '0 4px 3px', color: 'var(--color-text-secondary)', fontSize: '0.72rem', fontWeight: 600, textAlign: 'center', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t(weekdayKeys[i])}</div>
                 ))}
                 {monthCells.map((cell) => {
+                  if (!cell.isCurrentMonth) {
+                    // Leading padding cell — empty
+                    return (
+                      <div key={cell.key} style={{
+                        minHeight: 72, padding: '6px 8px', borderRadius: 'var(--radius-sm)',
+                        border: '1px solid transparent',
+                        background: 'transparent',
+                      }} />
+                    )
+                  }
                   const tone = toneByValue(cell.item?.pnl ?? null)
                   const borderColor = tone === 'positive' ? 'rgba(63,185,80,0.2)' : tone === 'negative' ? 'rgba(248,81,73,0.2)' : 'var(--color-border-subtle)'
                   const bgColor = tone === 'positive' ? 'rgba(63,185,80,0.04)' : tone === 'negative' ? 'rgba(248,81,73,0.04)' : 'var(--color-bg-elevated)'
                   return (
                     <div key={cell.key} style={{
                       minHeight: 72, padding: '6px 8px', borderRadius: 'var(--radius-sm)',
-                      border: `1px solid ${borderColor}`,
-                      background: bgColor,
+                      border: `1px solid ${cell.item ? borderColor : 'var(--color-border-subtle)'}`,
+                      background: cell.item ? bgColor : 'var(--color-bg-elevated)',
                       display: 'grid', alignContent: 'space-between', gap: 4,
-                      opacity: cell.isCurrentMonth ? 1 : 0.25,
+                      opacity: cell.item ? 1 : 0.45,
                     }}>
-                      {cell.isCurrentMonth && cell.item && (
+                      <div style={{ color: 'var(--color-text-muted)', fontSize: '0.82rem', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{cell.label}</div>
+                      {cell.item ? (
                         <>
-                          <div style={{ color: 'var(--color-text-muted)', fontSize: '0.82rem', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{cell.label}</div>
                           <div style={{
                             color: tone === 'positive' ? 'var(--color-positive)' : tone === 'negative' ? 'var(--color-negative)' : 'var(--color-text-primary)',
                             fontSize: '1rem', fontWeight: 700, fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums',
@@ -240,6 +272,8 @@ export default function PerformanceCalendar({ latestReportDate }: Props) {
                             {formatSignedPercent(cell.item.twr)}
                           </div>
                         </>
+                      ) : (
+                        <div style={{ color: 'var(--color-text-muted)', fontSize: '0.72rem', fontFamily: 'var(--font-mono)' }}>--</div>
                       )}
                     </div>
                   )

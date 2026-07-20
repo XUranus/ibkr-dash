@@ -600,9 +600,11 @@ _MIGRATIONS = [
     "CREATE INDEX IF NOT EXISTS idx_pm_alerts_date ON pm_action_alerts(run_date)",
     "CREATE INDEX IF NOT EXISTS idx_pm_alerts_symbol ON pm_action_alerts(symbol)",
     # API tokens for external access (MCP, integrations)
+    # Tokens stored as SHA-256 hashes; raw token only returned at creation.
     """CREATE TABLE IF NOT EXISTS api_tokens (
         id              INTEGER PRIMARY KEY AUTOINCREMENT,
-        token           TEXT NOT NULL UNIQUE,
+        token_hash      TEXT NOT NULL UNIQUE,
+        token_preview   TEXT NOT NULL DEFAULT '',
         name            TEXT NOT NULL DEFAULT '',
         description     TEXT DEFAULT '',
         scopes          TEXT DEFAULT '[]',
@@ -611,7 +613,10 @@ _MIGRATIONS = [
         revoked         INTEGER DEFAULT 0,
         created_at      TEXT DEFAULT (datetime('now'))
     )""",
-    "CREATE INDEX IF NOT EXISTS idx_api_tokens_token ON api_tokens(token)",
+    # Migrate old plaintext token column to hashed storage
+    "ALTER TABLE api_tokens ADD COLUMN token_hash TEXT",
+    "ALTER TABLE api_tokens ADD COLUMN token_preview TEXT DEFAULT ''",
+    "CREATE INDEX IF NOT EXISTS idx_api_tokens_hash ON api_tokens(token_hash)",
     "CREATE INDEX IF NOT EXISTS idx_api_tokens_revoked ON api_tokens(revoked)",
 ]
 
@@ -662,17 +667,49 @@ class Database:
         try:
             conn.executescript(SCHEMA_SQL)
             conn.commit()
-            # Run migrations (safe to re-run — errors are ignored)
+            # Run migrations (safe to re-run — expected errors are ignored)
             for sql in _MIGRATIONS:
                 try:
                     conn.execute(sql)
                     conn.commit()
-                except sqlite3.OperationalError:
-                    pass  # Column already exists
+                except sqlite3.OperationalError as e:
+                    msg = str(e).lower()
+                    if "already exists" in msg or "duplicate column" in msg:
+                        pass  # Expected on re-run
+                    else:
+                        logger.warning("Migration failed: %s -- %s", sql[:80], e)
+            # Backfill token_hash from old plaintext token column (if present)
+            self._migrate_token_hashes(conn)
             logger.info("Database schema initialized at %s", self._db_path)
         finally:
             if not self._is_memory:
                 conn.close()
+
+    @staticmethod
+    def _migrate_token_hashes(conn: sqlite3.Connection) -> None:
+        """Backfill token_hash and token_preview from old plaintext token column."""
+        try:
+            # Check if old 'token' column exists
+            cols = [row[1] for row in conn.execute("PRAGMA table_info(api_tokens)").fetchall()]
+            if "token" not in cols:
+                return  # Already migrated or fresh install
+            if "token_hash" not in cols:
+                return  # New columns not yet added
+            rows = conn.execute("SELECT id, token FROM api_tokens WHERE token_hash IS NULL OR token_hash = ''").fetchall()
+            if not rows:
+                return
+            import hashlib as _hashlib
+            for row_id, token in rows:
+                token_hash = _hashlib.sha256(token.encode()).hexdigest()
+                preview = token[:8] + "..." + token[-4:] if len(token) > 12 else token
+                conn.execute(
+                    "UPDATE api_tokens SET token_hash = ?, token_preview = ? WHERE id = ?",
+                    (token_hash, preview, row_id),
+                )
+            conn.commit()
+            logger.info("Migrated %d API tokens to hashed storage", len(rows))
+        except sqlite3.OperationalError:
+            pass  # Table or columns don't exist yet
 
     @contextmanager
     def get_conn(self) -> Generator[sqlite3.Connection, None, None]:

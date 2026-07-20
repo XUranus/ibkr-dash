@@ -278,7 +278,9 @@
     "type": "Type"
   },
   "copilot": {
+    "eyebrow": "AI Assistant",
     "title": "Account Copilot",
+    "subtitle": "Ask questions about your portfolio, positions, and trades.",
     "sessions": "Sessions",
     "newChat": "+ New",
     "noSessions": "No sessions yet.",

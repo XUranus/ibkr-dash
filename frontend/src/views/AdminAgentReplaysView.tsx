@@ -97,12 +97,12 @@ export default function AdminAgentReplaysView() {
                 <tbody>
                   {replays.map(r => (
                     <tr key={r.replay_id} onClick={() => setSelectedReplay(r)} style={{ cursor: 'pointer' }}>
-                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>{r.replay_id.slice(0, 20)}...</td>
+                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>{r.replay_id.length > 20 ? r.replay_id.slice(0, 20) + '...' : r.replay_id}</td>
                       <td><span className="tag tag--accent">{r.agent_name}</span></td>
                       <td>{r.agent_mode}</td>
                       <td><span className={statusTag(r.final_status)}>{r.final_status}</span></td>
                       <td>{r.source}</td>
-                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>{r.run_id?.slice(0, 16)}...</td>
+                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>{r.run_id ? (r.run_id.length > 16 ? r.run_id.slice(0, 16) + '...' : r.run_id) : '-'}</td>
                       <td style={{ fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>{r.created_at?.slice(0, 19)}</td>
                     </tr>
                   ))}

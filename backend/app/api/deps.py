@@ -151,8 +151,18 @@ def get_agent_eval_service(db: Database = Depends(get_db)) -> "AgentEvalService"
 
 
 def require_admin_session(request: Request) -> str | None:
-    """Require an admin session (alias for get_current_user)."""
-    return get_current_user(request, None, get_settings())
+    """Require an admin session. Always returns a username or raises 401.
+
+    Unlike get_current_user, this never allows anonymous access —
+    even when auth_password is not configured.
+    """
+    user = get_current_user(request, None, get_settings())
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+        )
+    return user
 
 
 def get_eval_simulation_service(db: Database = Depends(get_db)):
