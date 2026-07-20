@@ -55,6 +55,14 @@ def invalidate_all() -> int:
     """Invalidate all cache entries. Called after data import."""
     count = len(_cache)
     _cache.clear()
+    # Also invalidate the FIFO cost basis cache
+    try:
+        from app.utils.fifo import invalidate_fifo_cache
+        fifo_count = invalidate_fifo_cache()
+        if fifo_count:
+            logger.info("FIFO cache invalidated: %d entries cleared", fifo_count)
+    except ImportError:
+        pass
     logger.info("Cache invalidated: %d entries cleared", count)
     return count
 
@@ -110,6 +118,8 @@ def stats() -> dict[str, int]:
 
 # Data freshness check — invalidate cache when new data arrives
 _last_data_fingerprint: str = ""
+_last_freshness_check_time: float = 0.0
+_FRESHNESS_CHECK_INTERVAL: float = 60.0  # Only check every 60 seconds
 
 
 def check_data_freshness(db) -> None:
@@ -117,9 +127,14 @@ def check_data_freshness(db) -> None:
 
     Queries the latest report_date and count from account_snapshots.
     If changed, invalidates all cache entries.
-    Called once per request (cheap single-row query).
+    Throttled to once per 60 seconds to avoid per-request overhead.
     """
-    global _last_data_fingerprint
+    global _last_data_fingerprint, _last_freshness_check_time
+    now = time.time()
+    if now - _last_freshness_check_time < _FRESHNESS_CHECK_INTERVAL:
+        return
+    _last_freshness_check_time = now
+
     row = db.execute_one(
         "SELECT report_date, COUNT(*) OVER () AS total FROM account_snapshots ORDER BY report_date DESC LIMIT 1"
     )

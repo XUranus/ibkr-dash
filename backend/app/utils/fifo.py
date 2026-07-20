@@ -7,6 +7,14 @@ Handles options (1 contract = 100 shares) automatically.
 
 from __future__ import annotations
 
+import hashlib
+import json
+import time
+
+# Module-level cache for FIFO results (keyed by sorted symbols + report_date)
+_fifo_cache: dict[str, tuple[float, dict]] = {}
+_fifo_cache_ttl: float = 86400.0  # 24 hours
+
 OPTION_MULTIPLIER = 100  # 1 options contract = 100 shares
 
 # Trade side constants
@@ -124,6 +132,9 @@ def query_fifo_cost_basis(
 ) -> dict[str, dict]:
     """Query trades from DB and compute FIFO cost basis.
 
+    Results are cached in-memory for 24 hours since trade data
+    only changes on import.
+
     Args:
         db: Database instance.
         symbols: Set of symbols to compute FIFO for.
@@ -134,6 +145,17 @@ def query_fifo_cost_basis(
     """
     if not symbols:
         return {}
+
+    # Check cache
+    cache_raw = json.dumps([sorted(symbols), report_date or ""], sort_keys=True)
+    cache_key = hashlib.md5(cache_raw.encode()).hexdigest()[:16]
+    cached_entry = _fifo_cache.get(cache_key)
+    if cached_entry is not None:
+        expires_at, cached_value = cached_entry
+        if time.time() <= expires_at:
+            return cached_value
+        del _fifo_cache[cache_key]
+
     placeholders = ",".join("?" for _ in symbols)
     if report_date:
         trades = db.execute(
@@ -155,4 +177,14 @@ def query_fifo_cost_basis(
             """,
             tuple(symbols),
         )
-    return compute_fifo_cost_basis(trades)
+    result = compute_fifo_cost_basis(trades)
+    _fifo_cache[cache_key] = (time.time() + _fifo_cache_ttl, result)
+    return result
+
+
+def invalidate_fifo_cache() -> int:
+    """Clear the FIFO cost basis cache. Called after data import."""
+    global _fifo_cache
+    count = len(_fifo_cache)
+    _fifo_cache = {}
+    return count

@@ -26,6 +26,10 @@ class AccountService:
 
     def __init__(self, db: Database) -> None:
         self.db = db
+        # Per-request memoization for expensive TWR-based computations
+        # Keyed by (account_id, report_date) to avoid duplicate work
+        # between current and previous day lookups.
+        self._twr_cache: dict[str, tuple[float, float]] = {}  # date -> (net_cost, unrealized)
 
     def _resolve_cash(self, row: dict, total_equity: float) -> float:
         """Resolve cash balance: use DB value, or recompute from positions if zero."""
@@ -65,7 +69,7 @@ class AccountService:
         cash = self._resolve_cash(current, total_equity)
 
         # Compute net cost: prefer actual cash flow data, fall back to TWR
-        net_cost = self._compute_net_cost(current["account_id"], current["report_date"], total_equity)
+        net_cost = self._cached_net_cost(current["account_id"], current["report_date"], total_equity)
 
         # total_pnl = equity - net_cost
         total_pnl = total_equity - net_cost if net_cost > 0 else 0.0
@@ -74,7 +78,7 @@ class AccountService:
         pnl_return_rate = (total_pnl / net_cost * 100.0) if net_cost > 0 else None
 
         # Get unrealized PnL from position data (ibkr-show-public approach)
-        unrealized_pnl = self._compute_unrealized_from_positions(current["report_date"])
+        unrealized_pnl = self._cached_unrealized(current["report_date"])
 
         # Derive realized PnL: realized = total_pnl - unrealized
         realized_pnl = total_pnl - unrealized_pnl
@@ -105,9 +109,9 @@ class AccountService:
             overview.total_equity_delta = self._build_delta(total_equity, prev_equity)
 
             prev_cash = self._resolve_cash(previous, prev_equity)
-            prev_net_cost = self._compute_net_cost(previous["account_id"], previous["report_date"], prev_equity)
+            prev_net_cost = self._cached_net_cost(previous["account_id"], previous["report_date"], prev_equity)
             prev_total_pnl = prev_equity - prev_net_cost if prev_net_cost > 0 else 0.0
-            prev_unrealized = self._compute_unrealized_from_positions(previous["report_date"])
+            prev_unrealized = self._cached_unrealized(previous["report_date"])
             prev_realized = prev_total_pnl - prev_unrealized
 
             overview.fifo_total_realized_pnl_delta = self._build_delta(realized_pnl, prev_realized)
@@ -134,6 +138,28 @@ class AccountService:
         )
         items = [AccountSnapshot(**row) for row in rows]
         return AccountSnapshotListResponse(items=items)
+
+    def _cached_net_cost(self, account_id: str, report_date: str, total_equity: float) -> float:
+        """Compute net_cost with per-request memoization to avoid duplicate TWR fallback."""
+        if report_date in self._twr_cache:
+            return self._twr_cache[report_date][0]
+        net_cost = self._compute_net_cost(account_id, report_date, total_equity)
+        if report_date not in self._twr_cache:
+            self._twr_cache[report_date] = (net_cost, 0.0)
+        else:
+            self._twr_cache[report_date] = (net_cost, self._twr_cache[report_date][1])
+        return net_cost
+
+    def _cached_unrealized(self, report_date: str) -> float:
+        """Compute unrealized PnL with per-request memoization to avoid duplicate FIFO fallback."""
+        if report_date in self._twr_cache and self._twr_cache[report_date][1] != 0.0:
+            return self._twr_cache[report_date][1]
+        unrealized = self._compute_unrealized_from_positions(report_date)
+        if report_date in self._twr_cache:
+            self._twr_cache[report_date] = (self._twr_cache[report_date][0], unrealized)
+        else:
+            self._twr_cache[report_date] = (0.0, unrealized)
+        return unrealized
 
     def _compute_realized_pnl(self, report_date: str) -> float:
         """Sum realized PnL from trades up to the given date."""

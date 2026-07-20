@@ -6,6 +6,7 @@ import logging
 import math
 from datetime import datetime
 
+from app.core import cache
 from app.core.database import Database
 from app.domains.performance.schemas import (
     AccountPerformancePoint,
@@ -31,7 +32,12 @@ class AccountPerformanceService:
         end_date: str | None = None,
         base_index: float = 100.0,
     ) -> PerformanceSeriesResponse:
-        """Build a performance series with TWR calculation."""
+        """Build a performance series with TWR calculation. Cached."""
+        cache_key = cache.make_key("perf_series", start_date or "", end_date or "", base_index)
+        cached_result = cache.get(cache_key)
+        if cached_result is not None:
+            return cached_result
+
         # Get account snapshots ordered by date
         snapshots = self._get_snapshots(start_date, end_date)
         if not snapshots:
@@ -88,11 +94,13 @@ class AccountPerformanceService:
         # Compute summary
         summary = self._compute_summary(series, base_index, limitations)
 
-        return PerformanceSeriesResponse(
+        result = PerformanceSeriesResponse(
             summary=summary,
             series=series,
             methodology=PerformanceMethodology(base_index=base_index),
         )
+        cache.put(cache_key, result)
+        return result
 
     def get_summary(
         self,
@@ -105,6 +113,11 @@ class AccountPerformanceService:
         return self.get_series(
             start_date=start_date, end_date=end_date, base_index=base_index
         ).summary
+
+    _SNAPSHOT_COLUMNS = (
+        "report_date, total_equity, cnav_twr, cnav_mtm, cnav_deposits,"
+        " cnav_change_in_unrealized, cnav_realized"
+    )
 
     def _get_snapshots(self, start_date: str | None, end_date: str | None) -> list[dict]:
         """Get account snapshots ordered by date."""
@@ -119,7 +132,7 @@ class AccountPerformanceService:
 
         where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
         return self.db.execute(
-            f"SELECT * FROM account_snapshots {where} ORDER BY report_date ASC",
+            f"SELECT {self._SNAPSHOT_COLUMNS} FROM account_snapshots {where} ORDER BY report_date ASC",
             tuple(params),
         )
 

@@ -618,6 +618,10 @@ _MIGRATIONS = [
     "ALTER TABLE api_tokens ADD COLUMN token_preview TEXT DEFAULT ''",
     "CREATE INDEX IF NOT EXISTS idx_api_tokens_hash ON api_tokens(token_hash)",
     "CREATE INDEX IF NOT EXISTS idx_api_tokens_revoked ON api_tokens(revoked)",
+    # Performance indexes for common query patterns (optimization pass)
+    "CREATE INDEX IF NOT EXISTS idx_position_snapshots_date_symbol ON position_snapshots(report_date, symbol)",
+    "CREATE INDEX IF NOT EXISTS idx_cash_flows_account_flow_date ON cash_flows(account_id, flow_type, date_time)",
+    "CREATE INDEX IF NOT EXISTS idx_account_snapshots_equity_date ON account_snapshots(report_date, total_equity)",
 ]
 
 

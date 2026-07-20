@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from app.core import cache
 from app.core.database import Database
 from app.utils.fifo import compute_fifo_cost_basis, query_fifo_cost_basis
 from app.schemas.positions import (
@@ -54,8 +55,15 @@ class PositionService:
         page_size: int,
         include_summary: bool = False,
     ) -> PositionListResponse:
-        """List positions with filtering, sorting, and pagination."""
+        """List positions with filtering, sorting, and pagination. Cached."""
         effective_report_date = report_date or self._get_latest_report_date()
+        cache_key = cache.make_key(
+            "positions", effective_report_date or "", symbol or "",
+            asset_class or "", sort_by, sort_order, page, page_size,
+        )
+        cached_result = cache.get(cache_key)
+        if cached_result is not None:
+            return cached_result
         if effective_report_date is None:
             empty_pagination = build_pagination_info(page, page_size, 0)
             return PositionListResponse(items=[], pagination=empty_pagination)
@@ -112,11 +120,13 @@ class PositionService:
         if include_summary:
             summary = self._build_summary(effective_report_date, symbol, asset_class, rows)
 
-        return PositionListResponse(
+        result = PositionListResponse(
             items=items,
             pagination=build_pagination_info(page, limit, total),
             summary=summary,
         )
+        cache.put(cache_key, result)
+        return result
 
     def get_positions_summary(
         self,
