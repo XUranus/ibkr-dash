@@ -824,7 +824,20 @@
     "operationObservation": "操作观察：",
     "generate": "生成复盘",
     "generating": "生成中...",
-    "generateFailed": "生成复盘失败"
+    "generateFailed": "生成复盘失败",
+    "selectDate": "从日历中选择日期",
+    "selectDateHint": "点击高亮日期查看每日复盘",
+    "loadingReview": "加载复盘中...",
+    "hasReview": "有复盘",
+    "noReview": "无复盘",
+    "noData": "无数据",
+    "noReviewForDate": "{{date}} 暂无复盘记录",
+    "generateForDate": "生成复盘",
+    "noDataForDate": "该日期无交易数据",
+    "regenerate": "重新生成",
+    "delete": "删除",
+    "confirmDelete": "确认删除 {{date}} 的复盘记录？",
+    "deleteFailed": "删除失败"
   },
   "tradeReviewPage": {
     "eyebrow": "Agent",

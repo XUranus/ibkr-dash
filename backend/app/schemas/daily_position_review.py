@@ -15,6 +15,7 @@ class DailyReviewResponse(BaseModel):
     id: str
     report_date: str
     review_output: dict | str | None = None
+    review_markdown: str | None = None
     summary: str | None = None
     account_conclusion: str | None = None
     attribution_summary: str | None = None

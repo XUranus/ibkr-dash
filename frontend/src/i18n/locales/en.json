@@ -823,7 +823,20 @@
     "operationObservation": "Operation Observation:",
     "generate": "Generate Review",
     "generating": "Generating...",
-    "generateFailed": "Failed to generate review"
+    "generateFailed": "Failed to generate review",
+    "selectDate": "Select a date from the calendar",
+    "selectDateHint": "Click a highlighted date to view the daily review",
+    "loadingReview": "Loading review...",
+    "hasReview": "Has Review",
+    "noReview": "No Review",
+    "noData": "No Data",
+    "noReviewForDate": "No review generated for {{date}}",
+    "generateForDate": "Generate Review",
+    "noDataForDate": "No trading data available for this date",
+    "regenerate": "Regenerate",
+    "delete": "Delete",
+    "confirmDelete": "Delete review for {{date}}?",
+    "deleteFailed": "Failed to delete review"
   },
   "tradeReviewPage": {
     "eyebrow": "Agent",

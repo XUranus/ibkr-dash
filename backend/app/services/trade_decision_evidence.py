@@ -13,7 +13,7 @@ from app.services.trade_decision_metrics import TradeDecisionMetricsCalculator, 
 from app.services.trade_review_evidence import DEFAULT_BENCHMARKS, TARGET_ANNUAL_RETURN, build_stable_trade_id, normalize_ibkr_symbol
 from app.utils.dates import parse_date
 
-CASH_EQUIVALENT_SYMBOLS = {"SGOV", "STRC", "BIL", "SHV", "USFR", "TFLO", "BOXX"}
+from app.core.symbol_constants import CASH_EQUIVALENT_SYMBOLS
 
 
 class TradeDecisionEvidenceBuilder:

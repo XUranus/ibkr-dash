@@ -183,3 +183,72 @@ def health_check(
         llm_configured=bool(settings.llm_api_key),
         message="Daily review agent is available",
     )
+
+
+@router.delete("/reviews/{date}")
+def delete_review(
+    date: str,
+    _user: str | None = Depends(get_current_user),
+    db: Database = Depends(get_db),
+) -> dict:
+    """Delete a daily position review by date."""
+    row = db.execute_one(
+        "SELECT id FROM daily_position_reviews WHERE report_date = ?",
+        (date,),
+    )
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No daily position review found for date: {date}",
+        )
+    db.execute("DELETE FROM daily_position_reviews WHERE report_date = ?", (date,))
+    return {"success": True, "message": f"Deleted review for {date}"}
+
+
+@router.get("/trading-dates")
+def list_trading_dates(
+    year: int = Query(..., ge=2020, le=2030),
+    month: int = Query(..., ge=1, le=12),
+    _user: str | None = Depends(get_current_user),
+    db: Database = Depends(get_db),
+) -> dict:
+    """List all trading dates in a month with their review status.
+
+    Returns dates from account_snapshots (IBKR data) with flags indicating
+    whether a review exists for each date.
+    """
+    # Get all dates with account data in the month
+    start_date = f"{year:04d}-{month:02d}-01"
+    if month == 12:
+        end_date = f"{year+1:04d}-01-01"
+    else:
+        end_date = f"{year:04d}-{month+1:02d}-01"
+
+    # Get trading dates from account_snapshots
+    account_dates = db.execute(
+        "SELECT DISTINCT report_date FROM account_snapshots "
+        "WHERE report_date >= ? AND report_date < ? "
+        "ORDER BY report_date",
+        (start_date, end_date),
+    )
+    trading_dates = {row["report_date"] for row in account_dates}
+
+    # Get dates with reviews
+    review_dates = db.execute(
+        "SELECT DISTINCT report_date FROM daily_position_reviews "
+        "WHERE report_date >= ? AND report_date < ?",
+        (start_date, end_date),
+    )
+    review_date_set = {row["report_date"] for row in review_dates}
+
+    # Build response with status for each date
+    items = []
+    for date in sorted(trading_dates):
+        has_review = date in review_date_set
+        items.append({
+            "date": date,
+            "has_data": True,
+            "has_review": has_review,
+        })
+
+    return {"items": items}

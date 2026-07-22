@@ -64,6 +64,39 @@ def stop_portfolio_scheduler() -> None:
         _scheduler = None
 
 
+def _has_new_trading_data(db: Any, effective_date: str) -> bool:
+    """Check whether the DB has fresh trading data for today.
+
+    Returns True only if the latest account snapshot date matches
+    the effective date — meaning IBKR Flex data was synced today.
+    On weekends and NYSE holidays there is no new data, so the
+    scheduler should skip the daily loop entirely.
+    """
+    try:
+        row = db.execute_one(
+            "SELECT report_date FROM account_snapshots ORDER BY report_date DESC LIMIT 1",
+        )
+        if not row:
+            logger.info("Portfolio scheduler: no account snapshots in DB")
+            return False
+        latest_date = row["report_date"]
+        if latest_date != effective_date:
+            logger.info(
+                "Portfolio scheduler: latest snapshot date=%s, today=%s — no new data",
+                latest_date, effective_date,
+            )
+            return False
+        return True
+    except Exception:
+        logger.warning("Portfolio scheduler: trading data check failed", exc_info=True)
+        try:
+            from app.services.notification_service import notify_system_error
+            notify_system_error("portfolio_scheduler", "交易数据检查异常，今日复盘可能被跳过")
+        except Exception:
+            pass
+        return False
+
+
 def _run_daily_loop(settings: Any) -> None:
     """Execute the scheduled daily loop run."""
     try:
@@ -89,6 +122,11 @@ def _run_daily_loop(settings: Any) -> None:
         existing = find_existing_scheduled_run(repository, run_date=effective_date)
         if existing:
             logger.info("Portfolio daily loop scheduler: already ran today (run_id=%s), skipping", existing.get("id"))
+            return
+
+        # Check if new data was synced today (skip weekends / holidays)
+        if not _has_new_trading_data(db, effective_date):
+            logger.info("Portfolio daily loop scheduler: no new data for %s, skipping (weekend/holiday)", effective_date)
             return
 
         # Build services

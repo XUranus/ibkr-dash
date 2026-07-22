@@ -372,7 +372,8 @@ class TechnicalSignalEngine:
             severe_reasons.append(f"收盘价({last:.2f}) < MA200({ma200:.2f})")
         rs_20 = signals.relative_strength_20d or {}
         rs_60 = signals.relative_strength_60d or {}
-        required = {"QQQ", "SMH"}
+        from app.core.symbol_constants import RS_BENCHMARKS
+        required = RS_BENCHMARKS
         if required <= set(rs_20.keys()) and required <= set(rs_60.keys()):
             big_lag_20 = all(rs_20[name] < -3.0 for name in required)
             big_lag_60 = all(rs_60[name] < -5.0 for name in required)

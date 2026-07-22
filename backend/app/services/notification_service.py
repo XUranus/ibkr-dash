@@ -53,7 +53,7 @@ _recently_sent_reviews: set[str] = set()
 
 
 def notify_daily_review_completed(document: dict) -> None:
-    """每日复盘完成推送 — 精简格式，只推摘要+归因+风险."""
+    """每日复盘完成推送 — 使用统一的 Markdown 内容（与 web admin 相同）."""
     report_date = document.get("report_date", "")
 
     # Dedup: skip if already sent for this report_date
@@ -84,64 +84,19 @@ def notify_daily_review_completed(document: dict) -> None:
     tag = "📊" if not fallback else "📋"
     subject = f"{tag} 每日复盘 | {report_date}"
 
-    lines = []
+    # Use unified markdown content (same as web admin)
+    body = document.get("review_markdown", "")
+    if not body:
+        # Fallback: generate markdown from document
+        from app.agents.daily_review.agent import _generate_review_markdown
+        body = _generate_review_markdown(document)
 
-    # 1. 摘要（一行）
-    if summary:
-        lines.append(summary)
-
-    # 2. 贡献者 / 拖累者（紧凑格式）
-    if contributors:
-        c_lines = []
-        for item in contributors:
-            sym = item.get("symbol", "")
-            analysis = item.get("analysis", "")
-            if sym:
-                # Truncate analysis for push brevity
-                short = analysis[:80] + "..." if len(analysis) > 80 else analysis
-                c_lines.append(f"  ✅ {sym}: {short}")
-        if c_lines:
-            lines.append("贡献者:")
-            lines.extend(c_lines)
-
-    if drags:
-        d_lines = []
-        for item in drags:
-            sym = item.get("symbol", "")
-            analysis = item.get("analysis", "")
-            if sym:
-                short = analysis[:80] + "..." if len(analysis) > 80 else analysis
-                d_lines.append(f"  ❌ {sym}: {short}")
-        if d_lines:
-            lines.append("拖累者:")
-            lines.extend(d_lines)
-
-    # 3. 风险提醒（如果有）
-    risk = _pick(document, "risk_analysis")
-    if risk and "没有明显" not in risk and len(risk) > 5:
-        lines.append(f"⚠️ {risk}")
-
-    # 4. 明日关注（只取前2个，一行一个）
-    watchlist = _pick_list(document, "tomorrow_watchlist")
-    if watchlist:
-        watch_lines = []
-        for item in watchlist[:2]:
-            sym = item.get("symbol", "")
-            reason = item.get("reason", "")
-            if sym and reason:
-                watch_lines.append(f"  👁 {sym}: {reason[:50]}")
-        if watch_lines:
-            lines.append("明日关注:")
-            lines.extend(watch_lines)
-
-    body = "\n".join(lines) if lines else "复盘报告已生成，请查看详情。"
-
-    # Limit push body length
-    if len(body) > 800:
-        body = body[:797] + "..."
+    # Markdown 允许更长内容
+    if len(body) > 2000:
+        body = body[:1997] + "..."
 
     logger.info("DailyReview notification: date=%s fallback=%s body_len=%d", report_date, fallback, len(body))
-    _send(subject, body, fmt="text")
+    _send(subject, body, fmt="markdown")
     _recently_sent_reviews.add(report_date)
 
 
@@ -199,6 +154,91 @@ def notify_trade_review_failed(symbol: str, reason: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# 持仓分析
+# ---------------------------------------------------------------------------
+
+def notify_position_analysis_completed(document: dict) -> None:
+    """持仓分析完成推送 — Markdown 格式，包含评分、建议、风险."""
+    report_date = document.get("report_date", "")
+    overall_score = document.get("overall_score", 0)
+    rating = document.get("rating", "")
+    summary = document.get("summary", "")
+
+    rating_labels = {"excellent": "优秀", "good": "良好", "fair": "一般", "poor": "较差"}
+    rating_label = rating_labels.get(rating, rating)
+
+    subject = f"📊 持仓分析 | {report_date} | {overall_score}分 {rating_label}"
+
+    lines: list[str] = []
+
+    # 1. Summary
+    if summary:
+        lines.append(f"**{summary}**")
+        lines.append("")
+
+    # 2. Score breakdown
+    score_detail = document.get("score_detail", {})
+    if score_detail:
+        lines.append("**📊 评分明细**")
+        dim_labels = {
+            "company_quality": "公司质量",
+            "valuation_quality": "估值质量",
+            "trend_strength": "趋势强度",
+            "account_fit": "账户适配",
+            "risk_reward": "风险收益",
+            "review_constraints": "复盘约束",
+            "event_catalyst": "事件催化",
+        }
+        for dim, info in score_detail.items():
+            if isinstance(info, dict):
+                score = info.get("score", 0)
+                max_s = info.get("max_score", 0)
+                reason = info.get("reason", "")
+                label = dim_labels.get(dim, dim)
+                lines.append(f"- {label}: {score}/{max_s} — {reason[:80]}")
+        lines.append("")
+
+    # 3. Position advice
+    advice = document.get("position_advice", {})
+    if isinstance(advice, dict) and advice.get("action"):
+        action_labels = {"add": "加仓", "hold": "持有", "reduce": "减仓", "close": "清仓"}
+        action_label = action_labels.get(advice["action"], advice["action"])
+        lines.append(f"**💡 仓位建议:** {action_label}")
+        if advice.get("rationale"):
+            lines.append(f"  理由: {advice['rationale'][:100]}")
+        lines.append("")
+
+    # 4. Strengths
+    strengths = document.get("strengths", [])
+    if strengths:
+        lines.append("**✅ 优点**")
+        for s in strengths[:3]:
+            lines.append(f"- {s[:80]}")
+        lines.append("")
+
+    # 5. Weaknesses
+    weaknesses = document.get("weaknesses", [])
+    if weaknesses:
+        lines.append("**⚠️ 风险点**")
+        for w in weaknesses[:3]:
+            lines.append(f"- {w[:80]}")
+        lines.append("")
+
+    # 6. Key risks
+    risks = document.get("key_risks", [])
+    if risks:
+        lines.append("**🔴 关键风险**")
+        for r in risks[:3]:
+            lines.append(f"- {r[:80]}")
+
+    body = "\n".join(lines).strip() if lines else "持仓分析已生成，请查看详情。"
+    if len(body) > 2000:
+        body = body[:1997] + "..."
+
+    _send(subject, body, fmt="markdown")
+
+
+# ---------------------------------------------------------------------------
 # AI 交易决策
 # ---------------------------------------------------------------------------
 
@@ -244,26 +284,67 @@ def notify_trade_decision_failed(symbol: str, reason: str) -> None:
 # Action Alerts
 # ---------------------------------------------------------------------------
 
+_ALERT_TYPE_LABELS: dict[str, str] = {
+    "add_position_review": "加仓复核",
+    "entry_position_review": "建仓复核",
+    "reduce_position_review": "减仓复核",
+    "risk_review": "风险复核",
+}
+
+
 def notify_action_alerts(alerts: list[dict]) -> None:
-    """行动建议推送."""
+    """行动建议推送 — Markdown 格式，包含标题、原因、操作建议."""
     if not alerts:
         return
 
     subject = f"🎯 行动建议 | {len(alerts)} 条"
 
-    lines = []
+    lines: list[str] = []
     for alert in alerts[:5]:
-        symbol = alert.get("symbol", "")
+        symbol = alert.get("display_symbol") or alert.get("symbol", "")
         title = alert.get("title", "")
         alert_type = alert.get("alert_type", "")
-        lines.append(f"- **{symbol}** [{alert_type}] {title}")
+        reasons = alert.get("reason_summary", []) or []
+        suggested = alert.get("suggested_user_action", "")
+        confidence = alert.get("confidence", "")
+        urgency = alert.get("urgency", "")
+
+        # Human-readable type label instead of raw alert_type
+        type_label = _ALERT_TYPE_LABELS.get(alert_type, alert_type)
+
+        # Urgency icon
+        urgency_icon = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(urgency, "⚪")
+
+        lines.append(f"**{urgency_icon} {symbol}** — {type_label}")
+        if title:
+            lines.append(f"  {title}")
+
+        # Show top reasons (skip internal jargon)
+        if reasons:
+            human_reasons = []
+            for r in reasons[:3]:
+                # Skip overly technical reasons
+                if any(skip in r for skip in ["未发现 high_risk", "未发现阻止", "dedupe_checked"]):
+                    continue
+                human_reasons.append(r)
+            if human_reasons:
+                lines.append(f"  原因: {'；'.join(human_reasons[:2])}")
+
+        if suggested:
+            lines.append(f"  👉 {suggested}")
+
+        if confidence:
+            conf_label = {"high": "高确信", "medium": "中确信", "low": "低确信"}.get(confidence, confidence)
+            lines.append(f"  确信度: {conf_label}")
+
+        lines.append("")
 
     if len(alerts) > 5:
-        lines.append(f"...及其他 {len(alerts) - 5} 条")
+        lines.append(f"*...及其他 {len(alerts) - 5} 条*")
 
-    body = "\n".join(lines)
+    body = "\n".join(lines).strip()
 
-    _send(subject, body)
+    _send(subject, body, fmt="markdown")
 
 
 # ---------------------------------------------------------------------------

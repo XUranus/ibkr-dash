@@ -83,20 +83,41 @@ class PortfolioActionAlertBuilder:
         )
 
     def _risk_alert(self, daily_loop_run: PortfolioDailyLoopRun, item: PortfolioAutoDecisionItem, report: PortfolioManagerReport, reasons: list[str]) -> PortfolioActionAlertCreate:
+        # Build a descriptive title with specific risk context
+        risk_parts: list[str] = []
+        risk_level = str(item.decision_summary.get("risk_level") or "").lower()
+        if risk_level:
+            risk_parts.append(f"风险等级: {risk_level}")
+        # Add concentration risk context
+        if report.concentration_risk.assessment == "high" and item.symbol in report.concentration_risk.single_name_risk_symbols:
+            risk_parts.append("集中度风险偏高")
+        # Add portfolio health context
+        if report.portfolio_health_level in {"attention_required", "high_risk"}:
+            risk_parts.append(f"组合健康: {report.portfolio_health_level}")
+        detail = "，".join(risk_parts) if risk_parts else "需要人工复核"
+        title = f"{item.display_symbol} 风险预警 — {detail}"
+
+        # Enrich reasons with specific portfolio metrics
+        enriched_reasons = list(reasons)
+        if report.concentration_risk.assessment == "high":
+            enriched_reasons.append(f"组合集中度评估为 high")
+        if report.portfolio_health_level in {"attention_required", "high_risk"}:
+            enriched_reasons.append(f"组合健康状态: {report.portfolio_health_level}")
+
         return PortfolioActionAlertCreate(
             run_date=daily_loop_run.run_date,
             alert_type="risk_review",
             symbol=item.symbol,
             display_symbol=item.display_symbol,
-            title=f"{item.display_symbol} 仓位风险升高，需要复核",
+            title=title,
             action_direction="review_risk",
             urgency="high",
             confidence=_confidence(item),
-            reason_summary=dedupe([*reasons, *_base_reasons(item, report, None)]),
+            reason_summary=dedupe([*enriched_reasons, *_base_reasons(item, report, None)]),
             decision_summary=_decision_summary(item.decision_summary),
             portfolio_context=_portfolio_context(report),
             linked_ids=_linked_ids(daily_loop_run, item, report),
-            suggested_user_action="打开组合报告和交易决策详情，人工复核该仓位风险与后续加仓优先级。",
+            suggested_user_action="查看该仓位的决策详情和组合报告，评估是否需要调整仓位或止损。",
         )
 
 
@@ -134,19 +155,27 @@ def _linked_ids(daily_loop_run: PortfolioDailyLoopRun, item: PortfolioAutoDecisi
     }
 
 
+_ACTION_LABELS: dict[str, str] = {
+    "add": "加仓", "add_small": "小幅加仓", "add_batch": "分批加仓",
+    "add_on_pullback": "回调加仓", "add_right_side": "右侧加仓",
+    "buy": "买入", "build_position": "建仓", "accumulate": "累积",
+    "increase": "增持", "reduce": "减仓", "reduce_batch": "分批减仓",
+    "reduce_now": "立即减仓", "trim_on_rebound": "反弹减仓",
+    "sell": "卖出", "sell_thesis_broken": "逻辑破坏卖出", "trim": "止盈",
+    "hold": "持有", "hold_position": "持仓观望",
+}
+
+
 def _base_reasons(item: PortfolioAutoDecisionItem, report: PortfolioManagerReport, watchtower_item) -> list[str]:
     reasons = []
     if item.watchtower_status == "decision_required":
-        reasons.append("Watchtower 触发 decision_required")
+        reasons.append("监控系统发现该仓位需要关注")
     if watchtower_item:
-        reasons.extend([f"Watchtower: {reason.message}" for reason in watchtower_item.trigger_reasons[:3]])
+        reasons.extend([f"监控信号: {reason.message}" for reason in watchtower_item.trigger_reasons[:3]])
     action = _decision_action(item.decision_summary)
     if action:
-        reasons.append(f"Trade Decision 建议 {action}")
-    if report.portfolio_health_level != "high_risk":
-        reasons.append("Portfolio Review 未发现 high_risk 组合阻止")
-    if report.concentration_risk.assessment != "high" or item.symbol not in report.concentration_risk.single_name_risk_symbols:
-        reasons.append("组合层面未发现阻止该动作的集中度风险")
+        action_label = _ACTION_LABELS.get(action, action)
+        reasons.append(f"AI 决策建议: {action_label}")
     return dedupe(reasons)
 
 
@@ -165,13 +194,13 @@ def _portfolio_risk_symbols(report: PortfolioManagerReport) -> dict[str, list[st
     for item in report.action_queue:
         reason = item.reason or ""
         if item.queue_type == "manual_review" and any(word in reason.lower() for word in RISK_WORDS):
-            result.setdefault(item.symbol, []).append(f"Portfolio Report action_queue 标记风险复核：{reason}")
+            result.setdefault(item.symbol, []).append(f"组合报告标记需要人工复核：{reason}")
     for gap in report.allocation_gaps:
         if gap.gap_type == "overweight" and gap.priority == "high":
-            result.setdefault(gap.symbol, []).append(f"Portfolio Report 标记高优先级 overweight：{gap.gap_reason}")
+            result.setdefault(gap.symbol, []).append(f"仓位超配: {gap.gap_reason}")
     if report.concentration_risk.assessment == "high":
         for symbol in report.concentration_risk.single_name_risk_symbols:
-            result.setdefault(symbol, []).append("Portfolio Report 集中度风险 assessment=high")
+            result.setdefault(symbol, []).append("该标的集中度风险偏高")
     return result
 
 

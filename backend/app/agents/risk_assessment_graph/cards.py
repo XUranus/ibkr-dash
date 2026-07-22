@@ -359,38 +359,11 @@ def build_fallback_stress_test_card(reason: str) -> StressTestCard:
     )
 
 
-# --- Theme classification rules ---
-
-THEME_SEMICONDUCTOR = {
-    "AMD", "NVDA", "INTC", "TSM", "ASML", "AVGO", "MU", "SMCI", "QCOM", "MRVL",
-    "AMAT", "LRCX", "KLAC", "ON", "TXN", "MCHP", "WOLF", "ARM",
-}
-
-THEME_AI = {
-    "NVDA", "MSFT", "GOOGL", "AMZN", "META", "ORCL", "CRM", "PLTR", "SNOW",
-    "AI", "SYM", "PATH", "MDB", "NET", "DDOG", "PANW", "CRWD", "ZS",
-}
-
-THEME_CHINA = {
-    "BABA", "JD", "PDD", "BIDU", "XIACY", "TCEHY", "NIO", "LI", "XPEV",
-    "BILI", "IQ", "MNSO", "FUTU", "TIGR", "EDU", "TAL", "YMM", "ZTO",
-    "KC", "DADA", "QFIN", "LX", "FINV",
-}
-
-MEGA_CAP_TECH = {
-    "AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA",
-}
-
-CASH_EQUIVALENT_SYMBOLS = {"SGOV", "STRC", "BIL", "SHV", "USFR", "TFLO", "BOXX"}
-
-
-def classify_symbol_theme(symbol: str) -> dict[str, bool]:
-    """Classify a symbol into themes using rules. No MCP needed."""
-    base = str(symbol or "").upper().split(".", 1)[0]
-    return {
-        "semiconductor": base in THEME_SEMICONDUCTOR,
-        "ai": base in THEME_AI,
-        "china": base in THEME_CHINA,
-        "mega_cap_tech": base in MEGA_CAP_TECH,
-        "cash_equivalent": base in CASH_EQUIVALENT_SYMBOLS,
-    }
+from app.core.symbol_constants import (
+    CASH_EQUIVALENT_SYMBOLS,
+    MEGA_CAP_TECH,
+    THEME_AI,
+    THEME_CHINA,
+    THEME_SEMICONDUCTOR,
+    classify_symbol_theme,
+)

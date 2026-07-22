@@ -14,6 +14,72 @@ from app.services.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
 
+# Simple dictionary-based translation for common financial news terms
+_NEWS_TRANSLATION_DICT: dict[str, str] = {
+    "Stocks Rise": "股票上涨",
+    "Stocks Fall": "股票下跌",
+    "Stocks Drop": "股票下跌",
+    "Stocks Surge": "股票大涨",
+    "Stocks Plunge": "股票大跌",
+    "Up": "上涨",
+    "Down": "下跌",
+    "Rise": "上涨",
+    "Fall": "下跌",
+    "Surge": "大涨",
+    "Plunge": "大跌",
+    "Rally": "反弹",
+    "Sell-off": "抛售",
+    "Buy": "买入",
+    "Sell": "卖出",
+    "Earnings": "财报",
+    "Revenue": "营收",
+    "Profit": "利润",
+    "Loss": "亏损",
+    "Dividend": "股息",
+    "Stock": "股票",
+    "Market": "市场",
+    "Trading": "交易",
+    "Overnight": "盘前",
+    "After-hours": "盘后",
+    "Pre-market": "盘前",
+    "Analyst": "分析师",
+    "Upgrade": "上调评级",
+    "Downgrade": "下调评级",
+    "Target Price": "目标价",
+    "Forecast": "预测",
+    "Estimate": "预期",
+    "Beat": "超预期",
+    "Miss": "低于预期",
+    "In-line": "符合预期",
+    " semiconductor": "半导体",
+    "chip": "芯片",
+    "AI": "人工智能",
+    "cloud": "云计算",
+    "tech": "科技",
+    "energy": "能源",
+    "oil": "石油",
+    "gold": "黄金",
+    "Bitcoin": "比特币",
+    "crypto": "加密货币",
+    "China": "中国",
+    "US": "美国",
+    "Fed": "美联储",
+    "rate": "利率",
+    "inflation": "通胀",
+    "CPI": "CPI",
+    "GDP": "GDP",
+    "Jobs": "就业",
+    "Unemployment": "失业率",
+}
+
+
+def _dictionary_translate(text: str) -> str:
+    """Simple dictionary-based translation for common financial terms."""
+    result = text
+    for en, zh in _NEWS_TRANSLATION_DICT.items():
+        result = result.replace(en, zh)
+    return result
+
 # Trade review text fields that need translation
 TRADE_REVIEW_TEXT_FIELDS = [
     "summary",
@@ -49,6 +115,7 @@ DAILY_REVIEW_NESTED_TEXT_FIELDS = {
     "focus_symbol_analyses": [
         "price_action",
         "account_impact",
+        "possible_reasons",
         "valuation_note",
         "cost_position_note",
     ],
@@ -79,7 +146,7 @@ def _call_llm_for_translation(
     source_lang: str = "English",
     target_lang: str = "Chinese",
 ) -> dict[str, str]:
-    """Call LLM to translate a batch of texts."""
+    """Call LLM to translate a batch of texts. Falls back to dictionary translation on failure."""
     if not text_map:
         return {}
 
@@ -99,14 +166,24 @@ def _call_llm_for_translation(
             ],
             temperature=0.1,
             max_tokens=4096,
-            response_format={"type": "json_object"},
         )
+        # Try to extract JSON from response (may have markdown wrapper)
+        raw = raw.strip()
+        if raw.startswith("```"):
+            # Remove markdown code block
+            raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
+            if raw.endswith("```"):
+                raw = raw[:-3]
+            raw = raw.strip()
         parsed = json.loads(raw, strict=False)
         if isinstance(parsed, dict):
             return {str(k): str(v) for k, v in parsed.items() if k in text_map}
     except Exception as exc:
-        logger.warning("Translation LLM call failed: %s", exc)
-    return {}
+        logger.warning("Translation LLM call failed, falling back to dictionary: %s", exc)
+
+    # Fallback: dictionary-based translation
+    logger.info("Using dictionary translation for %d texts", len(text_map))
+    return {k: _dictionary_translate(v) for k, v in text_map.items()}
 
 
 def _collect_texts(

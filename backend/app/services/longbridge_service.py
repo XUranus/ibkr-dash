@@ -227,6 +227,10 @@ class LongbridgeExternalDataClient:
 
     @property
     def configured(self) -> bool:
+        # Direct API key is configured
+        if self.settings.longbridge_app_key.strip() and self.settings.longbridge_app_secret.strip() and self.settings.longbridge_access_token.strip():
+            return True
+        # OAuth is configured
         return bool(self._oauth_client_id())
 
     @property
@@ -566,9 +570,14 @@ class LongbridgeExternalDataClient:
         if not self.enabled:
             raise LongbridgeUnavailableError("Longbridge external data source is disabled")
         if not self.configured:
-            raise LongbridgeUnavailableError("Longbridge OpenAPI OAuth client_id is not configured")
-        if not self.oauth_service.get_access_token():
-            raise LongbridgeUnavailableError("Longbridge OpenAPI OAuth authorization is required. Complete LongBridge OpenAPI OAuth in the admin console.")
+            raise LongbridgeUnavailableError("Longbridge is not configured. Set API key or OAuth credentials.")
+        # Skip OAuth check if using direct API key
+        api_key = self.settings.longbridge_app_key.strip()
+        api_secret = self.settings.longbridge_app_secret.strip()
+        access_token = self.settings.longbridge_access_token.strip()
+        if not (api_key and api_secret and access_token):
+            if not self.oauth_service.get_access_token():
+                raise LongbridgeUnavailableError("Longbridge OpenAPI OAuth authorization is required. Complete LongBridge OpenAPI OAuth in the admin console.")
 
     def _get_oauth(self) -> Any:
         self._ensure_available()
@@ -595,12 +604,28 @@ class LongbridgeExternalDataClient:
 
     def _get_config(self) -> Any:
         if self._config is None:
-            self._config = self._sdk.Config.from_oauth(self._get_oauth())
+            # Try direct API key first, then fall back to OAuth
+            api_key = self.settings.longbridge_app_key.strip()
+            api_secret = self.settings.longbridge_app_secret.strip()
+            access_token = self.settings.longbridge_access_token.strip()
+            if api_key and api_secret and access_token:
+                logger.info("Longbridge: using direct API key authentication")
+                self._config = self._sdk.Config.from_apikey(api_key, api_secret, access_token)
+            else:
+                logger.info("Longbridge: using OAuth authentication")
+                self._config = self._sdk.Config.from_oauth(self._get_oauth())
         return self._config
 
     def _get_http_client(self) -> Any:
         if self._http_client is None:
-            self._http_client = self._sdk.HttpClient.from_oauth(self._get_oauth())
+            # Try direct API key first, then fall back to OAuth
+            api_key = self.settings.longbridge_app_key.strip()
+            api_secret = self.settings.longbridge_app_secret.strip()
+            access_token = self.settings.longbridge_access_token.strip()
+            if api_key and api_secret and access_token:
+                self._http_client = self._sdk.HttpClient.from_apikey(api_key, api_secret, access_token)
+            else:
+                self._http_client = self._sdk.HttpClient.from_oauth(self._get_oauth())
         return self._http_client
 
     def _get_quote_context(self) -> Any:
@@ -708,7 +733,8 @@ class LongbridgeExternalDataClient:
         normalized_code = code.lstrip("0") if code.isdigit() else code
         if not normalized_code:
             normalized_code = code
-        prefix = "ETF" if market == "US" and normalized_code.upper() in {"SPY", "QQQ", "SMH"} else "ST"
+        from app.core.symbol_constants import BENCHMARK_ETFS
+        prefix = "ETF" if market == "US" and normalized_code.upper() in BENCHMARK_ETFS else "ST"
         return f"{prefix}/{market}/{normalized_code.upper()}"
 
     def _first_serialized_item(self, items: Any, symbol: str) -> dict:

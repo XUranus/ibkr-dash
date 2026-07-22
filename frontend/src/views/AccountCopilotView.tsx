@@ -150,17 +150,17 @@ export default function AccountCopilotView() {
                 <p className="eyebrow" style={{ margin: 0 }}>{t('copilot.sessions').toUpperCase()}</p>
                 <button className="btn btn--ghost btn--sm" onClick={handleNewChat} style={{ fontSize: '0.78rem' }}>{t('copilot.newChat')}</button>
               </div>
-              <div style={{ display: 'grid', gap: 4, maxHeight: '60vh', overflow: 'auto' }}>
+              <div style={{ display: 'grid', gap: 4, maxHeight: '60vh', overflowY: 'auto' }}>
                 {sessions.length === 0 ? (
                   <p style={{ color: 'var(--color-text-muted)', fontSize: '0.82rem' }}>{t('copilot.noSessions')}</p>
                 ) : (
                   sessions.map((s) => (
-                    <div key={s.session_id} style={{ display: 'flex', gap: 4 }}>
+                    <div key={s.session_id} style={{ display: 'grid', gridTemplateColumns: '1fr 28px', gap: 4 }}>
                       <button
                         className="btn btn--ghost btn--sm"
                         onClick={() => setActiveSessionId(s.session_id)}
                         style={{
-                          flex: 1, justifyContent: 'flex-start', textAlign: 'left',
+                          justifyContent: 'flex-start', textAlign: 'left',
                           borderRadius: 'var(--radius-sm)',
                           background: activeSessionId === s.session_id ? 'rgba(212,168,67,0.08)' : 'transparent',
                           borderColor: activeSessionId === s.session_id ? 'rgba(212,168,67,0.2)' : 'transparent',
@@ -175,15 +175,14 @@ export default function AccountCopilotView() {
                         onClick={() => handleDeleteSession(s.session_id)}
                         title="Delete session"
                         style={{
-                          minWidth: 28,
                           padding: 0,
                           fontSize: '0.75rem',
-                          color: 'var(--color-text-muted)',
-                          opacity: 0.6,
+                          color: 'var(--color-text-secondary)',
+                          opacity: 0.8,
                           transition: 'opacity 0.15s, color 0.15s',
                         }}
                         onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = 'var(--color-negative)' }}
-                        onMouseLeave={e => { e.currentTarget.style.opacity = '0.6'; e.currentTarget.style.color = 'var(--color-text-muted)' }}
+                        onMouseLeave={e => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.color = 'var(--color-text-secondary)' }}
                       >
                         ✕
                       </button>

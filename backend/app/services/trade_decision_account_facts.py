@@ -19,7 +19,7 @@ from app.services.trade_review_evidence import DEFAULT_BENCHMARKS, build_stable_
 from app.utils.dates import parse_date
 
 
-CASH_EQUIVALENT_SYMBOLS = {"SGOV", "STRC", "BIL", "SHV", "USFR", "TFLO", "BOXX"}
+from app.core.symbol_constants import CASH_EQUIVALENT_SYMBOLS
 
 
 def _is_cash_equivalent(symbol: str) -> bool:

@@ -622,6 +622,10 @@ _MIGRATIONS = [
     "CREATE INDEX IF NOT EXISTS idx_position_snapshots_date_symbol ON position_snapshots(report_date, symbol)",
     "CREATE INDEX IF NOT EXISTS idx_cash_flows_account_flow_date ON cash_flows(account_id, flow_type, date_time)",
     "CREATE INDEX IF NOT EXISTS idx_account_snapshots_equity_date ON account_snapshots(report_date, total_equity)",
+    # Daily review markdown and Chinese output columns
+    "ALTER TABLE daily_position_reviews ADD COLUMN review_output_zh TEXT",
+    "ALTER TABLE daily_position_reviews ADD COLUMN review_markdown TEXT",
+    "CREATE INDEX IF NOT EXISTS idx_daily_position_reviews_date ON daily_position_reviews(report_date)",
 ]
 
 

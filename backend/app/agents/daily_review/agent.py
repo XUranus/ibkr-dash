@@ -17,6 +17,120 @@ from app.agents.daily_review.prompts import SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
+# Longbridge benchmark symbols
+BENCHMARK_SYMBOLS = ["SPY", "QQQ", "SMH"]
+
+# Cache for Longbridge data to avoid repeated API calls within same request
+_longbridge_cache: dict[str, Any] = {}
+_longbridge_cache_date: str = ""
+
+
+def _fetch_longbridge_context(
+    focus_symbols: list[str],
+    report_date: str,
+) -> dict:
+    """Fetch Longbridge public data for focus symbols and benchmarks.
+
+    Returns:
+        dict with 'symbol_public_context' and 'benchmarks' keys.
+    """
+    global _longbridge_cache, _longbridge_cache_date
+
+    # Use cache if same date
+    if _longbridge_cache_date == report_date and _longbridge_cache:
+        return _longbridge_cache
+
+    from app.core.config import get_settings
+    from app.services.longbridge_service import LongbridgeExternalDataClient, LongbridgeUnavailableError
+
+    settings = get_settings()
+    client = LongbridgeExternalDataClient(settings)
+
+    if not (client.enabled and client.configured and client.sdk_loaded):
+        logger.info("Longbridge not available, skipping public context")
+        return {"symbol_public_context": {}, "benchmarks": {"items": [], "beta_alpha_note": "Longbridge not available"}}
+
+    symbol_public_context: dict[str, Any] = {}
+    benchmarks: dict[str, Any] = {"items": [], "beta_alpha_note": ""}
+
+    # 1. Fetch news for focus symbols (limit 5 per symbol)
+    for symbol in focus_symbols[:6]:
+        normalized = symbol.split(".")[0] if "." in symbol else symbol
+        try:
+            news_resp = client.get_news(symbol, limit=5)
+            news_items = []
+            if news_resp and news_resp.items:
+                for item in news_resp.items[:5]:
+                    news_items.append({
+                        "title": getattr(item, "title", ""),
+                        "summary": getattr(item, "summary", "")[:200],
+                        "source": getattr(item, "source", ""),
+                        "publish_time": str(getattr(item, "publish_time", "")),
+                    })
+            symbol_public_context[normalized] = {
+                "symbol": symbol,
+                "news": news_items,
+                "news_count": len(news_items),
+            }
+        except (LongbridgeUnavailableError, Exception) as e:
+            logger.warning("Failed to fetch news for %s: %s", symbol, str(e)[:100])
+            symbol_public_context[normalized] = {"symbol": symbol, "news": [], "error": str(e)[:100]}
+
+    # 2. Fetch benchmark candles (SPY, QQQ, SMH) for last 5 trading days
+    try:
+        from datetime import datetime, timedelta
+        end_date = datetime.strptime(report_date, "%Y-%m-%d")
+        start_date = end_date - timedelta(days=10)  # ~2 trading weeks
+
+        benchmark_items = []
+        for bm_symbol in BENCHMARK_SYMBOLS:
+            try:
+                candles_resp = client.get_candles(
+                    bm_symbol,
+                    start_date.strftime("%Y-%m-%d"),
+                    report_date,
+                    "day",
+                    "forward",
+                )
+                if candles_resp and candles_resp.items:
+                    # Get last 2 candles for return calculation
+                    items = candles_resp.items
+                    latest = items[-1] if items else None
+                    prev = items[-2] if len(items) > 1 else None
+
+                    if latest:
+                        close_price = float(getattr(latest, "close", 0))
+                        prev_close = float(getattr(prev, "close", 0)) if prev else 0
+                        day_return = round((close_price - prev_close) / prev_close * 100, 2) if prev_close > 0 else 0
+
+                        benchmark_items.append({
+                            "symbol": bm_symbol,
+                            "close": close_price,
+                            "day_return_percent": day_return,
+                            "candle_count": len(items),
+                        })
+            except (LongbridgeUnavailableError, Exception) as e:
+                logger.warning("Failed to fetch candles for %s: %s", bm_symbol, str(e)[:100])
+
+        benchmarks = {
+            "items": benchmark_items,
+            "beta_alpha_note": f"Benchmark returns from Longbridge ({len(benchmark_items)} symbols)",
+        }
+    except Exception as e:
+        logger.warning("Failed to fetch benchmark data: %s", str(e)[:100])
+        benchmarks = {"items": [], "beta_alpha_note": f"Benchmark fetch failed: {str(e)[:100]}"}
+
+    result = {
+        "symbol_public_context": symbol_public_context,
+        "benchmarks": benchmarks,
+    }
+
+    # Update cache
+    _longbridge_cache = result
+    _longbridge_cache_date = report_date
+
+    return result
+
 
 async def generate_daily_review(
     db: Any,
@@ -100,7 +214,11 @@ async def generate_daily_review(
         max_repair_attempts=1,
         repair_enabled=True,
         fallback_enabled=True,
-        fallback_builder=lambda ctx, err, raw: _build_fallback_payload(report_date, overview, rankings, risk, focus_symbols),
+        fallback_builder=lambda ctx, err, raw: _build_fallback_payload(
+            report_date, overview, rankings, risk, focus_symbols,
+            symbol_public_context=deterministic_context.get("symbol_public_context"),
+            benchmarks=deterministic_context.get("benchmarks"),
+        ),
     )
     so_runtime = StructuredOutputRuntime(llm_service)
     result = so_runtime.generate(messages, contract)
@@ -108,7 +226,11 @@ async def generate_daily_review(
     if result.ok and result.payload:
         validated = _normalize_output(result.payload, report_date, deterministic_context)
     else:
-        validated = _build_fallback_payload(report_date, overview, rankings, risk, focus_symbols)
+        validated = _build_fallback_payload(
+            report_date, overview, rankings, risk, focus_symbols,
+            symbol_public_context=deterministic_context.get("symbol_public_context"),
+            benchmarks=deterministic_context.get("benchmarks"),
+        )
 
     # Step 5: Translate to Chinese
     review_output_zh = {}
@@ -145,6 +267,79 @@ async def generate_daily_review(
     except Exception:
         logger.debug("DailyReview notification skipped", exc_info=True)
     return saved
+
+
+# Module-level cache for ai_theme_role lookups (rarely changes)
+_theme_role_cache: dict[str, str] = {}
+_theme_role_cache_ts: float = 0.0
+_THEME_ROLE_CACHE_TTL: float = 300.0  # 5 minutes
+
+
+def _classify_theme_buckets(positions: list[dict], db: Any = None) -> list[dict]:
+    """Classify positions into theme buckets.
+
+    Priority:
+    1. ``pm_universe_symbols.ai_theme_role`` from DB (when populated by AI agent)
+    2. Description keyword matching (for uncategorized positions)
+    """
+    import time
+
+    # Theme → ai_theme_role values that belong to it
+    _ROLE_TO_THEME: dict[str, str] = {
+        "semiconductor": "semiconductor",
+        "semi_equipment": "semiconductor",
+        "ai_chip": "semiconductor",
+        "ai_infra": "ai",
+        "ai_platform": "ai",
+        "ai_application": "ai",
+        "cloud": "ai",
+        "china_adr": "china",
+        "china_tech": "china",
+    }
+
+    # Description keyword fallback for positions not in pm_universe_symbols
+    _DESC_KEYWORDS: dict[str, list[str]] = {
+        "semiconductor": ["semiconductor", "chip", "foundry", "wafer", "fab"],
+        "ai": ["artificial intelligence", "machine learning", "cloud computing", "data center"],
+        "china": ["china", "chinese", "hong kong", "cayman", "sp adr"],
+    }
+
+    # Load ai_theme_role from DB with caching
+    global _theme_role_cache, _theme_role_cache_ts
+    now = time.time()
+    if db is not None and (now - _theme_role_cache_ts > _THEME_ROLE_CACHE_TTL or not _theme_role_cache):
+        try:
+            rows = db.execute(
+                "SELECT symbol, ai_theme_role FROM pm_universe_symbols "
+                "WHERE ai_theme_role IS NOT NULL AND ai_theme_role != '' AND ai_theme_role != 'unknown'",
+            )
+            _theme_role_cache = {r["symbol"]: r["ai_theme_role"] for r in rows}
+            _theme_role_cache_ts = now
+        except Exception:
+            pass
+    role_map = _theme_role_cache
+
+    # Build theme → symbols mapping
+    theme_symbols: dict[str, list[str]] = {}
+    for pos in positions:
+        sym = pos.get("symbol", "")
+        norm = pos.get("normalized_symbol") or sym
+        desc = (pos.get("description") or "").lower()
+
+        # 1. Check ai_theme_role from DB
+        role = role_map.get(sym) or role_map.get(norm)
+        if role and role in _ROLE_TO_THEME:
+            theme = _ROLE_TO_THEME[role]
+            theme_symbols.setdefault(theme, []).append(sym)
+            continue
+
+        # 2. Fallback: description keyword matching
+        for theme, keywords in _DESC_KEYWORDS.items():
+            if any(kw in desc for kw in keywords):
+                theme_symbols.setdefault(theme, []).append(sym)
+                break
+
+    return [{"theme": t, "symbols": syms} for t, syms in theme_symbols.items() if syms]
 
 
 def _load_deterministic_context(db: Any, report_date: str) -> dict:
@@ -234,15 +429,17 @@ def _load_deterministic_context(db: Any, report_date: str) -> dict:
         if cost > 0:
             e["unrealized_pnl_percent"] = round((e["unrealized_pnl"] / cost) * 100, 2)
 
-    # 4. Rankings: sort by daily PnL
-    by_daily_pnl = sorted(enriched, key=lambda x: x["daily_pnl"], reverse=True)
+    # 4. Rankings: sort by daily PnL, excluding cash-like instruments
+    from app.core.symbol_constants import CASH_EQUIVALENT_SYMBOLS
+    equity_positions = [e for e in enriched if e["normalized_symbol"] not in CASH_EQUIVALENT_SYMBOLS]
+    by_daily_pnl = sorted(equity_positions, key=lambda x: x["daily_pnl"], reverse=True)
     contributors = by_daily_pnl[:5]
     drags = by_daily_pnl[-5:] if len(by_daily_pnl) > 5 else []
     drags = list(reversed(drags))
     by_weight = sorted(enriched, key=lambda x: x["weight"], reverse=True)[:5]
 
     # Contribution ratio
-    total_abs_pnl = sum(abs(e["daily_pnl"]) for e in enriched) or 1
+    total_abs_pnl = sum(abs(e["daily_pnl"]) for e in equity_positions) or 1
     for e in contributors:
         e["contribution_ratio"] = round(e["daily_pnl"] / total_abs_pnl * 100, 2)
         e["is_major_contributor"] = True
@@ -257,45 +454,59 @@ def _load_deterministic_context(db: Any, report_date: str) -> dict:
     top5_weight = sum(sorted(weights, reverse=True)[:5])
     cash_ratio = (cash / total_equity * 100) if total_equity > 0 else 0
 
-    # Theme buckets (simple classification)
-    semi_keywords = {"NVDA", "AMD", "TSM", "AVGO", "QCOM", "MU", "INTC", "MRVL", "ARM", "ASML"}
-    ai_keywords = {"NVDA", "MSFT", "GOOG", "GOOGL", "META", "AMZN", "CRM", "PLTR"}
-    china_keywords = {"BABA", "JD", "PDD", "NIO", "XPEV", "LI", "BIDU", "TME"}
-    theme_buckets = [
-        {"theme": "semiconductor", "symbols": [e["symbol"] for e in enriched if e["normalized_symbol"] in semi_keywords]},
-        {"theme": "ai", "symbols": [e["symbol"] for e in enriched if e["normalized_symbol"] in ai_keywords]},
-        {"theme": "china", "symbols": [e["symbol"] for e in enriched if e["normalized_symbol"] in china_keywords]},
-    ]
-    semi_ai_weight = sum(e["weight"] for e in enriched if e["normalized_symbol"] in semi_keywords | ai_keywords)
+    # Theme buckets — classified dynamically from DB ai_theme_role + description keywords
+    theme_buckets = _classify_theme_buckets(enriched, db)
+    semi_ai_symbols = set()
+    for bucket in theme_buckets:
+        if bucket["theme"] in ("semiconductor", "ai"):
+            semi_ai_symbols.update(bucket["symbols"])
+    semi_ai_weight = sum(e["weight"] for e in enriched if e["symbol"] in semi_ai_symbols)
+
+    # Cash-like weight (add to effective cash ratio)
+    cash_like_weight = sum(e["weight"] for e in enriched if e["normalized_symbol"] in CASH_EQUIVALENT_SYMBOLS)
+    effective_cash_ratio = round(cash_ratio + cash_like_weight, 2)
+
+    # Max position excluding cash-like instruments
+    non_cash_positions = [e for e in enriched if e["normalized_symbol"] not in CASH_EQUIVALENT_SYMBOLS]
+    max_pos_equity = non_cash_positions[0] if non_cash_positions else None
 
     risk = {
-        "max_position": max_pos,
-        "max_single_position_weight": max_pos["weight"] if max_pos else 0,
+        "max_position": max_pos_equity,
+        "max_single_position_weight": max_pos_equity["weight"] if max_pos_equity else 0,
         "top3_weight": round(top3_weight, 2),
         "top5_weight": round(top5_weight, 2),
         "theme_buckets": theme_buckets,
         "semiconductor_ai_tech_weight": round(semi_ai_weight, 2),
         "cash_ratio": round(cash_ratio, 2),
+        "cash_like_weight": round(cash_like_weight, 2),
+        "effective_cash_ratio": effective_cash_ratio,
         "risk_flags": [],
-        "account_posture": "concentrated" if (max_pos and max_pos["weight"] > 25) else "balanced",
+        "account_posture": "concentrated" if (max_pos_equity and max_pos_equity["weight"] > 25) else "balanced",
     }
-    if max_pos and max_pos["weight"] > 25:
-        risk["risk_flags"].append(f"Top position {max_pos['symbol']} at {max_pos['weight']:.1f}%")
-    if cash_ratio < 5:
-        risk["risk_flags"].append(f"Low cash buffer: {cash_ratio:.1f}%")
+    if max_pos_equity and max_pos_equity["weight"] > 25:
+        risk["risk_flags"].append(f"最大持仓 {max_pos_equity['symbol']} 占比 {max_pos_equity['weight']:.1f}%，集中度偏高")
+    if effective_cash_ratio < 5:
+        risk["risk_flags"].append(f"现金缓冲偏低: {effective_cash_ratio:.1f}%（含现金等价物），流动性不足")
+    elif cash_like_weight > 0:
+        risk["risk_flags"].append(f"现金等价物（如短债ETF）占比 {cash_like_weight:.1f}%")
 
-    # 6. Focus symbols: top contributors + drags + largest position
+    # 6. Focus symbols: top contributors + drags + largest equity position (excluding cash-like)
     focus_set: set[str] = set()
     for e in contributors[:3]:
         focus_set.add(e["symbol"])
     for e in drags[:3]:
         focus_set.add(e["symbol"])
-    if max_pos:
-        focus_set.add(max_pos["symbol"])
+    if max_pos_equity:
+        focus_set.add(max_pos_equity["symbol"])
     focus_symbols = list(focus_set)[:6]
 
     # 7. Overview
     stock_value = float(account.get("stock_value") or 0)
+    if daily_pnl is not None:
+        pnl_sign = "+" if daily_pnl >= 0 else ""
+        summary_zh = f"总权益 ${total_equity:,.0f}，当日盈亏 {pnl_sign}${daily_pnl:,.0f}（{pnl_sign}{daily_return}%）"
+    else:
+        summary_zh = f"总权益 ${total_equity:,.0f}"
     overview = {
         "report_date": report_date,
         "currency": account.get("currency", "USD"),
@@ -305,16 +516,21 @@ def _load_deterministic_context(db: Any, report_date: str) -> dict:
         "total_position_value": total_position_value,
         "cash": cash,
         "cash_ratio": round(cash_ratio, 2),
+        "effective_cash_ratio": effective_cash_ratio,
+        "cash_like_weight": round(cash_like_weight, 2),
         "position_count": len(enriched),
         "top_contributors": contributors[:3],
         "top_drags": drags[:3],
-        "summary": f"Equity ${total_equity:,.0f}, PnL ${daily_pnl:,.0f} ({daily_return}%)" if daily_pnl is not None else f"Equity ${total_equity:,.0f}",
+        "summary": summary_zh,
         "ibkr_pnl_breakdown": {
             "realized": float(account.get("fifo_total_realized_pnl") or 0),
             "unrealized": float(account.get("fifo_total_unrealized_pnl") or 0),
             "cnav_mtm": float(account.get("cnav_mtm") or 0),
         },
     }
+
+    # 8. Fetch Longbridge public context for focus symbols and benchmarks
+    longbridge_ctx = _fetch_longbridge_context(focus_symbols, report_date)
 
     return {
         "overview": overview,
@@ -326,8 +542,8 @@ def _load_deterministic_context(db: Any, report_date: str) -> dict:
         "risk": risk,
         "positions": enriched,
         "focus_symbols": focus_symbols,
-        "benchmarks": {"items": [], "beta_alpha_note": "Benchmark data not available."},
-        "symbol_public_context": {},
+        "benchmarks": longbridge_ctx.get("benchmarks", {"items": [], "beta_alpha_note": "Benchmark data not available."}),
+        "symbol_public_context": longbridge_ctx.get("symbol_public_context", {}),
         "attribution_quality": {
             "has_daily_change": any(e["daily_change_percent"] != 0 for e in enriched),
             "has_pnl_data": daily_pnl is not None,
@@ -405,12 +621,15 @@ def _normalize_output(payload: dict, report_date: str, deterministic_context: di
 
 def _build_fallback_payload(
     report_date: str, overview: dict, rankings: dict, risk: dict, focus_symbols: list[str],
+    symbol_public_context: dict | None = None, benchmarks: dict | None = None,
 ) -> dict:
     """Build fallback payload when LLM output fails validation.
 
     Uses deterministic IBKR data directly. No technical error messages
     are exposed to the user — all content reads as a normal review.
     """
+    symbol_public_context = symbol_public_context or {}
+    benchmarks = benchmarks or {}
     top_contributors = rankings.get("profit_contributors", [])[:3]
     top_drags = rankings.get("loss_drags", [])[:3]
     contributor_symbols = "、".join(item.get("symbol", "") for item in top_contributors if item.get("symbol")) or "暂无"
@@ -536,6 +755,39 @@ def _build_fallback_payload(
     risk_flags = risk.get("risk_flags", [])
     risk_summary = "；".join(risk_flags) if risk_flags else "当前没有明显集中度警报"
 
+    # Build market context from Longbridge benchmark data
+    benchmark_items = benchmarks.get("items", [])
+    if benchmark_items:
+        bm_lines = []
+        for bm in benchmark_items:
+            ret = bm.get("day_return_percent", 0)
+            ret_sign = "+" if ret >= 0 else ""
+            bm_lines.append(f"{bm['symbol']} {ret_sign}{ret}%")
+        market_context = f"基准指数：{'、'.join(bm_lines)}"
+    else:
+        market_context = "基准指数数据暂不可用"
+
+    # Build news summaries for focus symbols from Longbridge
+    def _build_focus_with_news(symbol: str) -> dict:
+        base = _build_focus_analysis(symbol)
+        # Add news from Longbridge
+        norm = symbol.split(".")[0] if "." in symbol else symbol
+        pub_ctx = symbol_public_context.get(norm, symbol_public_context.get(symbol, {}))
+        news_items = pub_ctx.get("news", [])
+        if news_items:
+            news_titles = [n.get("title", "") for n in news_items[:3] if n.get("title")]
+            if news_titles:
+                base["possible_reasons"] = news_titles
+                base["data_limitations"] = []
+        return base
+
+    # Evidence used
+    evidence_used = ["IBKR 账户和持仓归因数据"]
+    if benchmark_items:
+        evidence_used.append(f"Longbridge 基准指数（{len(benchmark_items)} 个）")
+    if symbol_public_context:
+        evidence_used.append(f"Longbridge 新闻（{len(symbol_public_context)} 个标的）")
+
     return {
         "report_date": report_date,
         "summary": f"{pnl_line}。{equity_line}。",
@@ -543,14 +795,113 @@ def _build_fallback_payload(
         "attribution_summary": f"贡献者：{contributor_symbols}。拖累者：{drag_symbols}。",
         "major_contributors_analysis": [_build_position_analysis(item) for item in top_contributors[:5]],
         "major_drags_analysis": [_build_position_analysis(item, is_drag=True) for item in top_drags[:5]],
-        "focus_symbol_analyses": [_build_focus_analysis(symbol) for symbol in focus_symbols[:5]],
-        "market_context": "",
+        "focus_symbol_analyses": [_build_focus_with_news(symbol) for symbol in focus_symbols[:5]],
+        "market_context": market_context,
         "risk_analysis": risk_summary,
         "tomorrow_watchlist": [_build_watchlist_item(symbol) for symbol in focus_symbols[:5]],
         "operation_observation": "以上为确定性数据分析，不构成投资建议。",
         "data_limitations": ["LLM 分析暂不可用，本次使用确定性数据生成"],
-        "evidence_used": ["IBKR 账户和持仓归因数据"],
+        "evidence_used": evidence_used,
     }
+
+
+def _generate_review_markdown(document: dict) -> str:
+    """Generate unified Markdown content for daily review.
+
+    This content is used for both web admin display and push notification.
+    """
+    lines = []
+
+    # 1. Header with date
+    report_date = document.get("report_date", "")
+    lines.append(f"# 📊 每日复盘 | {report_date}")
+    lines.append("")
+
+    # 2. Summary
+    summary = document.get("summary", "")
+    if summary:
+        lines.append(f"**{summary}**")
+        lines.append("")
+
+    # 3. Market context
+    market = document.get("market_context", "")
+    if market and "暂不可用" not in market:
+        lines.append(f"## 📈 市场概况")
+        lines.append(market)
+        lines.append("")
+
+    # 4. Major contributors
+    contributors = document.get("major_contributors_analysis", [])
+    if contributors:
+        lines.append("## ✅ 主要贡献")
+        for item in contributors[:5]:
+            sym = item.get("symbol", "")
+            analysis = item.get("analysis", "")
+            if sym:
+                lines.append(f"- **{sym}**: {analysis[:120]}")
+        lines.append("")
+
+    # 5. Major drags
+    drags = document.get("major_drags_analysis", [])
+    if drags:
+        lines.append("## ❌ 主要拖累")
+        for item in drags[:5]:
+            sym = item.get("symbol", "")
+            analysis = item.get("analysis", "")
+            if sym:
+                lines.append(f"- **{sym}**: {analysis[:120]}")
+        lines.append("")
+
+    # 6. Focus symbol analyses with news
+    focus = document.get("focus_symbol_analyses", [])
+    if focus:
+        lines.append("## 🔍 重点标的")
+        for fs in focus[:5]:
+            symbol = fs.get("symbol", "")
+            price = fs.get("price_action", "")
+            impact = fs.get("account_impact", "")
+            reasons = fs.get("possible_reasons", [])
+            valuation = fs.get("valuation_note", "")
+
+            lines.append(f"### {symbol}")
+            if price:
+                lines.append(f"- 价格: {price}")
+            if impact:
+                lines.append(f"- 账户影响: {impact[:100]}")
+            if reasons:
+                lines.append(f"- 动态: {'; '.join(r[:60] for r in reasons[:2])}")
+            if valuation:
+                lines.append(f"- 估值: {valuation[:100]}")
+        lines.append("")
+
+    # 7. Risk analysis
+    risk = document.get("risk_analysis", "")
+    if risk and "没有明显" not in risk and "当前没有明显" not in risk and len(risk) > 5:
+        lines.append("## ⚠️ 风险提醒")
+        lines.append(risk)
+        lines.append("")
+
+    # 8. Tomorrow watchlist
+    watchlist = document.get("tomorrow_watchlist", [])
+    if watchlist:
+        lines.append("## 👁 明日关注")
+        for item in watchlist[:5]:
+            sym = item.get("symbol", "")
+            reason = item.get("reason", "")
+            if sym and reason:
+                lines.append(f"- **{sym}**: {reason[:80]}")
+        lines.append("")
+
+    # 9. Operation observation
+    operation = document.get("operation_observation", "")
+    if operation:
+        lines.append(f"*{operation}*")
+        lines.append("")
+
+    lines.append("---")
+    lines.append("_以上为自动生成的复盘分析，不构成投资建议_")
+
+    return "\n".join(lines)
 
 
 def _save_review(db: Any, document: dict) -> dict:
@@ -559,14 +910,25 @@ def _save_review(db: Any, document: dict) -> dict:
     from uuid import uuid4
     review_id = document.get("id") or str(uuid4())
     review_output_zh = document.get("review_output_zh", {})
+
+    # Generate unified Markdown content from Chinese translation if available
+    if review_output_zh:
+        # Merge Chinese translation with original document for markdown generation
+        markdown_doc = {**document, **review_output_zh}
+    else:
+        markdown_doc = document
+    review_markdown = _generate_review_markdown(markdown_doc)
+
     db.upsert("daily_position_reviews", {
         "id": review_id,
         "report_date": document.get("report_date", ""),
         "review_output": json.dumps(document, ensure_ascii=False, default=str),
         "review_output_zh": json.dumps(review_output_zh, ensure_ascii=False, default=str) if review_output_zh else None,
+        "review_markdown": review_markdown,
         "metadata": json.dumps(document.get("metadata", {}), ensure_ascii=False, default=str),
         "evidence_summary": json.dumps(document.get("evidence_summary", {}), ensure_ascii=False, default=str),
         "run_trace": json.dumps(document.get("run_trace", []), ensure_ascii=False, default=str),
     }, conflict_cols=["id"])
     document["id"] = review_id
+    document["review_markdown"] = review_markdown
     return document

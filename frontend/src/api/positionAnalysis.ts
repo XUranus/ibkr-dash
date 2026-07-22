@@ -4,7 +4,7 @@ export interface PositionAnalysisResult {
   id: string
   report_date: string
   lang: string
-  report: string
+  report: string | Record<string, unknown>
   created_at: string
 }
 
