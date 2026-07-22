@@ -265,7 +265,7 @@ export default function DailyPositionReviewView() {
   // Render review content
   const renderReviewContent = (review: DailyPositionReviewResult): React.ReactNode => {
     // Use unified markdown content if available
-    const markdownContent = (review as Record<string, unknown>).review_markdown as string | undefined
+    const markdownContent = review.review_markdown
 
     if (markdownContent) {
       return (

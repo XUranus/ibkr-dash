@@ -103,6 +103,8 @@ export interface DailyPositionReviewResult {
   metadata: Record<string, unknown>
   evidence_summary: Record<string, unknown>
   run_trace_summary: Record<string, unknown>
+  review_markdown?: string
+  review_output_zh?: string
   created_at: string
   updated_at: string
 }

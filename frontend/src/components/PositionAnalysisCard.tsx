@@ -94,7 +94,7 @@ function ScoreBar({ score, maxScore }: { score: number; maxScore: number }) {
 }
 
 /** Structured view for JSON format */
-function StructuredView({ parsed, lang }: { parsed: ParsedAnalysis; lang: string }) {
+function StructuredView({ parsed, lang }: { parsed: ParsedAnalysis; lang: 'zh' | 'en' }) {
   const ratingInfo = RATING_LABELS[parsed.rating] ?? RATING_LABELS.fair
   const adviceInfo = ACTION_LABELS[parsed.position_advice?.action] ?? ACTION_LABELS.hold
 
